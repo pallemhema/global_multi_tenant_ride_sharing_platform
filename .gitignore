@@ -1,0 +1,16 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+.env
+
+# FastAPI
+*.log
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+
+# OS
+.DS_Store
