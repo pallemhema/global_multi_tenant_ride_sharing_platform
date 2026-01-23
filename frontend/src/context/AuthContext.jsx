@@ -1,56 +1,49 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-
-import { tokenStorage } from '../services/toeknStorage';
+import { createContext, useContext, useEffect, useState } from "react";
+import { jwtDecode } from "jwt-decode";
+import { tokenStorage } from "../utils/toeknStorage";
+import { isTokenExpired } from "../utils/jwt";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
 
-  // On app load, restore auth from storage
+  
   useEffect(() => {
     const storedToken = tokenStorage.get();
-    if (storedToken) {
-      setToken(storedToken);
-      setIsAuthenticated(true);
+
+    if (!storedToken) return;
+
+    if (isTokenExpired(storedToken)) {
+      tokenStorage.clear();
+      setToken(null);
+      setUser(null);
+      return;
     }
-    setLoading(false);
+
+    setToken(storedToken);
+    setUser(jwtDecode(storedToken));
   }, []);
 
-  const login = (accessToken) => {
-    tokenStorage.set(accessToken);
-    setToken(accessToken);
-    setIsAuthenticated(true);
+  const login = (jwt) => {
+    tokenStorage.set(jwt);
+    setToken(jwt);
+    setUser(jwtDecode(jwt));
   };
 
   const logout = () => {
     tokenStorage.clear();
     setToken(null);
-    setIsAuthenticated(false);
+    setUser(null);
   };
+ 
 
   return (
-    <AuthContext.Provider
-      value={{
-        token,
-        isAuthenticated,
-        login,
-        logout,
-        loading,
-      }}
-    >
+    <AuthContext.Provider value={{ token, user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook (cleaner usage)
-export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used inside AuthProvider');
-  }
-  return ctx;
-};
+export const useAuth = () => useContext(AuthContext);

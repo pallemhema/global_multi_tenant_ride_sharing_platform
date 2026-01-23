@@ -1,12 +1,12 @@
 
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import BigInteger, String, Boolean, TIMESTAMP, Column, ForeignKey, Text
+from sqlalchemy import BigInteger, String, Boolean, TIMESTAMP, Column, ForeignKey, Text,func
+from datetime import datetime
 from app.core.database import Base
-from app.models.mixins import TimestampMixin, AuditMixin
 
 
-class User(Base, TimestampMixin
-           ):
+
+class User(Base):
     __tablename__ = "users"
 
     user_id: Mapped[int] = mapped_column(
@@ -20,15 +20,20 @@ class User(Base, TimestampMixin
 
     phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
 
-        # Global role
-    user_role = Column(
-        Text,
-        ForeignKey("lu_user_roles.role_code", ondelete="RESTRICT"),
-        nullable=False,
-        default="customer"
-    )
-
+    
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_login_utc: Mapped[TIMESTAMP | None] = mapped_column(
         TIMESTAMP(timezone=True)
     )
+
+    created_at_utc: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    updated_at_utc: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        onupdate=func.now(),
+    )
+

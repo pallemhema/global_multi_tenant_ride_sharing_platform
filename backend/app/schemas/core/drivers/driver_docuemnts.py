@@ -21,6 +21,7 @@ class DriverDocumentOut(BaseModel):
     document_url: str
     expiry_date: date | None
 
+    vehicle_category:str
     verification_status: str
     verified_by: int | None
     verified_at_utc: datetime | None

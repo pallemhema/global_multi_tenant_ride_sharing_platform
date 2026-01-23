@@ -1732,9 +1732,9 @@ CREATE TABLE fleet_owner_cities (
 );
 
 drop table fleet_owner_cities;
-select * from countries;
+select * from users;
 
-select * from drivers;
+select * from lu_trip_status;
 alter table tenant_countries drop column tax_percentage;
 insert into tenant_countries(tenant_id, country_id) values(1,1);
 delete from tenant_countries where country_id=1;
@@ -1753,4 +1753,36 @@ VALUES (
   now(),
   true
 );
+INSERT INTO lu_trip_status (status_code, description) VALUES
+('dispatching', 'Trip being dispatched to drivers');
+
+select * from trip_dispatch_rounds;
+select * from trip_dispatch_candidates;
+
+select * from trip_status_history;
+select * from trips;
+select * from trip_driver_assignment;
+
+
+ALTER TABLE trips
+ADD COLUMN distance_km NUMERIC(8,2),
+ADD COLUMN duration_minutes INT;
+CREATE TABLE trip_fares (
+  trip_id           BIGINT PRIMARY KEY REFERENCES trips(trip_id),
+
+  base_fare         NUMERIC(10,2),
+  distance_fare     NUMERIC(10,2),
+  time_fare         NUMERIC(10,2),
+  surge_multiplier  NUMERIC(4,2),
+
+  subtotal          NUMERIC(10,2),
+  tax_amount        NUMERIC(10,2),
+  discount_amount  NUMERIC(10,2),
+
+  final_fare        NUMERIC(10,2),
+
+  calculated_at_utc TIMESTAMPTZ DEFAULT now()
+);
+
+select * from users;
 

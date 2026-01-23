@@ -1,23 +1,18 @@
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Navigate } from "react-router-dom";
+import {useAuth} from '../context/AuthContext'
 
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+const ProtectedRoutes = ({ allow, children }) => {
+  const { user } = useAuth();
 
-  // While restoring auth from storage
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <span className="text-slate-500 font-medium">Checking authentication…</span>
-      </div>
-    );
+  if (!user) {
+    return <Navigate to="/login" replace />;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (!allow.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
   }
 
   return children;
 };
 
-export default ProtectedRoute;
+export default ProtectedRoutes;

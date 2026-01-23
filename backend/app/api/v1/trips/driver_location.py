@@ -10,6 +10,8 @@ from app.schemas.core.drivers.driver_location import DriverLocationUpdate
 from app.models.core.drivers.driver_shifts import DriverShift
 from app.models.core.drivers.driver_vehicle_assignments import DriverVehicleAssignment
 from app.core.redis import redis_client
+from app.models.core.drivers.driver_current_status import DriverCurrentStatus
+
 
 router = APIRouter(
     prefix="/driver",
@@ -17,15 +19,16 @@ router = APIRouter(
 )
 
 @router.post("/location")
+
 def update_driver_location(
     payload: DriverLocationUpdate,
-    db: Session = Depends(get_db),              # ✅ DB session
-    driver=Depends(require_driver),             # ✅ Driver identity
+    db: Session = Depends(get_db),
+    driver=Depends(require_driver),
 ):
     now = datetime.now(timezone.utc)
 
-    # 1️⃣ Must have active shift
-    active_shift = (
+    # 1️⃣ Online shift required
+    shift = (
         db.query(DriverShift)
         .filter(
             DriverShift.driver_id == driver.driver_id,
@@ -33,10 +36,10 @@ def update_driver_location(
         )
         .first()
     )
-    if not active_shift:
+    if not shift:
         raise HTTPException(400, "Driver is not online")
 
-    # 2️⃣ Must have active vehicle assignment
+    # 2️⃣ Active vehicle required
     assignment = (
         db.query(DriverVehicleAssignment)
         .filter(
@@ -49,32 +52,40 @@ def update_driver_location(
         raise HTTPException(400, "No vehicle assigned")
 
     tenant_id = driver.tenant_id
-    city_id = active_shift.city_id
+    city_id = shift.city_id
 
-    # 3️⃣ Redis GEO key (tenant + city scoped)
+    # 3️⃣ Update GEO location
     geo_key = f"drivers:geo:{tenant_id}:{city_id}"
-
-    # 4️⃣ Store location in Redis GEO
-    redis_client.execute_command(
-        "GEOADD",
+    redis_client.geoadd(
         geo_key,
         payload.longitude,
         payload.latitude,
         str(driver.driver_id),
     )
 
-
-    # 5️⃣ Heartbeat & runtime metadata (Redis = real-time)
+    # 4️⃣ Heartbeat
     redis_client.setex(
         f"driver:last_seen:{driver.driver_id}",
         60,
         now.isoformat(),
     )
 
+    # 5️⃣ Runtime status (DB → Redis)
+    runtime = (
+        db.query(DriverCurrentStatus)
+        .filter(
+            DriverCurrentStatus.driver_id == driver.driver_id,
+            DriverCurrentStatus.tenant_id == tenant_id,
+        )
+        .first()
+    )
+
+    status = runtime.runtime_status if runtime else "available"
+
     redis_client.setex(
         f"driver:runtime:{driver.driver_id}",
         60,
-        "available",
+        status,
     )
 
     return {

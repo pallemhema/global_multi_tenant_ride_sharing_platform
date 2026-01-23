@@ -4,14 +4,13 @@ from datetime import datetime, timezone
 
 from app.core.dependencies import get_db
 from app.core.security.jwt import verify_access_token
-from app.core.security.roles import require_tenant_admin
+
 from app.models.core.tenants.tenants import Tenant
 from app.models.core.fleet_owners.fleet_owners import FleetOwner
 from app.models.core.drivers.drivers import Driver
 from app.models.core.tenants.tenant_staff import TenantStaff
 
 router = APIRouter(
-    prefix="/fleet-owner",
     tags=["Fleet Owner – Onboarding"],
 )
 

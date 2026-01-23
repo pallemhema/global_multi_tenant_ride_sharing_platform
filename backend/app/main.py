@@ -8,6 +8,11 @@ from contextlib import asynccontextmanager
 
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.staticfiles import StaticFiles
+
+
+
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -41,6 +46,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount(
+    "/uploads",
+    StaticFiles(directory="app/uploads"),
+    name="uploads",
+)
 
 
 # Mount all v1 APIs

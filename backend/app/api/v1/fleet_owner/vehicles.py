@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db
-from app.core.security.roles import require_fleet_owner_active
+from app.core.security.roles import require_fleet_owner
 from app.models.core.vehicles.vehicles import Vehicle
 from app.schemas.core.vehicles.vehicles import VehicleCreate, VehicleOut
 
 router = APIRouter(
-    prefix="/fleet-owner/vehicles",
+    prefix="/vehicles",
     tags=["Fleet Owner – Vehicles"],
 )
 @router.post(
@@ -17,7 +17,7 @@ router = APIRouter(
 def add_vehicle(
     payload: VehicleCreate,
     db: Session = Depends(get_db),
-    fleet = Depends(require_fleet_owner_active),
+    fleet = Depends(require_fleet_owner),
 ):
     print(fleet.fleet_owner_id)
     vehicle = Vehicle(
@@ -44,7 +44,7 @@ def add_vehicle(
 )
 def list_vehicles(
     db: Session = Depends(get_db),
-    fleet = Depends(require_fleet_owner_active),
+    fleet = Depends(require_fleet_owner),
 ):
     return (
         db.query(Vehicle)

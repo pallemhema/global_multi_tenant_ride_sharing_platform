@@ -1,3 +1,5 @@
+# app/api/v1/driver/trips_start.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
@@ -26,6 +28,9 @@ def start_trip(
 ):
     now = datetime.now(timezone.utc)
 
+    # ------------------------------------------------
+    # 1️⃣ Validate trip ownership & state
+    # ------------------------------------------------
     trip = (
         db.query(Trip)
         .filter(
@@ -37,17 +42,17 @@ def start_trip(
     )
 
     if not trip:
-        raise HTTPException(404, "Trip not found")
-    
-    if trip.picked_up_at_utc is not None:
-        raise HTTPException(400, "Trip already started")
+        raise HTTPException(404, "Trip not eligible for start")
 
-
-    # Verify OTP
+    # ------------------------------------------------
+    # 2️⃣ Verify OTP (Redis)
+    # ------------------------------------------------
     if not verify_trip_otp(trip_id, payload.otp):
         raise HTTPException(400, "Invalid or expired OTP")
 
-    # Start trip
+    # ------------------------------------------------
+    # 3️⃣ Start trip
+    # ------------------------------------------------
     trip.trip_status = "picked_up"
     trip.picked_up_at_utc = now
 
@@ -65,6 +70,7 @@ def start_trip(
     db.commit()
 
     return {
-        "status": "trip started",
+        "status": "trip_started",
         "trip_id": trip.trip_id,
+        "started_at": now,
     }

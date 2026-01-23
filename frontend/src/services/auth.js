@@ -1,4 +1,4 @@
-import http from "./http";
+import http from "./axios";
 
 export const authService = {
   async requestOtp(phone_e164) {

@@ -9,7 +9,7 @@ from app.models.core.tenants.tenant_documents import TenantDocument
 from app.models.core.tenants.tenant_staff import TenantStaff
 from app.schemas.core.tenants.tenant_staff import TenantStaffOut,TenantStaffCreate
 
-from app.models.lookups.tenant_document_types import TenantDocumentType
+from app.models.lookups.tenant_Fleet_document_types import TenantFleetDocumentType
 
 router = APIRouter(
     prefix="/platform",
@@ -55,8 +55,8 @@ def approve_tenant(
 
     # 1️⃣ Get mandatory document types
     mandatory_docs = (
-        db.query(TenantDocumentType.document_code)
-        .filter(TenantDocumentType.is_mandatory.is_(True))
+        db.query(TenantFleetDocumentType.document_code)
+        .filter(TenantFleetDocumentType.is_mandatory.is_(True))
         .all()
     )
     mandatory_codes = {d.document_code for d in mandatory_docs}
@@ -110,7 +110,7 @@ def list_tenant_documents(
         .all()
     )
 
-@router.post("/tenants/{tenant_id}/documents/{doc_id}/verify")
+
 @router.post("/tenants/{tenant_id}/documents/{doc_id}/verify")
 def verify_tenant_document(
     tenant_id: int,

@@ -2,20 +2,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db
-from app.core.security.roles import require_fleet_owner_active
+from app.core.security.roles import require_fleet_owner
 from app.schemas.core.drivers.driver_invites import DriverInviteCreate
 from app.models.core.drivers.driver_invites import DriverInvite
 from app.models.core.drivers.drivers import Driver
 from app.schemas.core.drivers.driver_invites import DriverListOut
 router = APIRouter(
-    prefix="/fleet-owner",
     tags=["Fleet Owner – invites"],
 )
 @router.post("/drivers/invite")
 def invite_driver(
     payload: DriverInviteCreate,
     db: Session = Depends(get_db),
-    fleet_owner=Depends(require_fleet_owner_active),
+    fleet_owner=Depends(require_fleet_owner),
 ):
     # Prevent duplicate active invite
     existing = (
@@ -49,7 +48,7 @@ def invite_driver(
 @router.get("/drivers", response_model=list[DriverListOut])
 def list_drivers_for_fleet_owner(
     db: Session = Depends(get_db),
-    fleet_owner=Depends(require_fleet_owner_active),
+    fleet_owner=Depends(require_fleet_owner),
 ):
     drivers = (
         db.query(Driver)

@@ -4,20 +4,19 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from app.core.dependencies import get_db
-from app.core.security.roles import require_fleet_owner_active,require_fleet_owner_any_status
+from app.core.security.roles import require_fleet_owner
 from app.schemas.core.fleet_owners.fleet_owner_cities import FleetOwnerCityCreate
 from app.models.core.tenants.tenant_cities import TenantCity
 from app.models.core.fleet_owners.fleet_owner_cities import FleetOwnerCity
 
 router = APIRouter(
-    prefix="/fleet-owner",
     tags=["Fleet Owner - cities"],
 )
 
 @router.get("/tenant-cities")
 def list_available_tenant_cities(
     db: Session = Depends(get_db),
-    fleet_owner=Depends(require_fleet_owner_active),
+    fleet_owner=Depends(require_fleet_owner),
 ):
     return (
         db.query(TenantCity)
@@ -32,7 +31,7 @@ def list_available_tenant_cities(
 def add_fleet_owner_city(
     payload: FleetOwnerCityCreate,
     db: Session = Depends(get_db),
-    fleet_owner=Depends(require_fleet_owner_active),
+    fleet_owner=Depends(require_fleet_owner),
 ):
     # City must exist for tenant
     tenant_city = (
@@ -80,7 +79,7 @@ def add_fleet_owner_city(
 @router.get("/cities")
 def list_fleet_owner_cities(
     db: Session = Depends(get_db),
-    fleet_owner=Depends(require_fleet_owner_active),
+    fleet_owner=Depends(require_fleet_owner),
 ):
     return (
         db.query(FleetOwnerCity)

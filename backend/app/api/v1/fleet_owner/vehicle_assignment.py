@@ -3,13 +3,12 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app.core.dependencies import get_db
-from app.core.security.roles import require_fleet_owner_active
+from app.core.security.roles import require_fleet_owner
 from app.models.core.drivers.driver_invites import DriverInvite
 from app.models.core.drivers.driver_vehicle_assignments import DriverVehicleAssignment
 from app.models.core.vehicles.vehicles import Vehicle
 
 router = APIRouter(
-    prefix="/fleet-owner",
     tags=["Fleet Owner – Vehicle Assignment"],
 )
 
@@ -17,9 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.core.dependencies import get_db
-from app.core.security.roles import require_fleet_owner_active
-from app.models.core.drivers.driver_invites import DriverInvite
+
 from app.models.core.drivers.driver_vehicle_assignments import DriverVehicleAssignment
 from app.models.core.vehicles.vehicles import Vehicle
 from app.schemas.core.drivers.driver_vehicle_assigment import DriverVehicleAssignmentCreate
@@ -34,7 +31,7 @@ router = APIRouter(
 def assign_vehicle_to_driver(
     payload:DriverVehicleAssignmentCreate,
     db: Session = Depends(get_db),
-    fleet_owner=Depends(require_fleet_owner_active),
+    fleet_owner=Depends(require_fleet_owner),
 ):
     # 1️⃣ Driver must have accepted invite
     invite = (
@@ -101,7 +98,7 @@ def assign_vehicle_to_driver(
 def return_vehicle_from_driver(
     driver_id: int,
     db: Session = Depends(get_db),
-    fleet_owner=Depends(require_fleet_owner_active),
+    fleet_owner=Depends(require_fleet_owner),
 ):
     assignment = (
         db.query(DriverVehicleAssignment)

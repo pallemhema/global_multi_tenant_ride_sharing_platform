@@ -14,13 +14,12 @@ from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 from app.models.core.drivers.driver_vehicle_assignments import DriverVehicleAssignment
 
 from app.schemas.core.trips.trip_driver_response import DriverTripResponse
+from .dispatch_rounds import is_round_exhausted,trigger_next_dispatch_round
 
 router = APIRouter(
     prefix="/driver/trips",
     tags=["Driver – Trips"],
 )
-
-
 @router.post("/{trip_id}/respond")
 def respond_to_trip(
     trip_id: int,
@@ -30,16 +29,20 @@ def respond_to_trip(
 ):
     now = datetime.now(timezone.utc)
 
-    # 1️⃣ Fetch trip
-    trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
-    
+    # ------------------------------------------------------------
+    # 1️⃣ Lock trip row (prevents race conditions)
+    # ------------------------------------------------------------
+    trip = (
+        db.execute(
+            select(Trip)
+            .where(Trip.trip_id == trip_id)
+            .with_for_update()
+        )
+        .scalar_one_or_none()
+    )
 
     if not trip or trip.trip_status != "dispatching":
         raise HTTPException(404, "Trip not available")
-    if trip.trip_status != "dispatching":
-        raise HTTPException(409, "Trip already assigned")
-
-    # 2️⃣ Fetch dispatch candidate
     candidate = (
         db.query(TripDispatchCandidate)
         .filter(
@@ -52,18 +55,37 @@ def respond_to_trip(
     if not candidate:
         raise HTTPException(403, "Not authorized for this trip")
 
-    if candidate.response_code:
+    if candidate.response_code is not None:
         raise HTTPException(400, "Already responded")
-
-    # 3️⃣ Handle rejection
     if payload.response == "rejected":
         candidate.response_code = "rejected"
         candidate.response_at_utc = now
-        db.commit()
-        return {"status": "rejected"}
 
-    # 4️⃣ ACCEPT FLOW
-    # Check vehicle assignment
+        # 🔥 NEW LOGIC
+    round_id = candidate.round_id
+
+    if is_round_exhausted(db, round_id):
+        trigger_next_dispatch_round(db, trip_id)
+
+   
+        db.commit()
+
+        return {
+            "status": "rejected",
+            "trip_id": trip.trip_id,
+        }
+    runtime_status = (
+        db.query(DriverCurrentStatus)
+        .filter(
+            DriverCurrentStatus.tenant_id == trip.tenant_id,
+            DriverCurrentStatus.driver_id == driver.driver_id,
+            DriverCurrentStatus.runtime_status == "available",
+        )
+        .first()
+    )
+
+    if not runtime_status:
+        raise HTTPException(409, "Driver not available")
     assignment = (
         db.query(DriverVehicleAssignment)
         .filter(
@@ -75,25 +97,21 @@ def respond_to_trip(
 
     if not assignment:
         raise HTTPException(400, "No active vehicle assigned")
-
-    # Update dispatch candidate
     candidate.response_code = "accepted"
     candidate.response_at_utc = now
 
-    # Assign trip
     trip.driver_id = driver.driver_id
     trip.vehicle_id = assignment.vehicle_id
     trip.trip_status = "assigned"
     trip.assigned_at_utc = now
-
     db.query(TripDispatchCandidate).filter(
         TripDispatchCandidate.trip_id == trip_id,
         TripDispatchCandidate.driver_id != driver.driver_id,
-        TripDispatchCandidate.response_code.is_(None),  
-        ).update(
-        {"response_code": "timeout"}
+        TripDispatchCandidate.response_code.is_(None),
+    ).update(
+        {"response_code": "timeout"},
+        synchronize_session=False,
     )
-
     db.add(
         TripDriverAssignment(
             tenant_id=trip.tenant_id,
@@ -104,22 +122,10 @@ def respond_to_trip(
             created_by=driver.user_id,
         )
     )
-
-    # Generate OTP
     otp = generate_trip_otp()
     store_trip_otp(trip.trip_id, otp)
-
-    # Driver runtime status
-    db.query(DriverCurrentStatus).filter(
-        DriverCurrentStatus.driver_id == driver.driver_id
-    ).update(
-        {
-            "runtime_status": "on_trip",
-            "last_updated_utc": now,
-        }
-    )
-
-    # Status history
+    runtime_status.runtime_status = "on_trip"
+    runtime_status.last_updated_utc = now
     db.add(
         TripStatusHistory(
             tenant_id=trip.tenant_id,
@@ -130,7 +136,6 @@ def respond_to_trip(
             changed_by=driver.user_id,
         )
     )
-
     db.commit()
 
     return {
