@@ -28,11 +28,15 @@ from app.models.lookups.payment_status import PaymentStatus
 from app.models.lookups.country import Country
 from app.models.lookups.city import City
 from app.models.lookups.tenant_Fleet_document_types import TenantFleetDocumentType
-
+from app.models.lookups.vehicle_category import VehicleCategory
+from app.models.lookups.driver_document_type import DriverDocumentType
+from app.models.lookups.vehicle_document_type import VehicleDocumentType
+from app.models.lookups.driver_runtime_status import DriverRuntimeStatus
 from app.schemas.lookups.country import CountryOut
 from app.schemas.lookups.city import CityOut
 from app.schemas.lookups.common import LookupBase
 from app.schemas.lookups.tenant_documnet_types import TenantDocumentTypeOut
+
 
 from typing import List
 
@@ -67,5 +71,31 @@ def get_cities(country_id: int | None = None, db: Session = Depends(get_db)):
 def get_tenant_document_types(db: Session = Depends(get_db)):
     return (
         db.query(TenantFleetDocumentType)
+        .all()
+    )
+
+@router.get(
+    "/vehicle-categories"
+)
+def get_vehicle_categories(db: Session = Depends(get_db)):
+    return (
+        db.query(VehicleCategory)
+        .all()
+    )
+@router.get(
+    "/driver-document-types"
+)
+def get_vehicle_categories(db: Session = Depends(get_db)):
+    return (
+        db.query(DriverDocumentType)
+        .all()
+    )
+
+@router.get(
+    "/vehicle-document-types"
+)
+def get_vehicle_documents_type(db: Session = Depends(get_db)):
+    return (
+        db.query(VehicleDocumentType)
         .all()
     )

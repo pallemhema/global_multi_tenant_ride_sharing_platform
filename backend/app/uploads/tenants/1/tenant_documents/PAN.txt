@@ -1,0 +1,41 @@
+To call POST api/v1/cart/Quote, your request body must match the CartModel constructor and its dependencies. Required fields (from CartModel.mts):
+
+userId (string)
+items (array of OrderItem objects)
+providerDetails (array of CartItemProvider objects)
+distance (number)
+recipient (DeliveryRecipient object)
+errors (array, can be empty)
+bff (Quote object)
+pg (object: { name, charge, payId? })
+totalPrice (number)
+bill (CustomerBill object)
+deliveryPlans (array of DeliveryPlan)
+selectedPlan (DeliveryPlan, optional)
+showPlans (object: { isVisible, off, inRange, underMinValue })
+sQuote (any, optional)
+hasOrders, hasTanPlan (optional, 'YES' | 'NO')
+Minimal valid request (with placeholders):
+
+{
+  "userId": "string",
+  "items": [ /* OrderItem objects */ ],
+  "providerDetails": [ /* CartItemProvider objects */ ],
+  "distance": 0,
+  "recipient": { /* DeliveryRecipient object */ },
+  "errors": [],
+  "bff": { /* Quote object */ },
+  "pg": { "name": "RAZORPAY", "charge": {/* Quote object */} },
+  "totalPrice": 0,
+  "bill": { /* CustomerBill object */ },
+  "deliveryPlans": [],
+  "showPlans": { "isVisible": false, "off": "0", "inRange": false, "underMinValue": false }
+}
+
+Copy
+
+Insert
+
+All nested objects (OrderItem, DeliveryRecipient, Quote, CustomerBill, DeliveryPlan) must be structured as expected by their respective models.
+
+GPT-4

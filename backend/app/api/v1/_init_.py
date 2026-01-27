@@ -33,13 +33,15 @@ from app.models.core.tenants.tenant_staff import TenantStaff
 
 #Routers
 from app.api.v1.lookups import router as lookups_router
-#from app.api.v1.users.users import router as users_router
-from app.api.v1.auth.auth import router as auth_router
+from app.api.v1.auth.adminAuth import router as admin_auth_router
+from app.api.v1.auth.userAuth import router as user_auth_router
 from app.api.v1.platform.admin import router as app_admin_router
 from app.api.v1.tenants.router import router as tenant_router
 from app.api.v1.fleet_owner.router import router as fleet_owner_router
+from app.api.v1.vehicles.router import router as vehicle_router
+
 from app.api.v1.drivers.router import router as driver_router
-from app.api.v1.trips.router import router as trip_router
+# from app.api.v1.trips.router import router as trip_router
 from app.api.v1.public.tentants import router as public_router
 from fastapi import APIRouter
 
@@ -47,10 +49,14 @@ api_router = APIRouter()
 
 api_router.include_router(lookups_router)
 api_router.include_router(public_router)
-api_router.include_router(auth_router)
+api_router.include_router(user_auth_router)
+api_router.include_router(admin_auth_router)
+
 api_router.include_router(app_admin_router)
 api_router.include_router(tenant_router)
 api_router.include_router(fleet_owner_router)
+
 api_router.include_router(driver_router)
-api_router.include_router(trip_router)
+api_router.include_router(vehicle_router)
+# api_router.include_router(trip_router)
 

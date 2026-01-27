@@ -1,9 +1,12 @@
 from sqlalchemy import (
-    BigInteger, String, TIMESTAMP, ForeignKey
+    BigInteger, String, TIMESTAMP, ForeignKey,Date
 )
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.core.database import Base
 from app.models.mixins import TimestampMixin, AuditMixin
+from datetime import date, datetime
+
 
 
 class TenantDocument(Base, TimestampMixin, AuditMixin):
@@ -29,6 +32,8 @@ class TenantDocument(Base, TimestampMixin, AuditMixin):
 
     document_number = mapped_column(String)
     document_url: Mapped[str] = mapped_column(String, nullable=False)
+    expiry_date: Mapped[date | None] = mapped_column(Date)  # ✅ ADD THIS
+
 
     verification_status: Mapped[str] = mapped_column(
         String,

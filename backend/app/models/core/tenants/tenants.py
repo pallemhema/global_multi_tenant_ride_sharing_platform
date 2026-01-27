@@ -12,8 +12,11 @@ class Tenant(Base, TimestampMixin, AuditMixin):
     )
 
     tenant_name: Mapped[str] = mapped_column(String, nullable=False)
-    legal_name: Mapped[str] = mapped_column(String, nullable=False)
+    legal_name: Mapped[str | None] = mapped_column(String, nullable=True)
     business_email: Mapped[str] = mapped_column(String, nullable=False)
+    city: Mapped[str | None] = mapped_column(String, nullable=True)
+    country: Mapped[str | None] = mapped_column(String, nullable=True)
+    business_registration_number: Mapped[str | None] = mapped_column(String, nullable=True)
 
     approval_status: Mapped[str | None] = mapped_column(
         String,

@@ -1,0 +1,898 @@
+$background-color: rgb(18, 16, 16);
+$primary-color: white;
+$secondary-color: rgb(167, 144, 115);
+
+* {
+    box-sizing: border-box;
+}
+
+body::-webkit-scrollbar {
+    display: none;
+}
+
+@keyframes topdownmove {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+@keyframes lefttoright {
+    0% {
+
+        width: 0.2vw
+    }
+
+    25% {
+        width: 1vw;
+
+    }
+
+    75% {
+
+        width: 3vw;
+    }
+
+    100% {
+        width: 4.2vw;
+
+    }
+
+}
+
+body {
+    overflow-x: hidden;
+
+    .modal-title {
+        color: #594934;
+    }
+
+    .booking-form {
+        color: #39332b;
+
+        .form-group {
+            padding: 10px;
+            background-color: #d2c9bc;
+        }
+    }
+
+    .modal-content {
+        .but {
+            color: white;
+            background-color: #8d785d;
+            border: none;
+            border-radius: 5px;
+            padding: 10px;
+
+
+        }
+
+        .but:hover {
+            background-color: #4f4539;
+            transform: scale(1.05);
+            box-shadow: 0 4px 2px white;
+        }
+    }
+}
+
+header {
+    background-color: $background-color;
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 15px 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+
+    .navbar-brand.logo {
+        font-size: 1.8rem;
+        color: $primary-color;
+        font-family: "Playfair Display", serif;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .navbar-toggler {
+        border: none;
+        outline: none;
+        color: $primary-color;
+
+        &:focus {
+            box-shadow: none;
+        }
+    }
+
+    .nav-link {
+        font-weight: 500;
+        transition: color 0.3s ease;
+
+    }
+
+    .active-page {
+        background-color: white;
+        height: 0.1vw;
+        width: 4.2vw;
+    }
+
+    .active {
+        border-bottom: 1px solid white;
+    }
+
+    .nav-item:hover {
+
+        .active-page {
+            width: 100%;
+
+        }
+    }
+
+    .active-page {
+        background-color: white;
+        height: 0.1vw;
+        width: 0;
+        transition: width 0.4s ease-in-out;
+    }
+
+    .bookbut {
+        padding: 8px 20px;
+        border: none;
+        background-color: $secondary-color;
+        color: $primary-color;
+        border-radius: 40px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        cursor: pointer;
+
+        &:hover {
+            background-color: darken($secondary-color, 8%);
+            transform: scale(1.05);
+        }
+    }
+
+    @media (max-width: 992px) {
+        .navbar-collapse {
+            background-color: rgba(0, 0, 0, 0.85);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .nav-item {
+            margin: 10px 0;
+        }
+
+        .bookbut {
+            width: 100%;
+        }
+    }
+}
+
+.hero-background {
+    background: url(images/back.jpg) no-repeat center center;
+    background-size: cover;
+    min-height: 150vh;
+    overflow: hidden;
+}
+
+.hero {
+    background-color: rgb(17, 15, 15, 0.7);
+    height: 150vh;
+    width: 100%;
+    overflow: hidden;
+
+    .main-heading {
+        position: absolute;
+        top: 30%;
+        left: 50%;
+        z-index: 10;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 3rem;
+        line-height: 1.2;
+        text-align: center;
+        width: 90vw;
+        font-family: "Playfair Display", sans-serif;
+        animation: topdownmove 2s ease 0s 1 forwards;
+    }
+
+    .sub-head {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 12;
+        color: white;
+        width: 50vw;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    ul {
+        position: absolute;
+        top: 70%;
+
+        li {
+            font-weight: bold;
+            display: inline;
+            color: white;
+        }
+    }
+
+    .hero-form {
+        position: absolute;
+
+        top: 80%;
+        left: 25%;
+        width: 50vw;
+        height: 15vh;
+        backdrop-filter: blur(10px);
+    }
+
+    .booking-form {
+        background-color: rgba(0, 0, 0, 0.6);
+        padding: 7vh 1vw 6vh 1vw;
+        border-radius: 15px;
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(6px);
+        box-shadow: 2px 2px 3px 2px rgb(255, 238, 208);
+
+        .form-control,
+        .form-select {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 10px;
+            padding: 10px 8px;
+            font-size: 0.9rem;
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .form-select option {
+            color: black;
+        }
+
+        .search-btn {
+            background-color: #c6a572;
+            color: white;
+            border: none;
+            padding: 5px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .search-btn:hover {
+            background-color: #b6915c;
+        }
+
+    }
+
+    .bot {
+        position: absolute;
+        top: 115%;
+        text-align: center;
+
+        .butn1 {
+
+            z-index: 20;
+            padding: 20px 20px;
+            width: 18vw;
+            background-color: $secondary-color;
+            border-radius: 40px;
+            border: none;
+
+
+        }
+
+        .butn1:hover {
+            box-shadow: 0 2px 4px rgb(201, 195, 195);
+            transform: scale(1.05);
+        }
+
+        .butn2 {
+            z-index: 20;
+            padding: 20px 20px;
+            width: 18vw;
+            background-color: rgba(225, 222, 222, 0.3);
+            border-radius: 40px;
+            border: none;
+
+
+        }
+
+        .butn2:hover {
+            border-color: $secondary-color;
+            background-color: $secondary-color;
+            color: white;
+            box-shadow: 0 4px 2px whitesmoke;
+            transform: scale(1.02);
+        }
+    }
+
+
+    @media (max-width: 768px) {
+
+
+        .main-heading {
+            font-size: 2.3rem;
+        }
+
+        .sub-head {
+            font-size: 1.3rem;
+            max-width: 90%;
+        }
+
+
+    }
+
+    @media (max-width: 526px) {
+
+
+        .main-heading {
+            font-size: 1.5rem;
+        }
+
+        .sub-head {
+            font-size: 0.9rem;
+        }
+    }
+
+}
+
+@media (max-width:770px) {
+    .hero .bot {
+        position: absolute;
+        top: 150%;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        justify-content: center;
+
+        .butn1,
+        .butn2 {
+            padding: 20px;
+            font-size: 1rem;
+            width: 35vw;
+
+        }
+    }
+
+    .hero {
+        height: 180vh;
+    }
+
+}
+
+
+
+
+
+
+
+main {
+    background-color: rgb(247, 243, 251);
+
+    .btn:hover {
+        background-color: $secondary-color;
+        box-shadow: 2px 4px 2px rgba(31, 16, 16, 0.85);
+        transform: scale(1.02);
+    }
+}
+
+.about {
+    .abtimg {
+        position: relative;
+
+        .image-stack {
+            position: relative;
+
+            .image-main {
+                padding: 10px;
+                border-radius: 20px;
+            }
+
+            .image-over {
+                position: absolute;
+                z-index: 82;
+                bottom: -12vh;
+                right: 5vw;
+            }
+
+            .floating-badge {
+
+                border-radius: 10px;
+                padding: 10px 15px;
+                align-content: center;
+                text-align: center;
+                background-color: #836b48;
+                position: absolute;
+                z-index: 83;
+                bottom: 8vh;
+                right: 28vw;
+                color: white;
+                font-weight: bold;
+            }
+
+            @media (max-width:768px) {
+                .floating-badge {
+                    position: absolute;
+                    z-index: 83;
+                    bottom: 5vh;
+                    right: 50vw;
+                }
+            }
+        }
+
+    }
+
+    .abtinfo {
+        padding: 0px 20px;
+
+        .opt {
+            text-align: start;
+
+            h5 {
+                color: $secondary-color;
+            }
+
+            .disc {
+                border: 2px solid $secondary-color;
+                padding: 15px;
+                border-radius: 10px;
+
+                .disc:hover {
+                    background-color: $secondary-color;
+                }
+            }
+
+
+
+        }
+
+    }
+
+    h1 {
+        font-family: "Playfair Display", sans-serif;
+    }
+}
+
+@media (max-width:768px) {
+    .abtinfo {
+        text-align: center;
+        padding: 10px;
+    }
+
+    .r2 {
+        justify-content: center;
+
+    }
+}
+
+.room-sec {
+    h2 {
+        color: $secondary-color;
+    }
+
+    .rooms {
+        margin: 40px;
+
+        .side-card {
+            .card {
+
+                box-shadow: 4px 4px 4px rgb(161, 154, 154);
+
+                .card-body {
+                    height: 60%;
+                }
+
+                .card-title {
+                    font-family: "Playfair Display", sans-serif;
+                    font-weight: bold;
+
+                }
+
+                .bookbut {
+                    border: none;
+                    background-color: $secondary-color ;
+                }
+            }
+
+            .card:hover {
+                transform: scale(1.05);
+                transition: all 0.3s ease;
+            }
+        }
+
+        .right-cards {
+            .card:hover {
+                transform: scale(1.03);
+                transition: all 0.3s ease;
+            }
+        }
+
+        @media (max-width:750px) {
+            .rooms {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .right-cards {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+            }
+        }
+
+        .right-cards {
+            .card {
+                img {
+                    height: 190px;
+                    overflow: hidden;
+                }
+            }
+        }
+    }
+}
+
+.features {
+    .feat-cards {
+
+        .card {
+            border-radius: 20px;
+
+            .top-backdop {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                width: 100%;
+                background-color: rgba(54, 144, 231, 0.8);
+                opacity: 0;
+                justify-content: center;
+                align-items: center;
+                transition: all 0.2s ease;
+
+            }
+
+            .card-im:hover {
+                img {
+                    transform: scale(1.02);
+                    transition: all 0.2s ease;
+                }
+
+                .top-backdop {
+                    transform: scale(1.02);
+                    opacity: 1;
+
+                }
+            }
+        }
+    }
+
+    .butn-lg {
+        padding: 12px 50px;
+        border: none;
+        border-radius: 40px;
+        background-color: $secondary-color ;
+        color: $primary-color;
+        font-weight: bold;
+        font-size: 0.9rem;
+
+        .butn-lg:hover,
+        .butn-lg:focus {
+            transform: scale(1.04);
+            transition: all 1s ease;
+            box-shadow: 0px 4px 4px rgb(58, 51, 51);
+        }
+    }
+}
+
+.Amenities-sec {
+
+    margin: 0 40px;
+
+    .amenity-cards {
+
+        align-items: center;
+        justify-content: center;
+
+        .row {
+            justify-content: center;
+        }
+
+        .c1 {
+            font-size: 0.8rem;
+
+            .title {
+                .amen-icon {
+                    background-color: rgb(247, 243, 251);
+                    height: 60px;
+                    width: 60px;
+                    justify-content: center;
+                    align-items: center;
+                    border-radius: 15px;
+                    margin-right: 10px;
+                    margin-top: 10px;
+
+                    i {
+
+                        color: $secondary-color;
+
+                    }
+                }
+
+                font-family:"Playfair Display",
+                sans-serif;
+            }
+
+            background-color: rgb(255, 255, 255);
+            box-shadow: 0px 4px 4px rgb(219, 209, 209);
+
+            .botbut {
+                .but {
+                    padding: 5px;
+                    font-size: 0.7rem;
+                    width: 7vw;
+                    background-color: lightgray;
+                }
+
+                @media (max-width:720px) {
+                    .but {
+                        width: 15vw;
+                        padding: 2px;
+                        font-size: 0.5rem;
+                    }
+                }
+
+                @media (max-width:526px) {
+                    .but {
+                        width: 15vw;
+                        padding: 2px;
+                        font-size: 0.5rem;
+                    }
+                }
+
+            }
+
+        }
+
+        .c1:hover {
+            transform: translateY(-5%);
+            transition: all 0.5s ease;
+            border-top: 5px solid $secondary-color;
+
+            .but {
+                background-color: $secondary-color;
+            }
+        }
+
+
+
+    }
+
+    .explore {
+        .cont {
+            background-color: rgba(205, 186, 173, 0.29);
+            color: $secondary-color;
+            font-family: "Playfair Display", sans-serif;
+            border-radius: 20px;
+            padding: 15px 40px;
+            border: 1px solid $secondary-color;
+
+            .butn-lg {
+                padding: 12px 50px;
+                border: none;
+                border-radius: 40px;
+                background-color: $secondary-color ;
+                color: $primary-color;
+                font-weight: bold;
+                font-size: 0.9rem;
+
+                .butn-lg:hover {
+                    transform: scale(1.04);
+                    box-shadow: 0px 4px 4px rgb(58, 51, 51);
+                }
+            }
+        }
+    }
+}
+
+footer {
+
+
+
+    .r1 {
+        width: 100%;
+        background-color: rgba(0, 0, 0, 0.878);
+        color: rgb(201, 195, 195);
+        font-size: 0.8rem;
+
+        h3,
+        h5 {
+            font-family: "Playfair Display", sans-serif;
+            color: white;
+        }
+
+        .bot-line {
+            height: 2px;
+            width: 20px;
+            background-color: $secondary-color;
+        }
+
+        ul {
+            li {
+                line-height: 30px;
+
+            }
+        }
+
+    }
+
+    .copy-right {
+        background-color: black;
+        color: white;
+        font-size: 0.8rem;
+
+        .bot-foot {
+            margin: 30px;
+
+            p {
+                margin-bottom: 2px;
+            }
+        }
+    }
+
+
+}
+
+@media (min-width: 1024px) and (max-width: 1366px) {
+   
+    .hero-background .hero .main-heading {
+        font-size: 3.7rem;
+    }
+
+    .hero-background .hero .hero-form {
+        height: 19vh;
+    }
+
+    main {
+        .about .abtimg {
+            .image-stack {
+                .floating-badge {
+                    position: absolute;
+                    z-index: 83;
+                    bottom: -1vh;
+                    right: 18vw;
+                }
+
+                .image-over {
+                    position: absolute;
+                    z-index: 82;
+                    bottom: -6vh;
+                    right: -2vw;
+                }
+            }
+        }
+    }
+
+    
+
+}
+
+
+/*Media Queires to make it responsive for tablet */
+@media (min-width: 767px) and (max-width: 1023px) {
+    .hero {
+        height: 140vh;
+    }
+
+    .hero .bot {
+        position: absolute;
+        top: 116%;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .hero .hero-form {
+        position: absolute;
+        background-color: rgba(225, 222, 222, 0.2);
+        top: 80%;
+        left: 16%;
+        width: 70vw;
+        height: 21vh;
+    }
+
+    main {
+        .about {
+            .abtinfo {
+                margin-top: 20vh;
+            }
+        }
+
+        .Amenities-sec .amenity-cards .c1 .botbut .but {
+            padding: 5px;
+            font-size: 0.7rem;
+            width: 15vw;
+            background-color: lightgray;
+        }
+
+        .about .abtimg {
+            .image-stack {
+                .floating-badge {
+                    position: absolute;
+                    z-index: 83;
+                    bottom: 3vh;
+                    right: 40vw;
+                }
+
+            }
+        }
+
+    }
+
+    footer {
+        margin-right: 0;
+
+        .row {
+            padding-left: 5vw;
+        }
+    }
+
+}
+
+
+@media (max-width:576px) {
+
+    .hero .bot .butn1,
+    .hero .bot .butn2 {
+        padding: 15px;
+        font-size: 1rem;
+        width: 43vw;
+    }
+
+    .hero .main-heading {
+        font-size: 2.5rem;
+    }
+
+    .about .abtimg .image-stack .image-over {
+        position: absolute;
+        z-index: 82;
+        bottom: -2vh;
+        right: -4vw;
+    }
+
+    .hero .hero-form {
+        position: absolute;
+        top: 80%;
+        left: 26%;
+        width: 50vw;
+    }
+
+    .about .abtimg .image-stack .floating-badge {
+        position: absolute;
+        z-index: 83;
+        bottom: 2vh;
+        right: 34vw;
+    }
+
+    footer {
+        margin-right: 0;
+
+        .row {
+            padding-left: 5vw;
+        }
+    }
+}

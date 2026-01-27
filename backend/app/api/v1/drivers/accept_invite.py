@@ -52,3 +52,8 @@ def handle_invite_action(
         "invite_id": invite.invite_id,
         "status": invite.invite_status,
     }
+
+@router.get("/invites")
+def getDriverInvites(db: Session = Depends(get_db),
+    driver=Depends(require_driver)):
+    pass

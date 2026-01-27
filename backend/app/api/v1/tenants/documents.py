@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_db
 from app.core.security.roles import require_tenant_admin
 from app.models.core.tenants.tenant_documents import TenantDocument
+from app.models.lookups.tenant_Fleet_document_types import TenantFleetDocumentType
 from app.schemas.core.tenants.tenant_documents import TenantDocumentOut
 from app.core.utils.document_paths import build_document_paths
 
@@ -13,7 +14,20 @@ router = APIRouter(
     tags=["Tenant Admin – Documents"],
 )
 
-# 📄 Upload tenant document (LOCAL STORAGE)
+# � Get available document types
+@router.get("/{tenant_id}/document-types")
+def get_document_types(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_tenant_admin),
+):
+    """Get all available document types for tenant"""
+    return (
+        db.query(TenantFleetDocumentType)
+        .all()
+    )
+
+# �📄 Upload tenant document (LOCAL STORAGE)
 @router.post(
     "/{tenant_id}/documents",
     response_model=TenantDocumentOut,
@@ -27,6 +41,10 @@ def upload_tenant_document(
     db: Session = Depends(get_db),
     user: dict = Depends(require_tenant_admin),
 ):
+    # 🔐 Enforce tenant boundary
+    if user["tenant_id"] != tenant_id:
+        raise HTTPException(403, "Access denied for this tenant")
+
     # 🔁 Prevent duplicate document type
     exists = (
         db.query(TenantDocument)
@@ -36,7 +54,6 @@ def upload_tenant_document(
         )
         .first()
     )
-
     if exists:
         raise HTTPException(409, "Document already uploaded")
 
@@ -46,7 +63,6 @@ def upload_tenant_document(
     ext = file.filename.split(".")[-1]
     filename = f"{document_type}.{ext}"
 
-    # 📂 Build paths (tenant documents)
     paths = build_document_paths(
         tenant_id=tenant_id,
         entity="tenant",
@@ -54,11 +70,9 @@ def upload_tenant_document(
         filename=filename,
     )
 
-    # 💾 Save file
     with open(paths["absolute_path"], "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # 🗃️ Save DB record
     doc = TenantDocument(
         tenant_id=tenant_id,
         document_type=document_type,
@@ -107,6 +121,10 @@ def update_tenant_document(
     db: Session = Depends(get_db),
     user: dict = Depends(require_tenant_admin),
 ):
+    # 🔐 Enforce tenant scope
+    if user["tenant_id"] != tenant_id:
+        raise HTTPException(403, "Cross-tenant access denied")
+
     doc = db.get(TenantDocument, doc_id)
 
     if not doc or doc.tenant_id != tenant_id:
@@ -117,6 +135,9 @@ def update_tenant_document(
 
     # 🔁 Replace file if provided
     if file:
+        if not file.filename:
+            raise HTTPException(400, "Invalid file")
+
         ext = file.filename.split(".")[-1]
         filename = f"{doc.document_type}.{ext}"
 
@@ -132,6 +153,7 @@ def update_tenant_document(
 
         doc.document_url = paths["relative_path"]
 
+    # 🔄 Update metadata
     doc.document_number = document_number
     doc.expiry_date = expiry_date
     doc.verification_status = "pending"
@@ -140,6 +162,5 @@ def update_tenant_document(
 
     db.commit()
     db.refresh(doc)
-    print(doc)
 
     return doc

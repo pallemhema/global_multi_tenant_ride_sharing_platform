@@ -12,3 +12,5 @@ def check_redis_connection() -> bool:
         return True
     except redis.RedisError:
         return False
+def get_redis() -> redis.Redis:
+    return redis_client

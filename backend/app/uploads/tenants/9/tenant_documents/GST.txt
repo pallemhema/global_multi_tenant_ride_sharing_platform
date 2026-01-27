@@ -1,0 +1,17 @@
+{
+    "shop_name": "Pramaan Store 2",
+    "products": [
+        {
+            "product_name": "Farmhouse Pizza",
+            "quantity": 1,  
+            "options": [
+                {
+                    "customization_name": "New Hand Tossed",
+                    "quantity": 1
+                }
+            ]
+        }
+    ],
+    "user_lat": "28.5273",
+    "user_lng": "77.1821"
+}

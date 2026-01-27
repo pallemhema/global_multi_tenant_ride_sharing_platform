@@ -4,7 +4,6 @@ from datetime import datetime
 
 
 class VehicleCreate(BaseModel):
-    country_id: int
     category_code: str
     license_plate: str
     model: Optional[str] = None
@@ -22,3 +21,8 @@ class VehicleOut(BaseModel):
     created_at_utc: datetime
     model_config = ConfigDict(from_attributes=True)
 
+class VehicleUpdate(BaseModel):
+    license_plate: Optional[str] = None
+    category_code: Optional[str] = None
+    model: Optional[str] = None
+    manufacture_year: Optional[int] = None

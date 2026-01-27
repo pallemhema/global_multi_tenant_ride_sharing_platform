@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
@@ -17,7 +17,7 @@ router = APIRouter(
 
 @router.post("/select-tenant", status_code=status.HTTP_201_CREATED)
 def select_tenant_for_fleet_owner(
-    payload: dict,
+    payload: dict = Body(...),
     db: Session = Depends(get_db),
     token: dict = Depends(verify_access_token),
 ):

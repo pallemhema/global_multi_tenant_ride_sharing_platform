@@ -1,0 +1,282 @@
+{
+    "id": "689c7b9c1033db73aee6dc36",
+    "userId": "67a1c06b2f783e22b0436b08",
+    "recipientDetails": {
+        "name": "John Doe",
+        "phone": "+91-9876543210",
+        "email": "john.doe@example.com",
+        "location": {
+            "gps": "28.6139,77.2090",
+            "address": {
+                "area_code": "110001",
+                "street": "123 Main Street",
+                "city": "New Delhi",
+                "state": "Delhi",
+                "country": "India"
+            }
+        }
+    },
+    "type": "ORDER",
+    "orders": [
+        {
+            "extOrderId": "3df6c018776a43598fc8bed025655c7e",
+            "deliveryMode": "ONDC",
+            "transactionIds": [
+                "txn_pramaan.ondc.org/beta/preprod/mock/seller|pramaan_provider_2_1754998746534"
+            ],
+            "providerId": "6851bcb005dc0000cb8af959",
+            "provider": {
+                "descriptor": {
+                    "name": "Pramaan Store 2",
+                    "symbol": "https://ondc.org/assets/theme/images/ondc_registered_logo.svg?v=399788fda7",
+                    "short_desc": "Pramaan Store 2",
+                    "long_desc": "Pramaan Store 2",
+                    "images": [
+                        "https://ondc.org/assets/theme/images/ondc_registered_logo.svg?v=399788fda7"
+                    ]
+                },
+                "location": {
+                    "id": "SSL2",
+                    "time": {
+                        "timestamp": "2024-10-11T00:00:00.000Z",
+                        "days": "1,2,3,4,5,6,7",
+                        "schedule": {
+                            "holidays": []
+                        },
+                        "range": {
+                            "start": "1000",
+                            "end": "2100"
+                        }
+                    },
+                    "gps": {
+                        "type": "Point",
+                        "coordinates": [
+                            77.1821,
+                            28.5273
+                        ],
+                        "_id": "689af969174fccdd447ff362"
+                    },
+                    "address": {
+                        "locality": "221B",
+                        "street": "Baker Steet",
+                        "city": "New Delhi",
+                        "state": "New Delhi",
+                        "area_code": "110030"
+                    },
+                    "circle": {
+                        "gps": "28.527300,77.182100",
+                        "radius": {
+                            "unit": "km",
+                            "value": "500"
+                        }
+                    },
+                    "status": "ENABLED"
+                },
+                "domain": "ONDC:RET11"
+            },
+            "pushedToQueue": false,
+            "items": [
+                {
+                    "city": "",
+                    "domain": "ONDC:RET11",
+                    "pid": "pramaan.ondc.org/beta/preprod/mock/seller|id_1cctu3_9_1",
+                    "id": "6851bcb005dc0000cb8af966",
+                    "status": "ENABLED",
+                    "intStatus": "ALLOWED",
+                    "descriptor": {
+                        "name": "Farmhouse Pizza",
+                        "short_desc": "",
+                        "long_desc": "",
+                        "images": []
+                    },
+                    "provider_pid": "6851bcb005dc0000cb8af959",
+                    "location_pid": "",
+                    "gps": null,
+                    "quantity": 1,
+                    "price": {
+                        "currency": "INR",
+                        "value": "295",
+                        "upValue": "265.00"
+                    },
+                    "sellerName": "",
+                    "returnable": false,
+                    "returnWindow": "PT1H",
+                    "cancellable": false,
+                    "vegType": null,
+                    "shippingTime": "PT45M",
+                    "sellerRecommended": true,
+                    "returnPickupBySeller": false,
+                    "categoryIds": [],
+                    "cgs": [],
+                    "children": [],
+                    "statImages": [],
+                    "variants": [],
+                    "refresh": "2025-08-13T10:08:42.661Z",
+                    "count": 1,
+                    "fulfillment_id": "9d92ce6e-b332-45e1-9626-7afe9b72802e",
+                    "cartId": "",
+                    "customizations": [
+                        {
+                            "pid": "",
+                            "parentId": "",
+                            "children": [],
+                            "vegType": null,
+                            "descriptor": {
+                                "name": "New Hand Tossed"
+                            },
+                            "price": {
+                                "currency": "INR",
+                                "value": 0
+                            },
+                            "quantity": 1,
+                            "count": 1
+                        }
+                    ],
+                    "quote": {
+                        "total": 265,
+                        "breakup": [
+                            {
+                                "title": "Double Patty Cheese Burger",
+                                "price": "265.00",
+                                "type": "item",
+                                "count": 1
+                            }
+                        ]
+                    },
+                    "totalPrice": 265,
+                    "changes": []
+                }
+            ],
+            "fulfillments": [
+                {
+                    "id": "9d92ce6e-b332-45e1-9626-7afe9b72802e",
+                    "type": "DELIVERY",
+                    "orgName": "Pramaan Store 2",
+                    "duration": "PT24H",
+                    "category": "Immediate Delivery",
+                    "tracking": {
+                        "enabled": true
+                    },
+                    "status": "SERVICEABLE",
+                    "statusLog": [
+                        {
+                            "status": "SERVICEABLE",
+                            "at": "2025-08-13T10:08:46.365Z"
+                        }
+                    ],
+                    "delivery": {
+                        "start": {
+                            "time": {
+                                "timestamp": "2025-08-13T10:08:46.365Z"
+                            }
+                        },
+                        "end": {
+                            "time": {
+                                "timestamp": "2025-08-13T10:08:46.365Z"
+                            }
+                        }
+                    },
+                    "quote": {
+                        "total": 80,
+                        "breakup": [
+                            {
+                                "title": "Delivery charges",
+                                "price": "40.00",
+                                "type": "delivery",
+                                "count": 0
+                            },
+                            {
+                                "title": "Convenience Fee",
+                                "price": "40.00",
+                                "type": "misc",
+                                "count": 0
+                            }
+                        ]
+                    }
+                }
+            ],
+            "distance": 0,
+            "totalPrice": 0,
+            "bff": {
+                "total": 0,
+                "breakup": []
+            },
+            "bill": {
+                "total": {
+                    "value": "0",
+                    "maxValue": "0"
+                },
+                "totalSavings": "0",
+                "breakdown": []
+            },
+            "status": "CREATED",
+            "statusLog": [
+                {
+                    "status": "CREATED",
+                    "actor": "BUYER",
+                    "at": "2025-08-13T11:48:44.281Z"
+                }
+            ],
+            "payment": {
+                "type": "ON-ORDER",
+                "@ondc/org/buyer_app_finder_fee_type": "percent",
+                "@ondc/org/buyer_app_finder_fee_amount": "3",
+                "@ondc/org/settlement_details": [
+                    {
+                        "settlement_counterparty": "seller-app",
+                        "beneficiary_name": "SEQUELSTRING AI",
+                        "settlement_bank_account_no": "9876543210012",
+                        "settlement_ifsc_code": "AXIS123456",
+                        "settlement_phase": "sale-amount",
+                        "settlement_status": "NOT-PAID",
+                        "bank_name": "AXIS BANK LTD ",
+                        "branch_name": "NAVI MUMBAI",
+                        "settlement_type": "neft"
+                    }
+                ],
+                "collected_by": "BAP"
+            },
+            "cancellationTerms": [],
+            "sellerAppTerms": [
+                {
+                    "code": "np_type",
+                    "value": "MSN"
+                },
+                {
+                    "code": "tax_number",
+                    "value": "00CBADE2145H1Z5"
+                },
+                {
+                    "code": "max_liability",
+                    "value": "2"
+                },
+                {
+                    "code": "max_liability_cap",
+                    "value": "10000.00"
+                },
+                {
+                    "code": "mandatory_arbitration",
+                    "value": "false"
+                },
+                {
+                    "code": "court_jurisdiction",
+                    "value": "New Delhi"
+                },
+                {
+                    "code": "delay_interest",
+                    "value": "7.50"
+                },
+                {
+                    "code": "provider_tax_number",
+                    "value": "ABCDE1234F"
+                }
+            ]
+        }
+    ],
+    "quote": {
+        "total": 0,
+        "breakup": []
+    },
+    "status": "IN_PROGRESS",
+    "statusLog": []
+}

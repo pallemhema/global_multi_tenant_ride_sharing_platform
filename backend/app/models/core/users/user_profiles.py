@@ -44,7 +44,3 @@ class UserProfile(Base, TimestampMixin, AuditMixin):
     )
 
 
-    email: Mapped[str | None] = mapped_column(
-        String, unique=True
-    )
-    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)

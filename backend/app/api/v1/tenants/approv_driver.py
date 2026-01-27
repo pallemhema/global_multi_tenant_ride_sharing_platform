@@ -9,27 +9,14 @@ from app.core.security.roles import require_tenant_admin
 from app.models.core.drivers.drivers import Driver
 from app.models.core.drivers.driver_documents import DriverDocument
 from app.models.lookups.driver_document_type import DriverDocumentType
+from app.models.core.users.user_profiles import UserProfile
+from app.models.core.users.users import User
+
 
 router = APIRouter(
     tags=["Tenant Admin – Driver Approval"],
 )
-
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from datetime import datetime, timezone
-
-from app.core.dependencies import get_db
-from app.core.security.roles import require_tenant_admin
-from app.models.core.drivers.drivers import Driver
-from app.models.core.drivers.driver_documents import DriverDocument
-from app.models.lookups.driver_document_type import DriverDocumentType
-
-router = APIRouter(
-    tags=["Tenant Admin – Driver Approval"],
-)
-
-
-@router.post("/{tenant_id}/drivers/{driver_id}/approve")
+@router.put("/{tenant_id}/drivers/{driver_id}/approve")
 def approve_driver(
     tenant_id: int,
     driver_id: int,
@@ -112,20 +99,36 @@ def approve_driver(
     }
 
 
-@router.get("/{tenant_id}/drivers/pending")
-def list_pending_drivers(
+@router.get("/{tenant_id}/drivers")
+def list_pending(
     tenant_id: int,
     db: Session = Depends(get_db),
     _: dict = Depends(require_tenant_admin),
 ):
-    return (
-        db.query(Driver)
+    results = (
+        db.query(Driver, User, UserProfile)
+        .join(
+            User,
+            User.user_id == Driver.user_id
+        )
+        .outerjoin(
+            UserProfile,
+            UserProfile.user_id == User.user_id
+        )
         .filter(
             Driver.tenant_id == tenant_id,
-            Driver.kyc_status != "approved",
         )
         .all()
     )
+
+    return [
+        {
+            "driver": driver,
+            "user": user,
+            "user_profile":profile
+        }
+        for driver,user,profile in results
+    ]
 
 @router.get("/{tenant_id}/drivers/{driver_id}/documents")
 def list_driver_documents(
@@ -142,7 +145,8 @@ def list_driver_documents(
         )
         .all()
     )
-@router.put("/documents/{doc_id}/approve")
+
+@router.put("/{tenant_id}/drivers/{driver_id}/documents/{doc_id}/approve")
 def approve_driver_document(
     doc_id: int,
     db: Session = Depends(get_db),
@@ -159,7 +163,26 @@ def approve_driver_document(
 
     db.commit()
     return {"status": "approved"}
-@router.put("/documents/{doc_id}/reject")
+
+@router.put("/{tenant_id}/drivers/{driver_id}/documents/{doc_id}/reject")
+def approve_driver_document(
+    doc_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_tenant_admin),
+):
+    doc = db.get(DriverDocument, doc_id)
+
+    if not doc:
+        raise HTTPException(404, "Document not found")
+
+    doc.verification_status = "rejected"
+    doc.verified_by = int(user["sub"])
+    doc.verified_at_utc = datetime.now(timezone.utc)
+
+    db.commit()
+    return {"status": "rejected"}
+
+@router.put("/{tenant_id}/drivers/{driver_id}/documents/{doc_id}/reject")
 def reject_driver_document(
     doc_id: int,
     db: Session = Depends(get_db),

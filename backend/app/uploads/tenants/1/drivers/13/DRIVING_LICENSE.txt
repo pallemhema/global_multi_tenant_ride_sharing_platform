@@ -1,0 +1,535 @@
+{
+  "_id": {
+    "$oid": "677584a2496e437287c382a2"
+  },
+  "userId": {
+    "$oid": "6773bc5e520316295195ee11"
+  },
+  "__v": 0,
+  "bff": {
+    "total": "4.75",
+    "breakup": [
+      {
+        "type": "bff",
+        "price": "4.02",
+        "title": "Platform Fee"
+      },
+      {
+        "type": "tax",
+        "price": "0.72",
+        "title": "GST On platform fee"
+      }
+    ]
+  },
+  "createdAt": {
+    "$date": "2025-01-01T18:08:34.420Z"
+  },
+  "errors": [],
+  "items": [
+    {
+      "city": "std:011",
+      "domain": "ONDC:RET11",
+      "pid": "pramaan.ondc.org/alpha/mock-server|68ae0d64-a8a7-412a-a359-007ffac25eaa",
+      "id": "6763abeaa2972311320f8303",
+      "status": "ENABLED",
+      "intStatus": "ALLOWED",
+      "descriptor": {
+        "name": "Farm House Pizza",
+        "symbol": "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png",
+        "short_desc": "Farm House Pizza",
+        "long_desc": "Farm House Pizza",
+        "images": [
+          "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png"
+        ]
+      },
+      "provider_pid": "6763abeaa2972311320f82e7",
+      "location_pid": "f13873c1-810d-4f2b-ba54-5edcec9f0e4a",
+      "parentId": null,
+      "quantity": {
+        "unitized": {
+          "measure": {
+            "unit": "unit",
+            "value": "1"
+          }
+        },
+        "available": {
+          "count": "99"
+        },
+        "maximum": {
+          "count": "99"
+        }
+      },
+      "price": {
+        "value": 269,
+        "currency": "INR"
+      },
+      "sellerName": "WITS ONDC TEST STORE",
+      "returnable": false,
+      "returnWindow": "PT1H",
+      "cancellable": true,
+      "vegType": "VEG",
+      "shippingTime": "PT45M",
+      "sellerRecommended": true,
+      "returnPickupBySeller": false,
+      "categoryIds": [
+        "F&B"
+      ],
+      "children": [
+        {
+          "pid": "CG1",
+          "min": "1",
+          "max": "1",
+          "input": "select",
+          "seq": "1",
+          "descriptor": {
+            "name": "Crust"
+          },
+          "customizations": [
+            {
+              "id": "C1",
+              "descriptor": {
+                "name": "New Hand Tossed",
+                "symbol": "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png",
+                "short_desc": "New Hand Tossed",
+                "long_desc": "New Hand Tossed",
+                "images": [
+                  "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png"
+                ]
+              },
+              "quantity": {
+                "unitized": {
+                  "measure": {
+                    "unit": "unit",
+                    "value": "1"
+                  }
+                },
+                "available": {
+                  "count": "99"
+                },
+                "maximum": {
+                  "count": "99"
+                }
+              },
+              "price": {
+                "currency": "INR",
+                "value": "0.0",
+                "maximum_value": "0.0"
+              },
+              "category_id": "F&B",
+              "related": true,
+              "tags": [
+                {
+                  "code": "type",
+                  "list": [
+                    {
+                      "code": "type",
+                      "value": "customization"
+                    }
+                  ]
+                },
+                {
+                  "code": "parent",
+                  "list": [
+                    {
+                      "code": "id",
+                      "value": "CG1"
+                    },
+                    {
+                      "code": "default",
+                      "value": "yes"
+                    }
+                  ]
+                },
+                {
+                  "code": "child",
+                  "list": [
+                    {
+                      "code": "id",
+                      "value": "CG2"
+                    }
+                  ]
+                },
+                {
+                  "code": "veg_nonveg",
+                  "list": [
+                    {
+                      "code": "veg",
+                      "value": "yes"
+                    }
+                  ]
+                }
+              ],
+              "pid": "C1",
+              "parentId": "CG1",
+              "children": []
+            }
+          ]
+        },
+        {
+          "pid": "CG2",
+          "min": "1",
+          "max": "1",
+          "input": "select",
+          "seq": "2",
+          "descriptor": {
+            "name": "Size"
+          },
+          "customizations": [
+            {
+              "id": "C3",
+              "descriptor": {
+                "name": "Regular",
+                "symbol": "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png",
+                "short_desc": "Regular Size",
+                "long_desc": "Regular Size Pizza",
+                "images": [
+                  "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png"
+                ]
+              },
+              "time": {
+                "label": "enable",
+                "timestamp": "2024-12-17T03:58:42.969Z"
+              },
+              "quantity": {
+                "available": {
+                  "count": "99"
+                },
+                "maximum": {
+                  "count": "99"
+                }
+              },
+              "price": {
+                "currency": "INR",
+                "value": "0.0",
+                "maximum_value": "0.0"
+              },
+              "category_id": "F&B",
+              "related": true,
+              "tags": [
+                {
+                  "code": "type",
+                  "list": [
+                    {
+                      "code": "type",
+                      "value": "customization"
+                    }
+                  ]
+                },
+                {
+                  "code": "parent",
+                  "list": [
+                    {
+                      "code": "id",
+                      "value": "CG2"
+                    },
+                    {
+                      "code": "default",
+                      "value": "yes"
+                    }
+                  ]
+                },
+                {
+                  "code": "child",
+                  "list": [
+                    {
+                      "code": "id",
+                      "value": "CG4"
+                    }
+                  ]
+                },
+                {
+                  "code": "veg_nonveg",
+                  "list": [
+                    {
+                      "code": "veg",
+                      "value": "yes"
+                    }
+                  ]
+                }
+              ],
+              "pid": "C3",
+              "parentId": "CG2",
+              "children": [
+                {
+                  "pid": "CG4",
+                  "min": "1",
+                  "max": "1",
+                  "input": "select",
+                  "seq": "3",
+                  "descriptor": {
+                    "name": "Toppings"
+                  },
+                  "customizations": [
+                    {
+                      "id": "C8",
+                      "descriptor": {
+                        "name": "Grilled Mushrooms",
+                        "symbol": "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png",
+                        "short_desc": "Grilled Mushrooms",
+                        "long_desc": "Grilled Mushrooms Pizza",
+                        "images": [
+                          "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png"
+                        ]
+                      },
+                      "quantity": {
+                        "available": {
+                          "count": "99"
+                        },
+                        "maximum": {
+                          "count": "99"
+                        }
+                      },
+                      "price": {
+                        "currency": "INR",
+                        "value": "35.0",
+                        "maximum_value": "35.0"
+                      },
+                      "category_id": "F&B",
+                      "related": true,
+                      "tags": [
+                        {
+                          "code": "type",
+                          "list": [
+                            {
+                              "code": "type",
+                              "value": "customization"
+                            }
+                          ]
+                        },
+                        {
+                          "code": "parent",
+                          "list": [
+                            {
+                              "code": "id",
+                              "value": "CG4"
+                            },
+                            {
+                              "code": "default",
+                              "value": "yes"
+                            }
+                          ]
+                        },
+                        {
+                          "code": "veg_nonveg",
+                          "list": [
+                            {
+                              "code": "veg",
+                              "value": "yes"
+                            }
+                          ]
+                        }
+                      ],
+                      "pid": "C8",
+                      "parentId": "CG4",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "packagedFood": null,
+      "packagedCommodity": null,
+      "vegies": null,
+      "statImages": [],
+      "variants": [],
+      "count": 2,
+      "fulfillment_id": "c461a827-f43d-487e-871d-e13467acd866",
+      "cartId": "1fbba7e2-cc8b-41da-80c9-174912cf69e1",
+      "customizations": [
+        {
+          "id": "C1",
+          "descriptor": {
+            "name": "New Hand Tossed",
+            "symbol": "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png",
+            "short_desc": "New Hand Tossed",
+            "long_desc": "New Hand Tossed",
+            "images": [
+              "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png"
+            ]
+          },
+          "quantity": {
+            "unitized": {
+              "measure": {
+                "unit": "unit",
+                "value": "1"
+              }
+            },
+            "available": {
+              "count": "99"
+            },
+            "maximum": {
+              "count": "99"
+            }
+          },
+          "price": {
+            "currency": "INR",
+            "value": "0.0",
+            "maximum_value": "0.0"
+          },
+          "category_id": "F&B",
+          "related": true,
+          "tags": [
+            {
+              "code": "type",
+              "list": [
+                {
+                  "code": "type",
+                  "value": "customization"
+                }
+              ]
+            },
+            {
+              "code": "parent",
+              "list": [
+                {
+                  "code": "id",
+                  "value": "CG1"
+                },
+                {
+                  "code": "default",
+                  "value": "yes"
+                }
+              ]
+            },
+            {
+              "code": "child",
+              "list": [
+                {
+                  "code": "id",
+                  "value": "CG2"
+                }
+              ]
+            },
+            {
+              "code": "veg_nonveg",
+              "list": [
+                {
+                  "code": "veg",
+                  "value": "yes"
+                }
+              ]
+            }
+          ],
+          "pid": "C1",
+          "parentId": "CG1",
+          "children": [],
+          "quote": {
+            "total": 0,
+            "breakup": [
+              {
+                "title": "New Hand Tossed",
+                "price": "0.0",
+                "type": "item",
+                "count": 2
+              },
+              {
+                "title": "Tax",
+                "price": "0.00",
+                "type": "tax",
+                "count": 0
+              }
+            ]
+          }
+        }
+      ],
+      "quote": {
+        "total": 317.42,
+        "breakup": [
+          {
+            "title": "Farm House Pizza",
+            "price": "269.0",
+            "type": "item",
+            "count": 2
+          },
+          {
+            "title": "Tax",
+            "price": "48.42",
+            "type": "tax",
+            "count": 0
+          }
+        ]
+      },
+      "totalPrice": 317.42,
+      "changes": []
+    }
+  ],
+  "providerDetails": [
+    {
+      "providerId": "6763abeaa2972311320f82e7",
+      "transactionIds": [
+        "2d3d1f3e-6b97-4b9a-a475-505d714e5131"
+      ],
+      "fulfillments": [
+        {
+          "id": "c461a827-f43d-487e-871d-e13467acd866",
+          "type": "DELIVERY",
+          "duration": "PT60M",
+          "category": "Immediate Delivery",
+          "orgName": "WITS ONDC TEST STORE",
+          "tracking": {
+            "enabled": true
+          },
+          "state": "Serviceable",
+          "status": "SERVICEABLE",
+          "statusLog": [
+            {
+              "status": "SERVICEABLE",
+              "at": {
+                "$date": "2025-01-11T17:21:27.573Z"
+              }
+            }
+          ],
+          "delivery": {
+            "start": {
+              "timestamp": null
+            },
+            "end": {
+              "timestamp": null
+            }
+          },
+          "quote": {
+            "total": 85,
+            "breakup": [
+              {
+                "title": "Delivery charges",
+                "price": "50",
+                "type": "delivery",
+                "count": 0
+              },
+              {
+                "title": "Packing charges",
+                "price": "25",
+                "type": "packing",
+                "count": 0
+              },
+              {
+                "title": "Convenience Fee",
+                "price": "10",
+                "type": "misc",
+                "count": 0
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "recipient": {
+    "name": null,
+    "phone": null,
+    "email": null,
+    "location": {
+      "gps": "26.954290444353813, 75.74563656002283",
+      "address": {
+        "area_code": "302012"
+      }
+    }
+  },
+  "totalPrice": "407.17",
+  "updatedAt": {
+    "$date": "2025-01-11T17:21:27.575Z"
+  }
+}

@@ -41,26 +41,24 @@ def require_driver(
     db: Session = Depends(get_db),
     user: dict = Depends(verify_access_token),
 ):
-    if user["role"] != "driver":
-        raise HTTPException(403, "Driver access required")
-
-    driver_id = user.get("driver_id")
-    if not driver_id:
-        raise HTTPException(401, "Invalid driver token")
-
+    """
+    Allow driver access for:
+    1. Users with role="driver" and active driver record
+    2. Users during driver onboarding (role="rider" but has driver record)
+    """
+    user_id = int(user.get("sub"))
+    
+    # Try to find driver by user_id (works during onboarding)
     driver = (
         db.query(Driver)
-        .filter(
-            Driver.driver_id == driver_id,
-            Driver.is_active.is_(True),
-        )
+        .filter(Driver.user_id == user_id)
         .first()
     )
 
     if not driver:
-        raise HTTPException(403, "Driver not active")
+        raise HTTPException(403, "Driver record not found. Please select a tenant first.")
 
-    return driver   # ✅ ORM object
+    return driver   # ✅ ORM object - works even if pending/inactive
 
 
 
@@ -87,13 +85,73 @@ def require_fleet_owner(
 
 
 
-def require_tenant_admin(user=Depends(verify_access_token)):
-    if user["role"] != "tenant-admin":
-        raise HTTPException(403)
+def require_tenant_admin(
+    user: dict = Depends(verify_access_token),
+):
+    if user.get("role") != "tenant-admin":
+        raise HTTPException(403, "Tenant admin access required")
+
+    if user.get("context") != "tenant":
+        raise HTTPException(403, "Invalid tenant context")
+
+    if not user.get("tenant_id"):
+        raise HTTPException(403, "Tenant scope missing")
+
     return user
+
+
 
 
 def require_app_admin(user=Depends(verify_access_token)):
     if user["role"] != "app-admin":
         raise HTTPException(403)
     return user
+
+def require_vehicle_owner(
+    db: Session = Depends(get_db),
+    user: dict = Depends(verify_access_token),
+):
+    role = user["role"]
+
+    # ===== DRIVER =====
+    if role == "driver":
+        driver = (
+            db.query(Driver)
+            .filter(
+                Driver.user_id == int(user["sub"]),
+                Driver.driver_type == "individual",
+            )
+            .first()
+        )
+
+        if not driver:
+            raise HTTPException(403, "Not a vehicle owner")
+
+        return {
+            "type": "driver",
+            "id": driver.driver_id,
+            "tenant_id": driver.tenant_id,
+            "user_id": driver.user_id,   # ✅ FIX
+            "role": "driver",
+        }
+
+    # ===== FLEET OWNER =====
+    if role == "fleet_owner":
+        fleet = (
+            db.query(FleetOwner)
+            .filter(FleetOwner.user_id == int(user["sub"]))
+            .first()
+        )
+
+        if not fleet:
+            raise HTTPException(403, "Not a vehicle owner")
+
+        return {
+            "type": "fleet_owner",
+            "id": fleet.fleet_owner_id,
+            "tenant_id": fleet.tenant_id,
+            "user_id": fleet.user_id,    # ✅ FIX
+            "role": "fleet_owner",
+        }
+
+    raise HTTPException(403, "Not a vehicle owner")

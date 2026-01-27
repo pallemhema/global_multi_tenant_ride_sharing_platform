@@ -54,3 +54,7 @@ class DriverShift(Base, AuditMixin, TimestampMixin):
     )
 
     
+    shift_start_lat: Mapped[float | None]
+    shift_start_lng: Mapped[float | None]
+    shift_end_lat: Mapped[float | None]
+    shift_end_lng: Mapped[float | None]

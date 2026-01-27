@@ -1,22 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
 from app.core.dependencies import get_db
 from app.core.security.roles import require_app_admin
+from app.core.security.password import hash_password
+
 from app.models.core.tenants.tenants import Tenant
 from app.models.core.tenants.tenant_documents import TenantDocument
 from app.models.core.tenants.tenant_staff import TenantStaff
-from app.schemas.core.tenants.tenant_staff import TenantStaffOut,TenantStaffCreate
+from app.models.core.users.users import User
+from app.schemas.core.admins.create_tenant_admin import TenantAdminCreate
 
 from app.models.lookups.tenant_Fleet_document_types import TenantFleetDocumentType
 
 router = APIRouter(
-    prefix="/platform",
+    prefix="/app-admin",
     tags=["Platform / App Admin"],
 )
 
-@router.post("/tenants")
+@router.post("/create-tenant")
 def create_tenant(
     payload: dict,
     db: Session = Depends(get_db),
@@ -39,6 +42,108 @@ def create_tenant(
         "status": "created",
     }
 
+@router.post("/tenant-admins")
+def create_tenant_admin(
+    payload: TenantAdminCreate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_app_admin),
+):
+    # 1️⃣ Validate tenant
+    tenant = db.get(Tenant, payload.tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+
+    # 2️⃣ Ensure email uniqueness
+    existing = (
+        db.query(User)
+        .filter(User.email == payload.email)
+        .first()
+    )
+    if existing:
+        raise HTTPException(400, "User with this email already exists")
+
+    # 3️⃣ Create tenant admin user
+    new_user = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        email_verified=True,
+        is_active=True,
+        is_app_admin=False,
+    )
+
+    db.add(new_user)
+    db.flush()  # get user_id
+
+    # 4️⃣ Assign tenant-admin role
+    staff = TenantStaff(
+        tenant_id=payload.tenant_id,
+        user_id=new_user.user_id,
+        role_code="admin",
+        status="active",
+        created_by=int(user["sub"]),
+    )
+
+    db.add(staff)
+    db.commit()
+
+    return {
+        "message": "Tenant admin created",
+        "tenant_id": payload.tenant_id,
+        "user_id": new_user.user_id,
+        "email": new_user.email,
+    }
+
+@router.post("/tenants/{tenant_id}/admins")
+def create_tenant_admin_by_tenant_id(
+    tenant_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_app_admin),
+):
+    # 1️⃣ Validate tenant
+    tenant = db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+
+    # 2️⃣ Ensure email uniqueness
+    existing = (
+        db.query(User)
+        .filter(User.email == payload.get("email"))
+        .first()
+    )
+    if existing:
+        raise HTTPException(400, "User with this email already exists")
+
+    # 3️⃣ Create tenant admin user
+    new_user = User(
+        email=payload.get("email"),
+        password_hash=hash_password(payload.get("password")),
+        email_verified=True,
+        is_active=True,
+        is_app_admin=False,
+    )
+
+    db.add(new_user)
+    db.flush()  # get user_id
+
+    # 4️⃣ Assign tenant-admin role
+    staff = TenantStaff(
+        tenant_id=tenant_id,
+        user_id=new_user.user_id,
+        role_code="admin",
+        status="active",
+        created_by=int(user["sub"]),
+    )
+
+    db.add(staff)
+    db.commit()
+
+    return {
+        "message": "Tenant admin created",
+        "tenant_id": tenant_id,
+        "user_id": new_user.user_id,
+        "email": new_user.email,
+    }
 
 @router.post("/tenants/{tenant_id}/approve")
 def approve_tenant(
@@ -147,32 +252,160 @@ def verify_tenant_document(
     }
 
 
-@router.post(
-    "/tenants/{tenant_id}/admins",
-    response_model=TenantStaffOut
-)
-def assign_tenant_admin(
-    tenant_id: int,
-    payload: TenantStaffCreate,
-    db: Session = Depends(get_db),
-    user: dict = Depends(require_app_admin),
-):
-    if payload.role_code != "admin":
-        raise HTTPException(
-            400,
-            "Only tenant admin role can be assigned by platform"
-        )
 
-    staff = TenantStaff(
-        tenant_id=tenant_id,
-        user_id=payload.user_id,
-        role_code=payload.role_code,
-        status="active",
-        created_by=int(user["sub"]),
+
+from sqlalchemy import func
+
+@router.get("/tenants/summary")
+def tenant_summary(
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_app_admin),
+):
+    total = db.query(func.count(Tenant.tenant_id)).scalar()
+
+    approved = db.query(func.count(Tenant.tenant_id)).filter(
+        Tenant.approval_status == "approved"
+    ).scalar()
+
+    pending = db.query(func.count(Tenant.tenant_id)).filter(
+        Tenant.approval_status == "pending"
+    ).scalar()
+
+    rejected = db.query(func.count(Tenant.tenant_id)).filter(
+        Tenant.approval_status == "rejected"
+    ).scalar()
+
+    active = db.query(func.count(Tenant.tenant_id)).filter(
+        Tenant.status == "active"
+    ).scalar()
+
+    inactive = db.query(func.count(Tenant.tenant_id)).filter(
+        Tenant.status == "inactive"
+    ).scalar()
+
+    return {
+        "total_tenants": total,
+        "approved": approved,
+        "pending": pending,
+        "rejected": rejected,
+        "active": active,
+        "inactive": inactive,
+    }
+
+
+@router.post("/tenants")
+def create_tenant_endpoint(
+    payload: dict = Body(...),
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_app_admin),
+):
+    tenant = Tenant(
+        tenant_name=payload.get("tenant_name"),
+        legal_name=payload.get("legal_name") or payload.get("tenant_name"),
+        business_email=payload.get("business_email"),
+        city=payload.get("city", ""),
+        country=payload.get("country", ""),
+        business_registration_number=payload.get("business_registration_number", ""),
+        approval_status="pending",
+        status="inactive",
     )
 
-    db.add(staff)
+    db.add(tenant)
     db.commit()
-    db.refresh(staff)
+    db.refresh(tenant)
 
-    return staff
+    return {
+        "id": tenant.tenant_id,
+        "tenant_id": tenant.tenant_id,
+        "name": tenant.tenant_name,
+        "business_email": tenant.business_email,
+        "status": "created",
+    }
+
+
+@router.get("/tenants")
+def list_tenants(
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_app_admin),
+):
+    tenants = db.query(Tenant).all()
+
+    return [
+        {
+            "id": t.tenant_id,
+            "name": t.tenant_name,
+            "legal_name": t.legal_name,
+            "business_email": t.business_email,
+            "city": t.city,
+            "country": t.country,
+            "business_registration_number": t.business_registration_number,
+            "approval_status": t.approval_status,
+            "status": t.status,
+            "created_at_utc": t.created_at_utc,
+            "approved_at_utc": t.approved_at_utc,
+        }
+        for t in tenants
+    ]
+
+
+@router.get("/tenants/{tenant_id}")
+def get_tenant_details(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_app_admin),
+):
+    tenant = db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+
+    return {
+        "id": tenant.tenant_id,
+        "name": tenant.tenant_name,
+        "legal_name": tenant.legal_name,
+        "business_email": tenant.business_email,
+        "city": tenant.city,
+        "country": tenant.country,
+        "business_registration_number": tenant.business_registration_number,
+        "approval_status": tenant.approval_status,
+        "status": tenant.status,
+        "created_at_utc": tenant.created_at_utc,
+        "approved_at_utc": tenant.approved_at_utc,
+    }
+
+@router.get("/tenants/{tenant_id}/admin")
+def get_tenant_admin(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    _: dict = Depends(require_app_admin),
+):
+    # Check if tenant exists
+    tenant = db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+
+    # Find tenant admin staff
+    admin_staff = (
+        db.query(TenantStaff, User)
+        .join(User, TenantStaff.user_id == User.user_id)
+        .filter(
+            TenantStaff.tenant_id == tenant_id,
+            TenantStaff.role_code == "admin",
+        )
+        .first()
+    )
+
+    if not admin_staff:
+        return {
+            "has_admin": False,
+            "admin": None,
+        }
+
+    staff, user = admin_staff
+    return {
+        "has_admin": True,
+        "admin": {
+            "user_id": user.user_id,
+            "email": user.email,
+            "is_active": user.is_active,
+        },
+    }

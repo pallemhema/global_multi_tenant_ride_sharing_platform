@@ -56,10 +56,7 @@ class DriverDocument(Base, AuditMixin, TimestampMixin):
         Date,
         nullable=True,
     )
-    vehicle_category: Mapped[str] = mapped_column(
-        Text,
-        ForeignKey("lu_vehicle_category.category_code"),
-    )
+   
 
     verification_status: Mapped[str] = mapped_column(
         Text,

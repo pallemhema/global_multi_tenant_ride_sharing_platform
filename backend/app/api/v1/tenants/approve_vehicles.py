@@ -7,7 +7,11 @@ from app.core.security.roles import require_tenant_admin
 from app.models.lookups.vehicle_document_type import VehicleDocumentType
 from app.models.core.vehicles.vehicle_docuemnts import VehicleDocument
 from app.models.core.vehicles.vehicles import Vehicle
-
+from app.models.core.drivers.drivers import Driver
+from app.models.core.users.users import User
+from app.models.core.users.user_profiles import UserProfile
+from app.models.core.fleet_owners.fleet_owners import FleetOwner
+from sqlalchemy.orm import aliased
 router = APIRouter(
     tags=["Tenant Admin – Vehicle Approval"],
 )
@@ -97,21 +101,103 @@ def approve_vehicle(
         "approved_documents": list(approved_docs),
     }
 
-
-@router.get("/{tenant_id}/vehicles/pending")
-def list_pending_vehicles(
+@router.get("/{tenant_id}/vehicles")
+def list_vehicles(
     tenant_id: int,
     db: Session = Depends(get_db),
     _: dict = Depends(require_tenant_admin),
 ):
-    return (
-        db.query(Vehicle)
-        .filter(
-            Vehicle.tenant_id == tenant_id,
-            Vehicle.status != "active",
+
+    # ===== DRIVER PATH ALIASES =====
+    DriverA = aliased(Driver)
+    DriverUserA = aliased(User)
+    DriverProfileA = aliased(UserProfile)
+
+    # ===== FLEET PATH ALIASES =====
+    FleetOwnerA = aliased(FleetOwner)
+    FleetUserA = aliased(User)
+    FleetProfileA = aliased(UserProfile)
+
+    rows = (
+        db.query(
+            Vehicle,
+
+            # ---- driver owner ----
+            DriverA.driver_id.label("driver_id"),
+            DriverProfileA.full_name.label("driver_name"),
+            DriverUserA.phone_e164.label("driver_phone"),
+
+            # ---- fleet owner ----
+            FleetOwnerA.fleet_owner_id.label("fleet_owner_id"),
+            FleetOwnerA.business_name.label("fleet_business"),
+            FleetProfileA.full_name.label("fleet_owner_name"),
+            FleetUserA.phone_e164.label("fleet_phone"),
         )
+
+        # ===== DRIVER JOINS =====
+        .outerjoin(
+            DriverA,
+            Vehicle.driver_owner_id == DriverA.driver_id,
+        )
+        .outerjoin(
+            DriverUserA,
+            DriverA.user_id == DriverUserA.user_id,
+        )
+        .outerjoin(
+            DriverProfileA,
+            DriverUserA.user_id == DriverProfileA.user_id,
+        )
+
+        # ===== FLEET JOINS =====
+        .outerjoin(
+            FleetOwnerA,
+            Vehicle.fleet_owner_id == FleetOwnerA.fleet_owner_id,
+        )
+        .outerjoin(
+            FleetUserA,
+            FleetOwnerA.user_id == FleetUserA.user_id,
+        )
+        .outerjoin(
+            FleetProfileA,
+            FleetUserA.user_id == FleetProfileA.user_id,
+        )
+
+        .filter(Vehicle.tenant_id == tenant_id)
         .all()
     )
+
+    result = []
+
+    for row in rows:
+        vehicle = row.Vehicle
+
+        if vehicle.owner_type == "driver":
+            owner = {
+                "type": "driver",
+                "id": row.driver_id,
+                "name": row.driver_name,
+                "phone": row.driver_phone,
+            }
+        else:
+            owner = {
+                "type": "fleet_owner",
+                "id": row.fleet_owner_id,
+                "business_name": row.fleet_business,
+                "contact_name": row.fleet_owner_name,
+                "phone": row.fleet_phone,
+            }
+
+        result.append(
+            {
+                "vehicle_id": vehicle.vehicle_id,
+                "license_plate": vehicle.license_plate,
+                "status": vehicle.status,
+                "owner": owner,
+            }
+        )
+
+    return result
+
 @router.get("/{tenant_id}/vehicles/{vehicle_id}/documents")
 def list_vehicle_documents(
     tenant_id: int,
@@ -127,7 +213,8 @@ def list_vehicle_documents(
         )
         .all()
     )
-@router.put("/vehicle-documents/{doc_id}/approve")
+
+@router.put("/{tenant_id}/vehicles/{vehicle_id}/documents/{doc_id}/approve")
 def approve_vehicle_document(
     doc_id: int,
     db: Session = Depends(get_db),
@@ -144,7 +231,8 @@ def approve_vehicle_document(
 
     db.commit()
     return {"status": "approved"}
-@router.put("/vehicle-documents/{doc_id}/reject")
+
+@router.put("/{tenant_id}/vehicles/{vehicle_id}/documents/{doc_id}/reject")
 def reject_vehicle_document(
     doc_id: int,
     db: Session = Depends(get_db),

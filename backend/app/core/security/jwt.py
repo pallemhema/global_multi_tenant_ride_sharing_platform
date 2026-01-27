@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from app.core.config import settings
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/otp/verify")
-
+# 🔐 Simple Bearer scheme (Swagger-friendly)
+bearer_scheme = HTTPBearer()
 def create_access_token(
     *,
     user_id: int,
@@ -40,7 +40,11 @@ def create_access_token(
         algorithm=settings.JWT_ALGORITHM,
     )
 
-def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict:
+
+# --------------------------------------------------
+# INTERNAL DECODE (shared)
+# --------------------------------------------------
+def _decode_token(token: str) -> dict:
     try:
         payload = jwt.decode(
             token,
@@ -49,7 +53,7 @@ def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict:
         )
 
         if payload.get("type") != "access":
-            raise HTTPException(status_code=401)
+            raise HTTPException(status_code=401, detail="Invalid token type")
 
         return payload
 
@@ -59,3 +63,8 @@ def verify_access_token(token: str = Depends(oauth2_scheme)) -> dict:
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+def verify_access_token(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> dict:
+    token = credentials.credentials
+    return _decode_token(token)
