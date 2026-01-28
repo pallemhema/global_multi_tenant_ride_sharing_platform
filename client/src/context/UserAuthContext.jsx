@@ -111,6 +111,7 @@ export const UserAuthProvider = ({ children }) => {
       throw err;
     }
   };
+  const roleNames = availableRoles.map(r => r.role);
 
   const value = {
     // State
@@ -121,7 +122,7 @@ export const UserAuthProvider = ({ children }) => {
     isAuthenticated,
     loading,
     phone,
-    availableRoles,
+    availableRoles:roleNames,
 
     // Methods
     loginUser,

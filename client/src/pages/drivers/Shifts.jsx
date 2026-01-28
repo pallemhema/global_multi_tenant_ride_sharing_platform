@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Clock,
   Play,
@@ -6,12 +6,12 @@ import {
   AlertCircle,
   Calendar,
   MapPin,
-} from 'lucide-react';
+} from "lucide-react";
 
-import { useDriver } from '../../context/DriverContext';
-import Loader from '../../components/common/Loader';
-import { getCurrentPositionPromise } from '../../utils/location';
-import useHeartbeat from '../../hooks/useHeartbeat';
+import { useDriver } from "../../context/DriverContext";
+import Loader from "../../components/common/Loader";
+import { getCurrentPositionPromise } from "../../utils/location";
+import useHeartbeat from "../../hooks/useHeartbeat";
 
 export default function Shifts() {
   const {
@@ -22,37 +22,55 @@ export default function Shifts() {
     loading: contextLoading,
     startShift,
     endShift,
+    setRuntimeStatus,
   } = useDriver();
-console.log(can_start_shift)
+
+  const isApproved = driver?.kyc_status === "approved";
+
+  console.log("activeShift:", activeShift);
   // 🔁 Send location heartbeat ONLY when shift is online
   useHeartbeat({
-    enabled: activeShift?.shift_status === 'online',
+    enabled: activeShift?.shift_status === "online",
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   /* ---------------- HELPERS ---------------- */
 
-  const isOnline = activeShift?.shift_status === 'online';
+  const isOnline = activeShift?.shift_status === "online";
   const runtime = runtimeStatus?.runtime_status;
 
-  const formatTime = iso =>
+  const formatTime = (iso) =>
     iso
       ? new Date(iso).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
+          hour: "2-digit",
+          minute: "2-digit",
         })
-      : 'N/A';
+      : "N/A";
 
   const currentDuration = () => {
-    if (!activeShift?.started_at) return 'N/A';
-    const start = new Date(activeShift.started_at);
-    const now = new Date();
-    const diff = now - start;
-    const h = Math.floor(diff / (1000 * 60 * 60));
-    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${h}h ${m}m`;
+    // If shift has ended, use the calculated duration from backend
+    if (activeShift?.shift_end_utc && activeShift?.duration_minutes) {
+      const hours = Math.floor(activeShift.duration_minutes / 60);
+      const minutes = activeShift.duration_minutes % 60;
+      return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+    }
+
+    // If shift is active, calculate duration from start time
+    if (
+      activeShift?.shift_start_utc &&
+      activeShift?.shift_status === "online"
+    ) {
+      const start = new Date(activeShift.shift_start_utc);
+      const now = new Date();
+      const diff = now - start;
+      const h = Math.floor(diff / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      return `${h}h ${m}m`;
+    }
+
+    return "N/A";
   };
 
   /* ---------------- ACTIONS ---------------- */
@@ -60,18 +78,18 @@ console.log(can_start_shift)
   const handleStartShift = async () => {
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
       // 1️⃣ Location permission is mandatory
       let pos;
       try {
         pos = await getCurrentPositionPromise({ timeout: 15000 });
       } catch (err) {
-        if (err.message === 'permission_denied') {
-          setError('Location access is required to go online.');
+        if (err.message === "permission_denied") {
+          setError("Location access is required to go online.");
           return;
         }
-        setError('Unable to fetch location. Please try again.');
+        setError("Unable to fetch location. Please try again.");
         return;
       }
 
@@ -81,21 +99,38 @@ console.log(can_start_shift)
         longitude: pos.longitude,
       });
     } catch (err) {
-      setError(err.message || 'Failed to start shift');
+      setError(err.message || "Failed to start shift");
     } finally {
       setLoading(false);
     }
   };
 
   const handleEndShift = async () => {
-    if (!window.confirm('Are you sure you want to go offline?')) return;
+    if (!window.confirm("Are you sure you want to go offline?")) return;
 
     try {
       setLoading(true);
-      setError('');
-      await endShift();
+      setError("");
+
+      // Get current location to record as end location
+      let endLocation = {};
+      try {
+        const pos = await getCurrentPositionPromise({ timeout: 10000 });
+        endLocation = {
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+        };
+        console.log("✅ End location captured:", endLocation);
+      } catch (err) {
+        console.warn("⚠️ Could not capture end location:", err.message);
+        // Continue without location if it fails
+      }
+      console.log(endLocation);
+
+      console.log("Sending end shift with payload:", endLocation);
+      await endShift(endLocation);
     } catch (err) {
-      setError(err.message || 'Failed to end shift');
+      setError(err.message || "Failed to end shift");
     } finally {
       setLoading(false);
     }
@@ -115,6 +150,22 @@ console.log(can_start_shift)
         </p>
       </div>
 
+      {/* KYC APPROVAL MESSAGE */}
+      {!isApproved && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+          <AlertCircle className="text-amber-600 flex-shrink-0" size={20} />
+          <div>
+            <p className="font-semibold text-amber-900">
+              KYC Verification Required
+            </p>
+            <p className="text-sm text-amber-800 mt-1">
+              You must complete KYC verification to start shifts. Please check
+              your profile or contact support.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ERROR */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
@@ -127,8 +178,8 @@ console.log(can_start_shift)
       <div
         className={`rounded-lg border p-8 ${
           isOnline
-            ? 'bg-green-50 border-green-200'
-            : 'bg-slate-50 border-slate-200'
+            ? "bg-green-50 border-green-200"
+            : "bg-slate-50 border-slate-200"
         }`}
       >
         <div className="flex justify-between items-start mb-6">
@@ -138,18 +189,18 @@ console.log(can_start_shift)
             <div className="flex items-center gap-2">
               <span
                 className={`w-3 h-3 rounded-full ${
-                  isOnline ? 'bg-green-500' : 'bg-slate-400'
+                  isOnline ? "bg-green-500" : "bg-slate-400"
                 }`}
               />
 
               <span className="font-semibold">
                 {isOnline
-                  ? runtime === 'available'
-                    ? 'Available for trips'
-                    : runtime === 'on_trip'
-                    ? 'On Trip'
-                    : 'Unavailable'
-                  : 'Offline'}
+                  ? runtime === "available"
+                    ? "Available for trips"
+                    : runtime === "on_trip"
+                      ? "On Trip"
+                      : "Unavailable"
+                  : "Offline"}
               </span>
             </div>
           </div>
@@ -158,7 +209,7 @@ console.log(can_start_shift)
           {isOnline ? (
             <button
               onClick={handleEndShift}
-              disabled={loading || runtime === 'on_trip'}
+              disabled={loading || runtime === "on_trip"}
               className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
             >
               <StopCircle size={20} /> End Shift
@@ -166,11 +217,11 @@ console.log(can_start_shift)
           ) : (
             <button
               onClick={handleStartShift}
-              disabled={loading || !can_start_shift}
+              disabled={loading || !can_start_shift || !isApproved}
               className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium ${
-                !can_start_shift
-                  ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                  : 'bg-green-600 text-white hover:bg-green-700'
+                !can_start_shift || !isApproved
+                  ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                  : "bg-green-600 text-white hover:bg-green-700"
               }`}
             >
               <Play size={20} /> Start Shift
@@ -179,19 +230,58 @@ console.log(can_start_shift)
         </div>
 
         {/* WHY START IS DISABLED */}
-        {!isOnline && !can_start_shift && (
+        {!isOnline && !can_start_shift && isApproved && (
           <div className="mt-3 text-sm text-red-600 flex gap-2">
             <AlertCircle size={16} />
             <span>
-              {driver?.driver_type === 'fleet_driver'
-                ? 'Fleet drivers must be assigned a vehicle to start a shift.'
-                : 'You must have at least one approved vehicle to start a shift.'}
+              {driver?.driver_type === "fleet_driver"
+                ? "Fleet drivers must be assigned a vehicle to start a shift."
+                : "You must have at least one approved vehicle to start a shift."}
             </span>
           </div>
         )}
 
+        {/* RUNTIME STATUS BUTTONS - Only show when online */}
+        {isOnline && (
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={() => setRuntimeStatus("available")}
+              disabled={loading || runtime === "available"}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                runtime === "available"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              ✓ Available
+            </button>
+            <button
+              onClick={() => setRuntimeStatus("unavailable")}
+              disabled={loading || runtime === "unavailable"}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                runtime === "unavailable"
+                  ? "bg-yellow-600 text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              ⊘ Not Available
+            </button>
+            <button
+              onClick={() => setRuntimeStatus("on_trip")}
+              disabled={loading || runtime === "on_trip"}
+              className={`px-4 py-2 rounded-lg font-medium transition ${
+                runtime === "on_trip"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              🛵 On Trip
+            </button>
+          </div>
+        )}
+
         {/* CANNOT END DURING TRIP */}
-        {isOnline && runtime === 'on_trip' && (
+        {isOnline && runtime === "on_trip" && (
           <div className="mt-3 text-sm text-red-600 flex gap-2">
             <AlertCircle size={16} />
             <span>You must complete the trip before going offline.</span>
@@ -202,7 +292,7 @@ console.log(can_start_shift)
         {isOnline && (
           <div className="space-y-2 text-sm mt-4">
             <p>
-              <b>Started at:</b> {formatTime(activeShift.started_at)}
+              <b>Started at:</b> {formatTime(activeShift?.shift_start_utc)}
             </p>
             <p>
               <b>Duration:</b> {currentDuration()}
@@ -211,6 +301,18 @@ console.log(can_start_shift)
               <MapPin size={14} />
               Live location sharing enabled
             </p>
+            {activeShift?.shift_start_lat && activeShift?.shift_start_lng && (
+              <p className="text-xs text-slate-500">
+                📍 Started at: {activeShift.shift_start_lat.toFixed(4)},{" "}
+                {activeShift.shift_start_lng.toFixed(4)}
+              </p>
+            )}
+            {activeShift?.shift_end_lat && activeShift?.shift_end_lng && (
+              <p className="text-xs text-slate-500">
+                📍 Ended at: {activeShift.shift_end_lat.toFixed(4)},{" "}
+                {activeShift.shift_end_lng.toFixed(4)}
+              </p>
+            )}
           </div>
         )}
       </div>

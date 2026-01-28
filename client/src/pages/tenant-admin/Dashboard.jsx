@@ -13,7 +13,7 @@ import StatCard from '../../components/tenant-admin/StatCard';
 import Loader from '../../components/common/Loader';
 
 export default function Dashboard() {
-  const { tenantId } = useAdmin();
+  const { tenantId, loading: adminLoading } = useAdmin();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -43,10 +43,13 @@ export default function Dashboard() {
       }
     };
 
-    if (tenantId) {
+    // Only fetch when AdminContext is done loading and tenantId is available
+    if (!adminLoading && tenantId) {
       fetchDashboardData();
+    } else if (!adminLoading && !tenantId) {
+      setLoading(false);
     }
-  }, [tenantId]);
+  }, [tenantId, adminLoading]);
 
   if (loading) {
     return <Loader />;

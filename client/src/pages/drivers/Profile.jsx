@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
-import { AlertCircle } from 'lucide-react';
-import Loader from '../../components/common/Loader';
-import { driverApi } from '../../services/driverApi';
-import UserProfile from '../auth/UserProfile';
+import { useEffect, useState } from "react";
+import { AlertCircle } from "lucide-react";
+import Loader from "../../components/common/Loader";
+import { driverApi } from "../../services/driverApi";
+import UserProfile from "../auth/UserProfile";
+import SwitchRole from "../../components/SwitchRole";
+
 export default function DriverProfile() {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [driverProfile, setDriverProfile] = useState(null);
 
   /* --------------------------------
@@ -15,14 +17,12 @@ export default function DriverProfile() {
     const fetchDriverProfile = async () => {
       try {
         setLoading(true);
-        setError('');
+        setError("");
 
         const data = await driverApi.getDriverProfile();
         setDriverProfile(data);
       } catch (err) {
-        setError(
-          err.response?.data?.detail || 'Failed to load driver profile'
-        );
+        setError(err.response?.data?.detail || "Failed to load driver profile");
       } finally {
         setLoading(false);
       }
@@ -52,39 +52,40 @@ export default function DriverProfile() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <p>
-            <span className="font-medium">Driver ID:</span>{' '}
+            <span className="font-medium">Driver ID:</span>{" "}
             {driverProfile.driver.driver_id}
           </p>
 
           <p>
-            <span className="font-medium">Driver Type:</span>{' '}
+            <span className="font-medium">Driver Type:</span>{" "}
             {driverProfile.driver.driver_type}
           </p>
 
           <p>
-            <span className="font-medium">KYC Status:</span>{' '}
+            <span className="font-medium">KYC Status:</span>{" "}
             {driverProfile.driver.kyc_status}
           </p>
 
           <p>
-            <span className="font-medium">Rating:</span>{' '}
-            {driverProfile.driver.rating_avg ?? '-'}
+            <span className="font-medium">Rating:</span>{" "}
+            {driverProfile.driver.rating_avg ?? "-"}
           </p>
 
           <p>
-            <span className="font-medium">Phone:</span>{' '}
+            <span className="font-medium">Phone:</span>{" "}
             {driverProfile.user.phone_e164}
           </p>
 
           <p>
-            <span className="font-medium">Email:</span>{' '}
-            {driverProfile.user.email || '-'}
+            <span className="font-medium">Email:</span>{" "}
+            {driverProfile.user.email || "-"}
           </p>
         </div>
       </div>
 
       {/* USER PROFILE (REUSABLE COMPONENT) */}
       <UserProfile />
+      <SwitchRole/> 
     </div>
   );
 }

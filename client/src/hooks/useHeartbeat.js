@@ -5,6 +5,8 @@ import { getCurrentPositionPromise } from '../utils/location';
 
 export default function useHeartbeat({ enabled }) {
   useEffect(() => {
+  
+
     if (!enabled) return;
 
     const tick = async () => {

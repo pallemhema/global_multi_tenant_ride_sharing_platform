@@ -1,3 +1,4 @@
+import os
 import shutil
 from datetime import date
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
@@ -8,6 +9,8 @@ from app.core.security.roles import require_driver
 from app.models.core.drivers.driver_documents import DriverDocument
 from app.schemas.core.drivers.driver_docuemnts import DriverDocumentOut
 from app.core.utils.document_paths import build_document_paths
+from app.core.config import settings
+
 
 router = APIRouter(
     prefix="/driver",
@@ -64,7 +67,6 @@ def upload_driver_document(
 
     return doc
 
-
 @router.get(
     "/documents",
     response_model=list[DriverDocumentOut],
@@ -106,6 +108,13 @@ def update_driver_document(
 
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+
+    # ❌ Block edit if document is already approved
+    if doc.verification_status == "approved":
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot edit an approved document. Please contact tenant admin."
+        )
 
     # 🧾 Update metadata
     if document_number is not None:
@@ -151,6 +160,7 @@ def update_driver_document(
 
     return doc
 
+
 @router.delete(
     "/documents/{document_id}",
     status_code=204,
@@ -173,6 +183,13 @@ def delete_driver_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    # ❌ Block delete if document is already approved
+    if doc.verification_status == "approved":
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot delete an approved document. Please contact tenant admin."
+        )
+
     # 🗑️ Delete file from disk
     if doc.document_url:
         try:
@@ -189,3 +206,36 @@ def delete_driver_document(
     db.commit()
 
     return
+
+@router.post("/driver/submit-documents")
+def submit_driver_documents(
+    db: Session = Depends(get_db),
+    driver = Depends(require_driver),
+):
+    if driver.onboarding_status == "completed":
+        return {"ok": True, "status": "already_completed"}
+
+    # ensure at least one document exists
+    has_docs = (
+        db.query(DriverDocument)
+        .filter(
+            DriverDocument.driver_id == driver.driver_id,
+            DriverDocument.tenant_id == driver.tenant_id,
+        )
+        .count()
+        > 0
+    )
+
+    if not has_docs:
+        raise HTTPException(
+            status_code=400,
+            detail="Upload required documents before submitting",
+        )
+
+    driver.onboarding_status = "completed"
+    db.commit()
+
+    return {
+        "ok": True,
+        "onboarding_status": driver.onboarding_status,
+    }

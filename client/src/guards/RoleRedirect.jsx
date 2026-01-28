@@ -1,23 +1,38 @@
 import { Navigate } from 'react-router-dom';
 import { useAdmin } from '../context/AdminContext';
+import { useUserAuth } from '../context/UserAuthContext';
 import Loader from '../components/common/Loader';
 
 export default function RoleRedirect() {
-  const { isAuthenticated, role, loading } = useAdmin();
+  const { isAuthenticated: adminAuth, role: adminRole, loading: adminLoading } = useAdmin();
+  const { isAuthenticated: userAuth, role: userRole, loading: userLoading } = useUserAuth();
+
+  const loading = adminLoading || userLoading;
 
   if (loading) {
     return <Loader />;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  // Check admin authentication first
+  if (adminAuth && adminRole) {
+    if (adminRole === 'tenant-admin') {
+      return <Navigate to="/tenant-admin/dashboard" replace />;
+    }
+    // Default to app-admin dashboard
+    return <Navigate to="/dashboard" replace />;
   }
 
-  // Route based on role
-  if (role === 'tenant-admin') {
-    return <Navigate to="/tenant-admin/dashboard" replace />;
+  // Check user authentication
+  if (userAuth && userRole) {
+    if (userRole === 'driver') {
+      return <Navigate to="/driver/dashboard" replace />;
+    } else if (userRole === 'rider') {
+      return <Navigate to="/rider/dashboard" replace />;
+    } else if (userRole === 'fleet-owner') {
+      return <Navigate to="/fleet-owner/dashboard" replace />;
+    }
   }
 
-  // Default to app-admin dashboard
-  return <Navigate to="/dashboard" replace />;
+  // Not authenticated - redirect to login
+  return <Navigate to="/user/login" replace />;
 }

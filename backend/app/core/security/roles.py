@@ -60,6 +60,28 @@ def require_driver(
 
     return driver   # ✅ ORM object - works even if pending/inactive
 
+def get_or_create_driver(
+    db: Session = Depends(get_db),
+    user: dict = Depends(verify_access_token),
+) -> Driver:
+    user_id = int(user.get("sub"))
+
+    driver = (
+        db.query(Driver)
+        .filter(Driver.user_id == user_id)
+        .first()
+    )
+
+    if not driver:
+        driver = Driver(
+            user_id=user_id,
+            onboarding_status="draft",
+        )
+        db.add(driver)
+        db.commit()
+        db.refresh(driver)
+
+    return driver
 
 
 def require_fleet_owner(
@@ -120,6 +142,7 @@ def require_vehicle_owner(
             .filter(
                 Driver.user_id == int(user["sub"]),
                 Driver.driver_type == "individual",
+                Driver.kyc_status=="approved"
             )
             .first()
         )
@@ -139,7 +162,10 @@ def require_vehicle_owner(
     if role == "fleet_owner":
         fleet = (
             db.query(FleetOwner)
-            .filter(FleetOwner.user_id == int(user["sub"]))
+            .filter(
+                FleetOwner.user_id == int(user["sub"]),
+                FleetOwner.approval_status=="approved"
+                )
             .first()
         )
 

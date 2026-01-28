@@ -1,12 +1,15 @@
-// src/context/DriverContext.jsx
-import { createContext, useContext, useEffect, useState } from 'react';
-import { driverApi } from '../services/driverApi';
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
+import { useUserAuth } from "./UserAuthContext";
+import { driverApi } from "../services/driverApi";
 
 const DriverContext = createContext(null);
 
 export const DriverProvider = ({ children }) => {
-  /* ---------- STATE ---------- */
+  const { isAuthenticated, loading: authLoading } = useUserAuth();
+
   const [driver, setDriver] = useState(null);
+  const driverId = driver?.driver_id ?? null;
+
   const [documents, setDocuments] = useState([]);
   const [activeShift, setActiveShift] = useState(null);
   const [runtimeStatus, setRuntimeStatus] = useState(null);
@@ -17,118 +20,144 @@ export const DriverProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [invitesLoading, setInvitesLoading] = useState(false);
 
-  /* ---------- CORE LOADER ---------- */
+  /* reset driver-scoped state when driver changes */
+  useEffect(() => {
+    setDocuments([]);
+    setActiveShift(null);
+    setRuntimeStatus(null);
+    setVehicleSummary(null);
+    setInvites([]);
+  }, [driverId]);
+
   const loadDriverData = async () => {
     try {
       setLoading(true);
       setError(null);
 
       const profile = await driverApi.getDriverProfile();
-      setDriver(profile.driver);
+      const nextDriver = profile?.driver ?? null;
+      setDriver(nextDriver);
 
-      setDocuments(await driverApi.getDriverDocuments());
-      setActiveShift(await driverApi.getShiftStatus());
-      setRuntimeStatus(await driverApi.getRuntimeStatus());
-      setVehicleSummary(await driverApi.getVehicleSummary());
+      if (!nextDriver?.driver_id) {
+        setDocuments([]);
+        return;
+      }
 
+      const [docs, shift, runtime, vehicle] = await Promise.all([
+        driverApi.getDriverDocuments(),
+        driverApi.getShiftStatus(),
+        driverApi.getRuntimeStatus(),
+        driverApi.getVehicleSummary(),
+      ]);
+
+      setDocuments(docs || []);
+      setActiveShift(shift || null);
+      setRuntimeStatus(runtime || null);
+      setVehicleSummary(vehicle || null);
     } catch (err) {
       console.error(err);
-      setError('Failed to load driver data');
+      setError("Failed to load driver data");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ---------- INVITES ---------- */
-  const loadDriverInvites = async () => {
-    if (driver?.driver_type !== 'fleet_driver') return;
-    try {
-      setInvitesLoading(true);
-      setInvites(await driverApi.getDriverInvites());
-    } finally {
-      setInvitesLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadDriverData();
-  }, []);
-
-  useEffect(() => {
-    if (driver?.driver_type === 'fleet_driver') {
-      loadDriverInvites();
+    if (!authLoading && isAuthenticated) {
+      loadDriverData();
+    } else if (!authLoading && !isAuthenticated) {
+      setDriver(null);
+      setLoading(false);
     }
-  }, [driver?.driver_type]);
+  }, [authLoading, isAuthenticated]);
 
-  /* ---------- DERIVED ---------- */
-  const can_start_shift =
-    driver?.kyc_status === 'approved' &&
-    activeShift?.shift_status === 'offline' &&
-    vehicleSummary?.can_start_shift === true;
+  /* ================= ACTIONS ================= */
 
-  console.log(driver?.kyc_status, activeShift?.shift_status, vehicleSummary?.can_start_shift); 
+  const uploadDocument = async (payload) => {
+    console.log(payload);
+    const res = await driverApi.uploadDriverDocument(payload);
+    await loadDriverData();
+    return res;
+  };
 
+  const updateDocument = async (documentId, payload) => {
+    const res = await driverApi.updateDriverDocument(documentId, payload);
+    await loadDriverData();
+    return res;
+  };
 
-  /* ---------- ACTION WRAPPERS ---------- */
-  const startShift = async payload => {
-    await driverApi.startShift(payload);
+  const deleteDocument = async (documentId) => {
+    await driverApi.deleteDriverDocument(documentId);
     await loadDriverData();
   };
 
-  const endShift = async () => {
-    await driverApi.endShift();
+  const selectTenant = async (payload) => {
+    const res = await driverApi.selectTenantForDriver(payload);
     await loadDriverData();
+    return res;
+  };
+  const selectDiverType = async(type)=>{
+    const res = await driverApi.updateDriverType(type);
+    await loadDriverData();
+    return res;
+  }
+
+  const submitDocuments = async () => {
+    const res = await driverApi.submitDocuments();
+    await loadDriverData();
+    return res;
   };
 
-  const setRuntimeStatusAction = async status => {
-    await driverApi.updateRuntimeStatus(status);
+  const updateProfile = async (payload) => {
+    const res = await driverApi.updateDriverProfile(payload);
     await loadDriverData();
+    return res;
   };
 
-  const sendHeartbeat = async payload =>
-    driverApi.sendLocationHeartbeat(payload);
+  const value = useMemo(
+    () => ({
+      driver,
+      driverId,
+      documents,
+      activeShift,
+      runtimeStatus,
+      vehicleSummary,
+      invites,
+      loading,
+      error,
+      invitesLoading,
 
-  /* ---------- CONTEXT VALUE ---------- */
+      uploadDocument,
+      updateDocument,
+      deleteDocument,
+      selectTenant,
+      submitDocuments,
+      updateProfile,
+      selectDiverType
+    }),
+    [
+      driver,
+      driverId,
+      documents,
+      activeShift,
+      runtimeStatus,
+      vehicleSummary,
+      invites,
+      loading,
+      error,
+      invitesLoading,
+    ],
+  );
+
   return (
-    <DriverContext.Provider
-      value={{
-        // state
-        driver,
-        documents,
-        activeShift,
-        runtimeStatus,
-        vehicleSummary,
-        invites,
-
-        loading,
-        error,
-        invitesLoading,
-
-        // derived
-        can_start_shift,
-
-        // actions
-        refresh: loadDriverData,
-        refreshInvites: loadDriverInvites,
-
-        startShift,
-        endShift,
-        setRuntimeStatus: setRuntimeStatusAction,
-        sendHeartbeat,
-
-        uploadDocument: driverApi.uploadDriverDocument,
-        deleteDocument: driverApi.deleteDriverDocument,
-        updateProfile: driverApi.updateDriverProfile,
-        selectTenant: driverApi.selectTenantForDriver,
-      }}
-    >
-      {children}
-    </DriverContext.Provider>
+    <DriverContext.Provider value={value}>{children}</DriverContext.Provider>
   );
 };
 
 export const useDriver = () => {
   const ctx = useContext(DriverContext);
-  if (!ctx) throw new Error('useDriver must be used inside DriverProvider');
+  if (!ctx) {
+    throw new Error("useDriver must be used inside DriverProvider");
+  }
   return ctx;
 };

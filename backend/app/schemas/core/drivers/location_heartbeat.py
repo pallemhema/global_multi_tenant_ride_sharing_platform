@@ -19,7 +19,7 @@ class LocationHeartbeatSchema(BaseModel):
         None, ge=0, le=360, description="Direction in degrees"
     )
 
-    timestamp_utc: Optional[datetime] = Field(
+    timestamp: Optional[int] = Field(
         None,
-        description="Client timestamp; server time used if omitted",
+        description="Client timestamp in milliseconds; server time used if omitted",
     )

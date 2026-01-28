@@ -2,16 +2,21 @@ import { useState, useEffect } from 'react';
 import { Building2, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import Loader from '../../../components/common/Loader';
+import { useAdmin } from '../../../context/AdminContext';
 import { appAdminAPI } from '../../../services/appAdminApi';
 
 export default function DashboardHome() {
+  const { loading: adminLoading } = useAdmin();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchSummary();
-  }, []);
+    // Only fetch when AdminContext is done loading
+    if (!adminLoading) {
+      fetchSummary();
+    }
+  }, [adminLoading]);
 
   const fetchSummary = async () => {
     try {

@@ -21,13 +21,13 @@ export default function DriverDashboard() {
   const {
     driver,
     documents,
-    vehicles,
+    vehicleSummary,
     activeShift,
     invites,
     loading,
     error,
   } = useDriver();
-
+console.log(" vehicleSummary:",vehicleSummary);
   if (loading) return <Loader />;
 
   /* ---------------- STATS ---------------- */
@@ -39,7 +39,7 @@ export default function DriverDashboard() {
 
   const vehicleCount =
   driver?.driver_type === 'individual'
-    ? vehicles?.length ?? 0
+    ? vehicleSummary?.total_vehicles ?? 0
     : 0;
 
 const inviteCount =

@@ -25,7 +25,7 @@ export default function TenantAdminLayout() {
 
   const handleLogout = () => {
     logout();
-    window.location.href = '/login';
+    window.location.href = '/admin/login';
   };
 
   const navItems = [

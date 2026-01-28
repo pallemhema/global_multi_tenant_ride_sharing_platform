@@ -63,6 +63,11 @@ class Driver(Base, TimestampMixin, AuditMixin):
         default=0
     )
 
+    onboarding_status: Mapped[str] = mapped_column(
+        String,
+        default="draft"
+    )
+
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=False

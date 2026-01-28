@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAdmin } from '../../context/AdminContext';
-import { tenantAdminAPI } from '../../services/tenantAdminApi';
-import Loader from '../../components/common/Loader';
-import Button from '../../components/common/Button';
-import { User, LogOut, AlertCircle, Copy, Check } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAdmin } from "../../context/AdminContext";
+import { tenantAdminAPI } from "../../services/tenantAdminApi";
+import Loader from "../../components/common/Loader";
+import Button from "../../components/common/Button";
+import { User, LogOut, AlertCircle, Copy, Check } from "lucide-react";
 
 export default function Profile() {
   const { tenantId, user, logout } = useAdmin();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [profile, setProfile] = useState(null);
   const [copied, setCopied] = useState(false);
 
@@ -19,12 +19,12 @@ export default function Profile() {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        setError('');
+        setError("");
         const response = await tenantAdminAPI.getTenantProfile(tenantId);
         setProfile(response.data);
       } catch (err) {
-        console.error('Failed to fetch profile:', err);
-        setError(err.response?.data?.detail || 'Failed to load profile');
+        console.error("Failed to fetch profile:", err);
+        setError(err.response?.data?.detail || "Failed to load profile");
       } finally {
         setLoading(false);
       }
@@ -37,7 +37,7 @@ export default function Profile() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/admin/login");
   };
 
   const handleCopyTenantId = () => {
@@ -50,8 +50,12 @@ export default function Profile() {
     return <Loader />;
   }
 
-  const issueDate = user?.iat ? new Date(user.iat * 1000).toLocaleString() : 'N/A';
-  const expiryDate = user?.exp ? new Date(user.exp * 1000).toLocaleString() : 'N/A';
+  const issueDate = user?.iat
+    ? new Date(user.iat * 1000).toLocaleString()
+    : "N/A";
+  const expiryDate = user?.exp
+    ? new Date(user.exp * 1000).toLocaleString()
+    : "N/A";
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -90,7 +94,7 @@ export default function Profile() {
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               Email Address
             </label>
-            <p className="text-lg text-slate-900">{user?.email || 'N/A'}</p>
+            <p className="text-lg text-slate-900">{user?.email || "N/A"}</p>
             <p className="text-xs text-slate-500 mt-1">Your login email</p>
           </div>
 
@@ -149,7 +153,8 @@ export default function Profile() {
               </div>
             </div>
             <p className="text-xs text-slate-500 mt-3">
-              Your authentication token will be automatically refreshed upon login
+              Your authentication token will be automatically refreshed upon
+              login
             </p>
           </div>
 
@@ -160,14 +165,18 @@ export default function Profile() {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Tenant Name
                 </label>
-                <p className="text-lg text-slate-900">{profile.tenantName || 'N/A'}</p>
+                <p className="text-lg text-slate-900">
+                  {profile.tenantName || "N/A"}
+                </p>
               </div>
 
               <div className="pb-6 border-b border-slate-200">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Business Type
                 </label>
-                <p className="text-lg text-slate-900">{profile.businessType || 'N/A'}</p>
+                <p className="text-lg text-slate-900">
+                  {profile.businessType || "N/A"}
+                </p>
               </div>
 
               <div>
@@ -175,7 +184,7 @@ export default function Profile() {
                   Tenant Status
                 </label>
                 <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  {profile.status || 'Active'}
+                  {profile.status || "Active"}
                 </div>
               </div>
             </>
@@ -188,12 +197,13 @@ export default function Profile() {
         <h3 className="text-lg font-bold text-slate-900 mb-6">Security</h3>
         <div className="space-y-4">
           <p className="text-slate-600 text-sm">
-            Your account is secure. To change your password, please contact the system administrator.
+            Your account is secure. To change your password, please contact the
+            system administrator.
           </p>
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-900">
-              💡 <strong>Tip:</strong> Keep your email and password safe. Never share your
-              authentication token with anyone.
+              💡 <strong>Tip:</strong> Keep your email and password safe. Never
+              share your authentication token with anyone.
             </p>
           </div>
         </div>
@@ -203,8 +213,8 @@ export default function Profile() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
         <h3 className="text-lg font-bold text-slate-900 mb-4">Session</h3>
         <p className="text-slate-600 text-sm mb-6">
-          Click the button below to logout from your account. You will need to login again
-          to access the dashboard.
+          Click the button below to logout from your account. You will need to
+          login again to access the dashboard.
         </p>
         <Button
           variant="danger"

@@ -1,7 +1,7 @@
-import { useAdmin } from '../../../context/AdminContext';
-import Card from '../../../components/common/Card';
-import Button from '../../../components/common/Button';
-import { useNavigate } from 'react-router-dom';
+import { useAdmin } from "../../../context/AdminContext";
+import Card from "../../../components/common/Card";
+import Button from "../../../components/common/Button";
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
   const { user, logout } = useAdmin();
@@ -9,7 +9,7 @@ export default function Profile() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/admin/login");
   };
 
   return (
@@ -18,9 +18,7 @@ export default function Profile() {
         <h2 className="text-2xl font-bold text-slate-900 mb-2">
           Admin Profile
         </h2>
-        <p className="text-slate-600">
-          View your admin account information.
-        </p>
+        <p className="text-slate-600">View your admin account information.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -32,7 +30,7 @@ export default function Profile() {
             <div>
               <p className="text-sm text-slate-600 mb-2">Email</p>
               <p className="text-lg font-semibold text-slate-900">
-                {user?.email || 'N/A'}
+                {user?.email || "N/A"}
               </p>
             </div>
             <div>
@@ -77,9 +75,7 @@ export default function Profile() {
               </p>
             </div>
             <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-sm font-medium text-slate-900">
-                Support
-              </p>
+              <p className="text-sm font-medium text-slate-900">Support</p>
               <p className="text-xs text-slate-600 mt-1">
                 Contact support team for help
               </p>

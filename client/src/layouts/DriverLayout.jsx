@@ -13,7 +13,7 @@ import { useUserAuth } from '../context/UserAuthContext';
 import { useState } from 'react';
 
 export default function DriverLayout() {
-  const { logout, user } = useUserAuth();
+  const { logoutUser, user } = useUserAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -22,8 +22,8 @@ export default function DriverLayout() {
   };
 
   const handleLogout = () => {
-    logout();
-    window.location.href = '/login';
+    logoutUser();
+    window.location.href = '/user/login';
   };
 
   const navItems = [

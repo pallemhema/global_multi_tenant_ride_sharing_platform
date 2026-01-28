@@ -150,6 +150,8 @@ const handleViewDocuments = async (driver) => {
     driverDocuments.length > 0 &&
     driverDocuments.every((doc) => doc.status === 'approved');
 
+  console.log(allDocsApproved)
+
   if (loading) {
     return <Loader />;
   }
