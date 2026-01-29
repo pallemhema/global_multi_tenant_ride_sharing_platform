@@ -1,25 +1,25 @@
-import { useLocation } from 'react-router-dom';
-import { useAdmin } from '../../context/AdminContext';
-import Button from '../common/Button';
+import { useLocation } from "react-router-dom";
+import { useAdminAuth } from "../../context/AdminAuthContext";
+import Button from "../common/Button";
 
 export default function Topbar() {
   const location = useLocation();
-  const { user, logout } = useAdmin();
+  const { user, logout } = useAdminAuth();
 
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path === '/dashboard') return 'Dashboard';
-    if (path.startsWith('/dashboard/tenants')) {
-      if (path.includes('/dashboard/tenants/')) return 'Tenant Details';
-      return 'Tenants';
+    if (path === "/dashboard") return "Dashboard";
+    if (path.startsWith("/dashboard/tenants")) {
+      if (path.includes("/dashboard/tenants/")) return "Tenant Details";
+      return "Tenants";
     }
-    if (path === '/dashboard/profile') return 'Profile';
-    return 'Dashboard';
+    if (path === "/dashboard/profile") return "Profile";
+    return "Dashboard";
   };
 
   const handleLogout = () => {
     logout();
-    window.location.href = '/login';
+    window.location.href = "/login";
   };
 
   return (
@@ -29,7 +29,7 @@ export default function Topbar() {
       <div className="flex items-center gap-4">
         <div className="text-right">
           <p className="text-sm font-medium text-slate-900">
-            {user?.email || 'Admin'}
+            {user?.email || "Admin"}
           </p>
           <p className="text-xs text-slate-500">App Admin</p>
         </div>

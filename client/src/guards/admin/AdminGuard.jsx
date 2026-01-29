@@ -1,10 +1,9 @@
 import { Navigate } from "react-router-dom";
-import { useAdmin } from "../../context/AdminContext";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import Loader from "../../components/common/Loader";
 
 export default function AdminGuard({ children }) {
-  const { role, isAuthenticated, loading } = useAdmin();
-
+  const { role, isAuthenticated, loading } = useAdminAuth();
   if (loading) {
     return <Loader />;
   }

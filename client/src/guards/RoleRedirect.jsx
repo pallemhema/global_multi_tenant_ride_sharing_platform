@@ -1,11 +1,19 @@
-import { Navigate } from 'react-router-dom';
-import { useAdmin } from '../context/AdminContext';
-import { useUserAuth } from '../context/UserAuthContext';
-import Loader from '../components/common/Loader';
+import { Navigate } from "react-router-dom";
+import { useAdminAuth } from "../context/AdminAuthContext";
+import { useUserAuth } from "../context/UserAuthContext";
+import Loader from "../components/common/Loader";
 
 export default function RoleRedirect() {
-  const { isAuthenticated: adminAuth, role: adminRole, loading: adminLoading } = useAdmin();
-  const { isAuthenticated: userAuth, role: userRole, loading: userLoading } = useUserAuth();
+  const {
+    isAuthenticated: adminAuth,
+    role: adminRole,
+    loading: adminLoading,
+  } = useAdminAuth();
+  const {
+    isAuthenticated: userAuth,
+    role: userRole,
+    loading: userLoading,
+  } = useUserAuth();
 
   const loading = adminLoading || userLoading;
 
@@ -15,7 +23,7 @@ export default function RoleRedirect() {
 
   // Check admin authentication first
   if (adminAuth && adminRole) {
-    if (adminRole === 'tenant-admin') {
+    if (adminRole === "tenant-admin") {
       return <Navigate to="/tenant-admin/dashboard" replace />;
     }
     // Default to app-admin dashboard
@@ -24,12 +32,12 @@ export default function RoleRedirect() {
 
   // Check user authentication
   if (userAuth && userRole) {
-    if (userRole === 'driver') {
+    if (userRole === "driver") {
       return <Navigate to="/driver/dashboard" replace />;
-    } else if (userRole === 'rider') {
+    } else if (userRole === "rider") {
       return <Navigate to="/rider/dashboard" replace />;
-    } else if (userRole === 'fleet-owner') {
-      return <Navigate to="/fleet-owner/dashboard" replace />;
+    } else if (userRole === "fleet-owner") {
+      return <Navigate to="/fleet/dashboard" replace />;
     }
   }
 

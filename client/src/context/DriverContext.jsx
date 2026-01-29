@@ -71,6 +71,9 @@ export const DriverProvider = ({ children }) => {
     }
   }, [authLoading, isAuthenticated]);
 
+  const can_start_shift = activeShift?.shift_status == "offline" &&
+                         vehicleSummary?.active_vehicles > 0;
+                         console.log(can_start_shift)
   /* ================= ACTIONS ================= */
 
   const uploadDocument = async (payload) => {
@@ -96,11 +99,11 @@ export const DriverProvider = ({ children }) => {
     await loadDriverData();
     return res;
   };
-  const selectDiverType = async(type)=>{
+  const selectDiverType = async (type) => {
     const res = await driverApi.updateDriverType(type);
     await loadDriverData();
     return res;
-  }
+  };
 
   const submitDocuments = async () => {
     const res = await driverApi.submitDocuments();
@@ -111,6 +114,25 @@ export const DriverProvider = ({ children }) => {
   const updateProfile = async (payload) => {
     const res = await driverApi.updateDriverProfile(payload);
     await loadDriverData();
+    return res;
+  };
+
+  const startShift = async (payload) => {
+    const res = await driverApi.startShift(payload);
+    await loadDriverData();
+    return res;
+  };
+
+  const endShift = async (payload) => {
+    const res = await driverApi.endShift(payload);
+    await loadDriverData();
+    return res;
+  };
+
+  const updateRuntimeStatus = async (status) => {
+    const res = await driverApi.updateRuntimeStatus(status);
+    // Update local state
+    setRuntimeStatus(res);
     return res;
   };
 
@@ -126,6 +148,7 @@ export const DriverProvider = ({ children }) => {
       loading,
       error,
       invitesLoading,
+      can_start_shift,
 
       uploadDocument,
       updateDocument,
@@ -133,7 +156,10 @@ export const DriverProvider = ({ children }) => {
       selectTenant,
       submitDocuments,
       updateProfile,
-      selectDiverType
+      selectDiverType,
+      startShift,
+      endShift,
+      updateRuntimeStatus,
     }),
     [
       driver,

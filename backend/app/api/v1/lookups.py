@@ -99,3 +99,36 @@ def get_vehicle_documents_type(db: Session = Depends(get_db)):
         db.query(VehicleDocumentType)
         .all()
     )
+
+@router.get(
+    "/fleet-owner-document-types"
+)
+def get_fleet_owner_document_types(db: Session = Depends(get_db)):
+    return (
+        db.query(FleetDocumentType)
+        .all()
+    )
+
+@router.get(
+    "/active-tenants"
+)
+def get_active_tenants(db: Session = Depends(get_db)):
+    from app.models.core.tenants.tenants import Tenant
+    return (
+        db.query(Tenant)
+        .filter(
+            Tenant.status == "active",
+            Tenant.approval_status == "approved"
+        )
+        .all()
+    )
+
+@router.get(
+    "/driver-invite-status"
+)
+def get_driver_invite_status(db: Session = Depends(get_db)):
+    return (
+        db.query(DriverInviteStatus)
+        .all()
+    )
+    

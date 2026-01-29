@@ -22,7 +22,7 @@ export default function SwitchRole() {
     const paths = {
       driver: "/driver/dashboard",
       rider: "/rider/dashboard",
-      "fleet-owner": "/fleet-owner/dashboard",
+      "fleet-owner": "/fleet/dashboard",
     };
     return paths[targetRole] || "/";
   };
@@ -33,18 +33,34 @@ export default function SwitchRole() {
     return null;
   }
 
-  const handleSwitch = async (targetRole) => {
-    try {
-      setSwitching(true);
+
+  const handleSwitch = async (role) => {
+  try{
+     setSwitching(true);
       setError("");
-      await switchUserRole(targetRole);
-      navigate(getRolePath(targetRole));
-    } catch (err) {
+    const response = await switchUserRole(role);
+   localStorage.setItem("token", response.access_token);
+  if (role === "fleet-owner") {
+    
+    if (response.onboarding_status === "completed") {
+      navigate("/fleet/dashboard");
+    } else {
+      navigate("/fleet/registration");
+    }
+  } else if (role === "driver") {
+    if (response.onboarding_status === "completed") {
+      navigate("/driver/dashboard");
+    } else {
+      navigate("/driver/registration");
+    }
+  }else if (role === "rider") {
+    navigate("/rider/dashboard");
+  }}catch (err) {
       setError(err.response?.data?.detail || "Failed to switch role");
     } finally {
       setSwitching(false);
     }
-  };
+};
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">

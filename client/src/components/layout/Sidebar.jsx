@@ -1,45 +1,53 @@
-import { LayoutDashboard, Building2, User, LogOut, Plus, FileText, CheckCircle } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
-import { useAdmin } from '../../context/AdminContext';
+import {
+  LayoutDashboard,
+  Building2,
+  User,
+  LogOut,
+  Plus,
+  FileText,
+  CheckCircle,
+} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 
 export default function Sidebar() {
-  const { logout } = useAdmin();
+  const { logout } = useAdminAuth();
   const location = useLocation();
 
   const isActive = (path) => {
-    if (path === '/dashboard') {
-      return location.pathname === '/dashboard';
+    if (path === "/dashboard") {
+      return location.pathname === "/dashboard";
     }
     return location.pathname.startsWith(path);
   };
 
   const handleLogout = () => {
     logout();
-    window.location.href = '/login';
+    window.location.href = "/login";
   };
 
   const navItems = [
     {
-      path: '/dashboard',
-      label: 'Dashboard',
+      path: "/dashboard",
+      label: "Dashboard",
       icon: LayoutDashboard,
     },
     {
-      path: '/dashboard/tenants',
-      label: 'Tenants',
+      path: "/dashboard/tenants",
+      label: "Tenants",
       icon: Building2,
     },
     {
-      path: '/dashboard/profile',
-      label: 'Profile',
+      path: "/dashboard/profile",
+      label: "Profile",
       icon: User,
     },
   ];
 
   const actionItems = [
     {
-      path: '/dashboard/tenants/create',
-      label: 'Create Tenant',
+      path: "/dashboard/tenants/create",
+      label: "Create Tenant",
       icon: Plus,
     },
   ];
@@ -64,8 +72,8 @@ export default function Sidebar() {
                 to={item.path}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
                   active
-                    ? 'bg-slate-200 text-slate-900'
-                    : 'text-slate-300 hover:bg-slate-800'
+                    ? "bg-slate-200 text-slate-900"
+                    : "text-slate-300 hover:bg-slate-800"
                 }`}
               >
                 <Icon size={20} />
@@ -77,7 +85,9 @@ export default function Sidebar() {
 
         {/* Actions Section */}
         <div className="border-t border-slate-700 pt-4">
-          <p className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">Actions</p>
+          <p className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">
+            Actions
+          </p>
           {actionItems.map((item) => {
             const Icon = item.icon;
             return (

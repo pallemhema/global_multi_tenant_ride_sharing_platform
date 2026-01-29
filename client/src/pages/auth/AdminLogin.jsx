@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAdmin } from "../../context/AdminContext";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import { authAPI } from "../../services/adminAuthApi";
 import Button from "../../components/common/Button";
 import Loader from "../../components/common/Loader";
@@ -11,7 +11,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { login } = useAdmin();
+  const { login } = useAdminAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {

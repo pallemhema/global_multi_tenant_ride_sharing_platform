@@ -5,14 +5,13 @@ from datetime import date
 import shutil
 import os
 
-
 from app.core.dependencies import get_db
 from app.core.security.roles import require_vehicle_owner
 from app.models.core.vehicles.vehicles import Vehicle
-from sqlalchemy.orm import Session
-from app.models.core.vehicles.vehicles import Vehicle
+from app.models.core.drivers.drivers import Driver
+from app.models.core.fleet_owners.fleet_owners import FleetOwner
 from app.schemas.core.vehicles.vehicles import VehicleCreate
-from app.schemas.core.vehicles.vehicles import VehicleOut,VehicleUpdate
+from app.schemas.core.vehicles.vehicles import VehicleOut, VehicleUpdate
 
 router = APIRouter()
 
@@ -22,6 +21,22 @@ def create_vehicle(
     db: Session = Depends(get_db),
     owner=Depends(require_vehicle_owner),
 ):
+    # Check KYC approval for drivers creating vehicles
+    if owner["type"] == "driver":
+        driver = db.query(Driver).filter(
+            Driver.driver_id == owner["id"]
+        ).first()
+        if not driver or driver.kyc_status != "approved":
+            raise HTTPException(403, "KYC approval required to create vehicles")
+    
+    # Check approval status for fleet owners creating vehicles
+    if owner["type"] == "fleet_owner":
+        fleet = db.query(FleetOwner).filter(
+            FleetOwner.fleet_owner_id == owner["id"]
+        ).first()
+        if not fleet or fleet.approval_status != "approved":
+            raise HTTPException(403, "Fleet owner approval required to create vehicles")
+    
     vehicle = Vehicle(
         tenant_id=owner["tenant_id"],
         owner_type=owner["type"],
@@ -49,31 +64,10 @@ def create_vehicle(
     return vehicle
 
 @router.get("/vehicles", response_model=list[VehicleOut])
-
-#     db: Session = Depends(get_db),
-#     owner=Depends(require_vehicle_owner),
-# ):
-#     query = db.query(Vehicle).filter(
-#         Vehicle.tenant_id == owner["tenant_id"]
-#     )
-
-#     if owner["type"] == "driver":
-#         query = query.filter(
-#             Vehicle.driver_owner_id == owner["owner_id"]
-#         )
-
-#     elif owner["type"] == "fleet_owner":
-#         query = query.filter(
-#             Vehicle.fleet_owner_id == owner["owner_id"]
-#         )
-
-#     return query.all()
-
 def list_vehicles(
     db: Session = Depends(get_db),
     owner=Depends(require_vehicle_owner),
 ):
-
     query = db.query(Vehicle).filter(
         Vehicle.tenant_id == owner["tenant_id"]
     )

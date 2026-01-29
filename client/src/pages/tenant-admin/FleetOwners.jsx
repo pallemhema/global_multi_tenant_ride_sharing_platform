@@ -1,19 +1,25 @@
-import { useEffect, useState } from 'react';
-import { useAdmin } from '../../context/AdminContext';
-import { tenantAdminAPI } from '../../services/tenantAdminApi';
-import DataTable from '../../components/tenant-admin/DataTable';
-import EmptyState from '../../components/tenant-admin/EmptyState';
-import ConfirmModal from '../../components/tenant-admin/ConfirmModal';
-import Loader from '../../components/common/Loader';
-import StatusBadge from '../../components/common/StatusBadge';
-import Button from '../../components/common/Button';
-import { Truck, AlertCircle, Eye } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useTenant } from "../../context/TenantContext";
+import DataTable from "../../components/tenant-admin/DataTable";
+import EmptyState from "../../components/tenant-admin/EmptyState";
+import ConfirmModal from "../../components/tenant-admin/ConfirmModal";
+import Loader from "../../components/common/Loader";
+import StatusBadge from "../../components/common/StatusBadge";
+import Button from "../../components/common/Button";
+import { Truck, AlertCircle, Eye } from "lucide-react";
 
 export default function FleetOwners() {
-  const { tenantId } = useAdmin();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [fleetOwners, setFleetOwners] = useState([]);
+  const {
+    fleetOwners,
+    loading,
+    error: contextError,
+    loadFleetOwners,
+    approveFleetOwner,
+    approveFleetOwnerDocument,
+    rejectFleetOwnerDocument,
+  } = useTenant();
+
+  const [error, setError] = useState("");
   const [selectedFleetOwner, setSelectedFleetOwner] = useState(null);
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [fleetOwnerDocuments, setFleetOwnerDocuments] = useState([]);
@@ -22,41 +28,25 @@ export default function FleetOwners() {
   const [approvingFleetOwner, setApprovingFleetOwner] = useState(null);
   const [approving, setApproving] = useState(false);
 
-  // Fetch pending fleet owners
+  // Load fleet owners on mount
   useEffect(() => {
-    const fetchFleetOwners = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const response = await tenantAdminAPI.getPendingFleetOwners(tenantId);
-        setFleetOwners(response.data);
-      } catch (err) {
-        console.error('Failed to fetch fleet owners:', err);
-        setError(err.response?.data?.detail || 'Failed to load fleet owners');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (tenantId) {
-      fetchFleetOwners();
-    }
-  }, [tenantId]);
+    loadFleetOwners();
+  }, [loadFleetOwners]);
 
   // Fetch fleet owner documents
   const handleViewDocuments = async (fleetOwner) => {
     try {
       setDocLoading(true);
-      setError('');
+      setError("");
       const response = await tenantAdminAPI.getFleetOwnerDocuments(
         tenantId,
-        fleetOwner.id
+        fleetOwner.id,
       );
       setSelectedFleetOwner(fleetOwner);
       setFleetOwnerDocuments(response.data);
       setShowDocumentsModal(true);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load documents');
+      setError(err.response?.data?.detail || "Failed to load documents");
     } finally {
       setDocLoading(false);
     }
@@ -66,18 +56,12 @@ export default function FleetOwners() {
   const handleApproveFleetOwner = async () => {
     try {
       setApproving(true);
-      setError('');
-      await tenantAdminAPI.approveFleetOwner(
-        tenantId,
-        approvingFleetOwner.id
-      );
-      setFleetOwners(
-        fleetOwners.filter((fo) => fo.id !== approvingFleetOwner.id)
-      );
+      setError("");
+      await approveFleetOwner(approvingFleetOwner.id);
       setShowApproveModal(false);
       setApprovingFleetOwner(null);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to approve fleet owner');
+      setError(err.response?.data?.detail || "Failed to approve fleet owner");
     } finally {
       setApproving(false);
     }
@@ -87,44 +71,35 @@ export default function FleetOwners() {
   const handleApproveDocument = async (docId) => {
     try {
       setDocLoading(true);
-      setError('');
-      await tenantAdminAPI.approveFleetOwnerDocument(
-        tenantId,
-        selectedFleetOwner.id,
-        docId
-      );
+      setError("");
+      await approveFleetOwnerDocument(selectedFleetOwner.id, docId);
       setFleetOwnerDocuments(
         fleetOwnerDocuments.map((doc) =>
-          doc.id === docId ? { ...doc, status: 'approved' } : doc
-        )
+          doc.id === docId ? { ...doc, status: "approved" } : doc,
+        ),
       );
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to approve document');
+      setError(err.response?.data?.detail || "Failed to approve document");
     } finally {
       setDocLoading(false);
     }
   };
 
   const handleRejectDocument = async (docId) => {
-    const reason = prompt('Enter rejection reason:');
+    const reason = prompt("Enter rejection reason:");
     if (!reason) return;
 
     try {
       setDocLoading(true);
-      setError('');
-      await tenantAdminAPI.rejectFleetOwnerDocument(
-        tenantId,
-        selectedFleetOwner.id,
-        docId,
-        reason
-      );
+      setError("");
+      await rejectFleetOwnerDocument(selectedFleetOwner.id, docId, reason);
       setFleetOwnerDocuments(
         fleetOwnerDocuments.map((doc) =>
-          doc.id === docId ? { ...doc, status: 'rejected' } : doc
-        )
+          doc.id === docId ? { ...doc, status: "rejected" } : doc,
+        ),
       );
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to reject document');
+      setError(err.response?.data?.detail || "Failed to reject document");
     } finally {
       setDocLoading(false);
     }
@@ -133,7 +108,7 @@ export default function FleetOwners() {
   // Check if all documents are approved
   const allDocsApproved =
     fleetOwnerDocuments.length > 0 &&
-    fleetOwnerDocuments.every((doc) => doc.status === 'approved');
+    fleetOwnerDocuments.every((doc) => doc.status === "approved");
 
   if (loading) {
     return <Loader />;
@@ -141,29 +116,29 @@ export default function FleetOwners() {
 
   const columns = [
     {
-      key: 'name',
-      label: 'Name',
+      key: "name",
+      label: "Name",
       sortable: true,
     },
     {
-      key: 'email',
-      label: 'Email',
+      key: "email",
+      label: "Email",
       sortable: true,
     },
     {
-      key: 'phone',
-      label: 'Phone',
+      key: "phone",
+      label: "Phone",
       sortable: false,
     },
     {
-      key: 'status',
-      label: 'Status',
+      key: "status",
+      label: "Status",
       sortable: true,
       render: (value) => <StatusBadge status={value} type="approval" />,
     },
     {
-      key: 'id',
-      label: 'Actions',
+      key: "id",
+      label: "Actions",
       sortable: false,
       render: (value, row) => (
         <button
@@ -184,7 +159,9 @@ export default function FleetOwners() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Fleet Owners</h1>
-        <p className="text-slate-600">Review and approve pending fleet owners</p>
+        <p className="text-slate-600">
+          Review and approve pending fleet owners
+        </p>
       </div>
 
       {/* Error Alert */}
@@ -249,7 +226,7 @@ export default function FleetOwners() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {doc.status !== 'approved' && (
+                        {doc.status !== "approved" && (
                           <>
                             <Button
                               variant="success"

@@ -82,7 +82,7 @@ console.log("RiderDashboard avialblae roles:",availableRoles)
 
       {isFleetOwner && (
         <button
-          onClick={() => navigate('/fleet-owner/dashboard')}
+          onClick={() => navigate('/fleet/dashboard')}
           className="p-6 border-2 border-purple-500 rounded-lg hover:bg-purple-50 transition transform hover:scale-105 active:scale-95"
         >
           <div className="text-4xl mb-3">🏢</div>
@@ -125,7 +125,7 @@ console.log("RiderDashboard avialblae roles:",availableRoles)
         </button>
 
         <button
-          onClick={() => navigate('/register/fleet-owner')}
+          onClick={() => navigate('/register/fleet')}
           className="p-6 border-2 border-purple-500 rounded-lg hover:bg-purple-50 transition transform hover:scale-105 active:scale-95"
         >
           <div className="text-4xl mb-3">🏢</div>

@@ -22,12 +22,13 @@ export default function Shifts() {
     loading: contextLoading,
     startShift,
     endShift,
-    setRuntimeStatus,
+    updateRuntimeStatus,
   } = useDriver();
 
   const isApproved = driver?.kyc_status === "approved";
 
   console.log("activeShift:", activeShift);
+  
   // 🔁 Send location heartbeat ONLY when shift is online
   useHeartbeat({
     enabled: activeShift?.shift_status === "online",
@@ -245,7 +246,7 @@ export default function Shifts() {
         {isOnline && (
           <div className="mt-6 flex gap-3">
             <button
-              onClick={() => setRuntimeStatus("available")}
+              onClick={() => updateRuntimeStatus("available")}
               disabled={loading || runtime === "available"}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 runtime === "available"
@@ -256,7 +257,7 @@ export default function Shifts() {
               ✓ Available
             </button>
             <button
-              onClick={() => setRuntimeStatus("unavailable")}
+              onClick={() => updateRuntimeStatus("unavailable")}
               disabled={loading || runtime === "unavailable"}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 runtime === "unavailable"
@@ -267,7 +268,7 @@ export default function Shifts() {
               ⊘ Not Available
             </button>
             <button
-              onClick={() => setRuntimeStatus("on_trip")}
+              onClick={() => updateRuntimeStatus("on_trip")}
               disabled={loading || runtime === "on_trip"}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 runtime === "on_trip"

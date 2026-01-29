@@ -1,93 +1,77 @@
-import { useEffect, useState } from 'react';
-import { useAdmin } from '../../context/AdminContext';
-import { tenantAdminAPI } from '../../services/tenantAdminApi';
-import DataTable from '../../components/tenant-admin/DataTable';
-import EmptyState from '../../components/tenant-admin/EmptyState';
-import ConfirmModal from '../../components/tenant-admin/ConfirmModal';
-import Loader from '../../components/common/Loader';
-import StatusBadge from '../../components/common/StatusBadge';
-import Button from '../../components/common/Button';
-import { FileText, Plus, AlertCircle, Trash2, Eye, Edit3 } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useTenant } from "../../context/TenantContext";
+import DataTable from "../../components/tenant-admin/DataTable";
+import EmptyState from "../../components/tenant-admin/EmptyState";
+import ConfirmModal from "../../components/tenant-admin/ConfirmModal";
+import Loader from "../../components/common/Loader";
+import StatusBadge from "../../components/common/StatusBadge";
+import Button from "../../components/common/Button";
+import { FileText, Plus, AlertCircle, Trash2, Eye, Edit3 } from "lucide-react";
 
 export default function Documents() {
-  const { tenantId } = useAdmin();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [documents, setDocuments] = useState([]);
-  const [documentTypes, setDocumentTypes] = useState([]);
+  const {
+    documents,
+    documentTypes,
+    loading,
+    error: contextError,
+    loadDocuments,
+    deleteDocument,
+    updateDocument,
+    uploadDocument,
+  } = useTenant();
+
+  const [error, setError] = useState("");
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
-    documentType: '',
-    documentNumber: '',
-    expiryDate: '',
+    documentType: "",
+    documentNumber: "",
+    expiryDate: "",
     file: null,
   });
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingDoc, setEditingDoc] = useState(null);
 
-  // Fetch documents and document types
+  // Load documents on mount
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        
-        const [docsResponse, typesResponse] = await Promise.all([
-          tenantAdminAPI.getDocuments(tenantId),
-          tenantAdminAPI.getDocumentTypes(tenantId),
-        ]);
-        console.log("docsResponse:",docsResponse)
-        
-        setDocuments(docsResponse.data);
-        setDocumentTypes(typesResponse.data);
-      } catch (err) {
-        console.error('Failed to fetch data:', err);
-        setError(err.response?.data?.detail || 'Failed to load documents');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (tenantId) {
-      fetchData();
-    }
-  }, [tenantId]);
-
-      
-
+    loadDocuments();
+  }, [loadDocuments]);
 
   // Handle upload
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!formData.file) {
-      setError('Please select a file');
+      setError("Please select a file");
       return;
     }
 
     try {
       setUploading(true);
-      setError('');
+      setError("");
 
       const data = new FormData();
-      data.append('document_type', formData.documentType);
-      data.append('document_number', formData.documentNumber);
-      data.append('expiry_date', formData.expiryDate);
-      data.append('file', formData.file);
+      data.append("document_type", formData.documentType);
+      data.append("document_number", formData.documentNumber);
+      data.append("expiry_date", formData.expiryDate);
+      data.append("file", formData.file);
 
-      const response = await tenantAdminAPI.uploadDocument(tenantId, data);
-      setDocuments([...documents, response.data]);
+      await uploadDocument(
+        formData.documentType,
+        formData.documentNumber,
+        formData.expiryDate,
+        formData.file,
+      );
       setFormData({
-        documentType: '',
-        documentNumber: '',
-        expiryDate: '',
+        documentType: "",
+        documentNumber: "",
+        expiryDate: "",
         file: null,
       });
       setShowUploadForm(false);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to upload document');
+      setError(err.response?.data?.detail || "Failed to upload document");
     } finally {
       setUploading(false);
     }
@@ -97,12 +81,11 @@ export default function Documents() {
   const handleDelete = async () => {
     try {
       setUploading(true);
-      await tenantAdminAPI.deleteDocument(tenantId, selectedDoc.document_id);
-      setDocuments(documents.filter((doc) => doc.document_id !== selectedDoc.document_id));
+      await deleteDocument(selectedDoc.tenant_document_id);
       setShowDeleteModal(false);
       setSelectedDoc(null);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to delete document');
+      setError(err.response?.data?.detail || "Failed to delete document");
     } finally {
       setUploading(false);
     }
@@ -111,148 +94,137 @@ export default function Documents() {
   if (loading) {
     return <Loader />;
   }
- const handleEditDocument = async (e) => {
-  e.preventDefault();
+  const handleEditDocument = async (e) => {
+    e.preventDefault();
 
-  if (!editingDoc?.document_id) {
-    console.error('Missing document_id', editingDoc);
-    setError('Invalid document selected');
-    return;
-  }
-
-  try {
-    setUploading(true);
-    setError('');
-
-    const data = new FormData();
-    data.append('document_number', formData.documentNumber);
-    data.append('expiry_date', formData.expiryDate);
-
-    if (formData.file) {
-      data.append('file', formData.file);
+    if (!editingDoc?.tenant_document_id) {
+      console.error("Missing document_id", editingDoc);
+      setError("Invalid document selected");
+      return;
     }
 
-    await tenantAdminAPI.updateDocument(
-      tenantId,
-      editingDoc.document_id,
-      data
-    );
+    try {
+      setUploading(true);
+      setError("");
 
-    const response = await tenantAdminAPI.getDocuments(tenantId);
-    setDocuments(response.data);
+      await updateDocument(
+        editingDoc.tenant_document_id,
+        formData.documentNumber,
+        formData.expiryDate,
+        formData.file,
+      );
 
-    setShowEditForm(false);
-    setEditingDoc(null);
-    setFormData({
-      documentType: '',
-      documentNumber: '',
-      expiryDate: '',
-      file: null,
-    });
-  } catch (err) {
-    setError(
-      err.response?.data?.detail?.[0]?.msg ||
-      err.response?.data?.detail ||
-      'Failed to update document'
-    );
-  } finally {
-    setUploading(false);
-  }
-};
+      setShowEditForm(false);
+      setEditingDoc(null);
+      setFormData({
+        documentType: "",
+        documentNumber: "",
+        expiryDate: "",
+        file: null,
+      });
+    } catch (err) {
+      setError(
+        err.response?.data?.detail?.[0]?.msg ||
+          err.response?.data?.detail ||
+          "Failed to update document",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
 
-console.log(editingDoc)
+  console.log(editingDoc);
   const columns = [
     {
-      key: 'document_type',
-      label: 'Document Type',
+      key: "document_type",
+      label: "Document Type",
       sortable: true,
     },
     {
-      key: 'document_number',
-      label: 'Document Number',
+      key: "document_number",
+      label: "Document Number",
       sortable: true,
     },
     {
-      key: 'expiry_date',
-      label: 'Expiry Date',
+      key: "expiry_date",
+      label: "Expiry Date",
       sortable: true,
-      render: (value) => (value ? new Date(value).toLocaleDateString() : '-'),
+      render: (value) => (value ? new Date(value).toLocaleDateString() : "-"),
     },
     {
-      key: 'verification_status',
-      label: 'Status',
+      key: "verification_status",
+      label: "Status",
       sortable: true,
       render: (value) => <StatusBadge status={value} type="approval" />,
     },
 
-{
-  key: 'actions',
-  label: 'Actions',
-  sortable: false,
-  render: (_, row) => {
-    const isApproved = row.verification_status === 'approved';
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      render: (_, row) => {
+        const isApproved = row.verification_status === "approved";
 
-    return (
-      <div className="flex gap-3">
-        {/* 👁️ View – always visible */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            window.open(row.document_url, '_blank');
-          }}
-          className="inline-flex items-center justify-center w-8 h-8 rounded-lg
+        return (
+          <div className="flex gap-3">
+            {/* 👁️ View – always visible */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(row.document_url, "_blank");
+              }}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg
                      bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
-          title="View Document"
-        >
-          <Eye size={18} />
-        </button>
+              title="View Document"
+            >
+              <Eye size={18} />
+            </button>
 
-        {/* ✏️ Edit + 🗑️ Delete – ONLY if NOT approved */}
-        {!isApproved && (
-          <>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-setEditingDoc({
-  ...row,
-  document_id: row.tenant_document_id,
-});
-                setFormData({
-                  documentType: row.document_type,
-                  documentNumber: row.document_number || '',
-                  expiryDate: row.expiry_date
-                    ? row.expiry_date.split('T')[0]
-                    : '',
-                  file: null,
-                });
-                setShowEditForm(true);
-              }}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-lg
+            {/* ✏️ Edit + 🗑️ Delete – ONLY if NOT approved */}
+            {!isApproved && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingDoc({
+                      ...row,
+                      document_id: row.tenant_document_id,
+                    });
+                    setFormData({
+                      documentType: row.document_type,
+                      documentNumber: row.document_number || "",
+                      expiryDate: row.expiry_date
+                        ? row.expiry_date.split("T")[0]
+                        : "",
+                      file: null,
+                    });
+                    setShowEditForm(true);
+                  }}
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg
                          bg-amber-50 text-amber-600 hover:bg-amber-100 transition"
-              title="Edit Document"
-            >
-              <Edit3 size={18} />
-            </button>
+                  title="Edit Document"
+                >
+                  <Edit3 size={18} />
+                </button>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedDoc(row);
-                setShowDeleteModal(true);
-              }}
-              className="inline-flex items-center justify-center w-8 h-8 rounded-lg
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedDoc(row);
+                    setShowDeleteModal(true);
+                  }}
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg
                          bg-red-50 text-red-600 hover:bg-red-100 transition"
-              title="Delete Document"
-            >
-              <Trash2 size={18} />
-            </button>
-          </>
-        )}
-      </div>
-    );
-  },
-}
-
+                  title="Delete Document"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </>
+            )}
+          </div>
+        );
+      },
+    },
   ];
 
   return (
@@ -261,9 +233,7 @@ setEditingDoc({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Documents</h1>
-          <p className="text-slate-600">
-            Manage and upload tenant documents
-          </p>
+          <p className="text-slate-600">Manage and upload tenant documents</p>
         </div>
         <Button
           variant="primary"
@@ -382,7 +352,7 @@ setEditingDoc({
                 Cancel
               </Button>
               <Button variant="primary" type="submit" disabled={uploading}>
-                {uploading ? 'Uploading...' : 'Upload'}
+                {uploading ? "Uploading..." : "Upload"}
               </Button>
             </div>
           </form>
@@ -395,10 +365,7 @@ setEditingDoc({
           <h2 className="text-lg font-bold text-slate-900 mb-6">
             Edit Document
           </h2>
-          <form
-            onSubmit={handleEditDocument}
-            className="space-y-6"
-          >
+          <form onSubmit={handleEditDocument} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -475,9 +442,9 @@ setEditingDoc({
                   setShowEditForm(false);
                   setEditingDoc(null);
                   setFormData({
-                    documentType: '',
-                    documentNumber: '',
-                    expiryDate: '',
+                    documentType: "",
+                    documentNumber: "",
+                    expiryDate: "",
                     file: null,
                   });
                 }}
@@ -486,7 +453,7 @@ setEditingDoc({
                 Cancel
               </Button>
               <Button variant="primary" type="submit" disabled={uploading}>
-                {uploading ? 'Updating...' : 'Update'}
+                {uploading ? "Updating..." : "Update"}
               </Button>
             </div>
           </form>
@@ -500,7 +467,7 @@ setEditingDoc({
           title="No Documents"
           description="Start by uploading your first document"
           action={{
-            label: 'Upload Document',
+            label: "Upload Document",
             onClick: () => setShowUploadForm(true),
           }}
         />
@@ -528,4 +495,3 @@ setEditingDoc({
     </div>
   );
 }
-

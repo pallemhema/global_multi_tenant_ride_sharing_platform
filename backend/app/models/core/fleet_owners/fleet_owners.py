@@ -20,7 +20,7 @@ class FleetOwner(Base, TimestampMixin, AuditMixin):
     tenant_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("tenants.tenant_id", ondelete="RESTRICT"),
-        nullable=False,
+        nullable=True,
         index=True
     )
 
@@ -39,6 +39,10 @@ class FleetOwner(Base, TimestampMixin, AuditMixin):
     contact_email: Mapped[str | None] = mapped_column(
         String,
         nullable=True
+    )
+    onboarding_status: Mapped[str] = mapped_column(
+        String,
+        default="draft"
     )
 
     approval_status: Mapped[str] = mapped_column(

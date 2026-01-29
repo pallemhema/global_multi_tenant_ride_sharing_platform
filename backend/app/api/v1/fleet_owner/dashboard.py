@@ -1,3 +1,17 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from app.core.dependencies import get_db
+from app.core.security.roles import require_fleet_owner
+from app.models.core.vehicles.vehicles import Vehicle
+from app.models.core.drivers.driver_current_status import DriverCurrentStatus
+from app.models.core.accounting.ledger import FinancialLedger
+
+router = APIRouter(
+    tags=["Fleet Owner – Dashboard"],
+)
+
 @router.get("/dashboard")
 def fleet_dashboard(
     tenant_id: int,

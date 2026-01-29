@@ -1,12 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
-import { useAdmin } from '../../context/AdminContext';
-import { tenantAdminAPI } from '../../services/tenantAdminApi';
-import DataTable from '../../components/tenant-admin/DataTable';
-import EmptyState from '../../components/tenant-admin/EmptyState';
-import ConfirmModal from '../../components/tenant-admin/ConfirmModal';
-import Loader from '../../components/common/Loader';
-import StatusBadge from '../../components/common/StatusBadge';
-import Button from '../../components/common/Button';
+import { useEffect, useState, useMemo } from "react";
+import { useTenant } from "../../context/TenantContext";
+import DataTable from "../../components/tenant-admin/DataTable";
+import EmptyState from "../../components/tenant-admin/EmptyState";
+import ConfirmModal from "../../components/tenant-admin/ConfirmModal";
+import Loader from "../../components/common/Loader";
+import StatusBadge from "../../components/common/StatusBadge";
+import Button from "../../components/common/Button";
 import {
   Car,
   AlertCircle,
@@ -14,35 +13,40 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
-} from 'lucide-react';
+} from "lucide-react";
 
 /* ---------------- Owner Badge ---------------- */
 const OwnerBadge = ({ type }) => (
   <span
     className={`px-2 py-0.5 rounded-full text-xs font-medium
       ${
-        type === 'driver'
-          ? 'bg-blue-100 text-blue-800'
-          : 'bg-purple-100 text-purple-800'
+        type === "driver"
+          ? "bg-blue-100 text-blue-800"
+          : "bg-purple-100 text-purple-800"
       }`}
   >
-    {type === 'driver' ? 'Driver-owned' : 'Fleet-owned'}
+    {type === "driver" ? "Driver-owned" : "Fleet-owned"}
   </span>
 );
 
 export default function Vehicles() {
-  const { tenantId } = useAdmin();
+  const {
+    vehicles,
+    loading,
+    error: contextError,
+    loadVehicles,
+    approveVehicle,
+    rejectVehicleDocument,
+    approveVehicleDocument,
+  } = useTenant();
 
-  const [vehicles, setVehicles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   /* ----- Documents modal state ----- */
   const [showDocsModal, setShowDocsModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [docLoading, setDocLoading] = useState(false);
-
   /* ----- Approve vehicle ----- */
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [approving, setApproving] = useState(false);
@@ -50,22 +54,10 @@ export default function Vehicles() {
   const [showApprovedDriver, setShowApprovedDriver] = useState(false);
   const [showApprovedFleet, setShowApprovedFleet] = useState(false);
 
-  /* ---------------- Fetch vehicles ---------------- */
+  /* ---------------- Fetch vehicles on mount ---------------- */
   useEffect(() => {
-    const fetchVehicles = async () => {
-      try {
-        setLoading(true);
-        const res = await tenantAdminAPI.getVehicles(tenantId);
-        setVehicles(res.data);
-      } catch (err) {
-        setError(err.response?.data?.detail || 'Failed to load vehicles');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (tenantId) fetchVehicles();
-  }, [tenantId]);
+    loadVehicles();
+  }, [loadVehicles]);
 
   /* ---------------- Normalize data ---------------- */
   const normalizedVehicles = useMemo(
@@ -75,15 +67,13 @@ export default function Vehicles() {
         registrationNumber: v.license_plate,
         ownerType: v.owner.type,
         ownerName:
-          v.owner.type === 'driver'
-            ? v.owner.name
-            : v.owner.business_name,
+          v.owner.type === "driver" ? v.owner.name : v.owner.business_name,
         status: v.status,
       })),
-    [vehicles]
+    [vehicles],
   );
 
-  const isApproved = (v) => v.status === 'active';
+  const isApproved = (v) => v.status === "active";
 
   const splitVehicles = (type) => {
     const list = normalizedVehicles.filter((v) => v.ownerType === type);
@@ -93,32 +83,32 @@ export default function Vehicles() {
     };
   };
 
-  const driverSplit = splitVehicles('driver');
-  const fleetSplit = splitVehicles('fleet_owner');
+  const driverSplit = splitVehicles("driver");
+  const fleetSplit = splitVehicles("fleet_owner");
 
   /* ---------------- Table columns ---------------- */
   const columns = [
     {
-      key: 'registrationNumber',
-      label: 'Registration Number',
+      key: "registrationNumber",
+      label: "Registration Number",
     },
     {
-      key: 'ownerType',
-      label: 'Owner Type',
+      key: "ownerType",
+      label: "Owner Type",
       render: (_, row) => <OwnerBadge type={row.ownerType} />,
     },
     {
-      key: 'ownerName',
-      label: 'Owner',
+      key: "ownerName",
+      label: "Owner",
     },
     {
-      key: 'status',
-      label: 'Status',
+      key: "status",
+      label: "Status",
       render: (value) => <StatusBadge status={value} type="approval" />,
     },
     {
-      key: 'actions',
-      label: 'Actions',
+      key: "actions",
+      label: "Actions",
       render: (_, row) => (
         <button
           onClick={() => openDocuments(row)}
@@ -132,7 +122,7 @@ export default function Vehicles() {
 
   /* ---------------- Row highlight ---------------- */
   const getRowClassName = (row) =>
-    row.status !== 'active' ? 'bg-yellow-50' : '';
+    row.status !== "active" ? "bg-yellow-50" : "";
 
   /* ---------------- Documents logic ---------------- */
   const openDocuments = async (vehicle) => {
@@ -140,99 +130,71 @@ export default function Vehicles() {
       setDocLoading(true);
       const res = await tenantAdminAPI.getVehicleDocuments(
         tenantId,
-        vehicle.id
+        vehicle.id,
       );
-      console.log('res:',res);
+      console.log("res:", res);
       setSelectedVehicle(vehicle);
       setDocuments(res.data);
       setShowDocsModal(true);
     } catch {
-      setError('Failed to load documents');
+      setError("Failed to load documents");
     } finally {
       setDocLoading(false);
     }
   };
-  console.log(selectedVehicle,":selectedVehicle")
-  console.log(documents,":selected vehicle documents")
 
- const approveDocument = async (docId) => {
-  try {
-    const response =
-      await tenantAdminAPI.approveVehicleDocument(
-        tenantId,
-        selectedVehicle.id,
-        docId
+  const approveDocument = async (docId) => {
+    try {
+      await approveVehicleDocument(selectedVehicle.id, docId);
+
+      // Update documents list
+      setDocuments((docs) =>
+        docs.map((d) =>
+          d.document_id === docId
+            ? { ...d, verification_status: "approved" }
+            : d,
+        ),
       );
-
-    console.log('Approved:', response.data);
-
-    // ✅ Update correct fields
-    setDocuments((docs) =>
-      docs.map((d) =>
-        d.document_id === docId
-          ? { ...d, verification_status: 'approved' }
-          : d
-      )
-    );
-  } catch (err) {
-    console.error('Approve failed', err);
-    alert('Failed to approve document');
-  }
-};
-
+    } catch (err) {
+      console.error("Approve failed", err);
+      setError("Failed to approve document");
+    }
+  };
 
   const rejectDocument = async (docId) => {
-     try {
-      const reason = prompt('Enter rejection reason');
-    if (!reason) return;
-    const response = await tenantAdminAPI.rejectVehicleDocument(
-      tenantId,
-      selectedVehicle.id,
-      docId,
-      reason
-    );
+    try {
+      const reason = prompt("Enter rejection reason");
+      if (!reason) return;
 
-    setDocuments((docs) =>
-  docs.map((d) =>
-    d.document_id === docId
-      ? { ...d, verification_status: 'rejected' }
-      : d
-  )
-);
+      await rejectVehicleDocument(selectedVehicle.id, docId, reason);
 
-  }catch (err) {
-    console.error('rejection failed', err);
-    alert('Failed to reject document');
-  }
+      setDocuments((docs) =>
+        docs.map((d) =>
+          d.document_id === docId
+            ? { ...d, verification_status: "rejected" }
+            : d,
+        ),
+      );
+    } catch (err) {
+      console.error("rejection failed", err);
+      setError("Failed to reject document");
+    }
   };
-  
-  console.log(vehicles)
-  const allDocsApproved =
-  documents.length > 0 &&
-  documents.every(
-    (d) => d.verification_status === 'approved'
-  );
 
+  const allDocsApproved =
+    documents.length > 0 &&
+    documents.every((d) => d.verification_status === "approved");
 
   /* ---------------- Approve vehicle ---------------- */
-  const approveVehicle = async () => {
+  const handleApproveVehicle = async () => {
     try {
       setApproving(true);
-      await tenantAdminAPI.approveVehicle(
-        tenantId,
-        selectedVehicle.id
-      );
-
-      setVehicles((prev) =>
-        prev.map((v) =>
-          v.vehicle_id === selectedVehicle.id
-            ? { ...v, status: 'active' }
-            : v
-        )
-      );
+      await approveVehicle(selectedVehicle.id);
 
       setShowApproveModal(false);
       setShowDocsModal(false);
+    } catch (err) {
+      setError("Failed to approve vehicle");
     } finally {
       setApproving(false);
     }
@@ -258,9 +220,7 @@ export default function Vehicles() {
         pending={driverSplit.pending}
         approved={driverSplit.approved}
         showApproved={showApprovedDriver}
-        toggleApproved={() =>
-          setShowApprovedDriver(!showApprovedDriver)
-        }
+        toggleApproved={() => setShowApprovedDriver(!showApprovedDriver)}
         columns={columns}
         getRowClassName={getRowClassName}
       />
@@ -271,9 +231,7 @@ export default function Vehicles() {
         pending={fleetSplit.pending}
         approved={fleetSplit.approved}
         showApproved={showApprovedFleet}
-        toggleApproved={() =>
-          setShowApprovedFleet(!showApprovedFleet)
-        }
+        toggleApproved={() => setShowApprovedFleet(!showApprovedFleet)}
         columns={columns}
         getRowClassName={getRowClassName}
       />
@@ -302,18 +260,13 @@ export default function Vehicles() {
                   </div>
 
                   <div className="flex gap-2">
-                    <a
-                      href={doc.document_url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <a href={doc.document_url} target="_blank" rel="noreferrer">
                       <Button variant="secondary" size="sm">
                         <ExternalLink size={14} /> View
                       </Button>
                     </a>
 
-                    {doc.verification_status !== 'approved' && (
-
+                    {doc.verification_status !== "approved" && (
                       <>
                         <Button
                           variant="success"
@@ -346,7 +299,9 @@ export default function Vehicles() {
 
               <Button
                 variant="primary"
-                disabled={!allDocsApproved || selectedVehicle.status === 'active'}
+                disabled={
+                  !allDocsApproved || selectedVehicle.status === "active"
+                }
                 onClick={() => setShowApproveModal(true)}
               >
                 Approve Vehicle
@@ -364,7 +319,7 @@ export default function Vehicles() {
         confirmText="Approve"
         variant="success"
         loading={approving}
-        onConfirm={approveVehicle}
+        onConfirm={handleApproveVehicle}
         onClose={() => setShowApproveModal(false)}
       />
     </div>
@@ -402,7 +357,7 @@ function Section({
             className="text-sm text-indigo-600 flex gap-1 items-center"
           >
             {showApproved ? <ChevronUp /> : <ChevronDown />}
-            {showApproved ? 'Hide' : 'Show'} Approved ({approved.length})
+            {showApproved ? "Hide" : "Show"} Approved ({approved.length})
           </button>
 
           {showApproved && (

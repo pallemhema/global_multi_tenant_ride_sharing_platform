@@ -95,6 +95,7 @@ export const UserAuthProvider = ({ children }) => {
      SWITCH ROLE
   =============================== */
   const switchUserRole = async (newRole) => {
+    console.log("Switching to role:", newRole);
     try {
       const res = await userAuthApi.switchRole(newRole);
       const newToken = res.access_token;
@@ -112,6 +113,7 @@ export const UserAuthProvider = ({ children }) => {
     }
   };
   const roleNames = availableRoles.map(r => r.role);
+  console.log("availableRoles:", roleNames);
 
   const value = {
     // State

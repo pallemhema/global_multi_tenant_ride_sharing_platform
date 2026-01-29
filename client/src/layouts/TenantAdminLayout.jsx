@@ -9,13 +9,13 @@ import {
   LogOut,
   Menu,
   X,
-} from 'lucide-react';
-import { Link, useLocation, Outlet } from 'react-router-dom';
-import { useAdmin } from '../context/AdminContext';
-import { useState } from 'react';
+} from "lucide-react";
+import { Link, useLocation, Outlet } from "react-router-dom";
+import { useAdminAuth } from "../context/AdminAuthContext";
+import { useState } from "react";
 
 export default function TenantAdminLayout() {
-  const { logout, tenantId } = useAdmin();
+  const { logout, tenantId } = useAdminAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -25,43 +25,43 @@ export default function TenantAdminLayout() {
 
   const handleLogout = () => {
     logout();
-    window.location.href = '/admin/login';
+    window.location.href = "/admin/login";
   };
 
   const navItems = [
     {
-      path: '/tenant-admin/dashboard',
-      label: 'Dashboard',
+      path: "/tenant-admin/dashboard",
+      label: "Dashboard",
       icon: LayoutDashboard,
     },
     {
-      path: '/tenant-admin/documents',
-      label: 'Documents',
+      path: "/tenant-admin/documents",
+      label: "Documents",
       icon: FileText,
     },
     {
-      path: '/tenant-admin/regions',
-      label: 'Regions',
+      path: "/tenant-admin/regions",
+      label: "Regions",
       icon: MapPin,
     },
     {
-      path: '/tenant-admin/vehicles',
-      label: 'Vehicles',
+      path: "/tenant-admin/vehicles",
+      label: "Vehicles",
       icon: Car,
     },
     {
-      path: '/tenant-admin/fleet-owners',
-      label: 'Fleet Owners',
+      path: "/tenant-admin/fleet-owners",
+      label: "Fleet Owners",
       icon: Truck,
     },
     {
-      path: '/tenant-admin/drivers',
-      label: 'Drivers',
+      path: "/tenant-admin/drivers",
+      label: "Drivers",
       icon: Users,
     },
     {
-      path: '/tenant-admin/profile',
-      label: 'Profile',
+      path: "/tenant-admin/profile",
+      label: "Profile",
       icon: User,
     },
   ];
@@ -71,7 +71,7 @@ export default function TenantAdminLayout() {
       {/* Sidebar */}
       <div
         className={`${
-          sidebarOpen ? 'w-64' : 'w-20'
+          sidebarOpen ? "w-64" : "w-20"
         } bg-slate-900 text-white h-screen flex flex-col fixed left-0 top-0 transition-all duration-300 z-40`}
       >
         <div className="p-6 border-b border-slate-800 flex items-center justify-between">
@@ -98,11 +98,11 @@ export default function TenantAdminLayout() {
               <Link
                 key={item.path}
                 to={item.path}
-                title={!sidebarOpen ? item.label : ''}
+                title={!sidebarOpen ? item.label : ""}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
                   active
-                    ? 'bg-indigo-600 text-white'
-                    : 'text-slate-300 hover:bg-slate-800'
+                    ? "bg-indigo-600 text-white"
+                    : "text-slate-300 hover:bg-slate-800"
                 }`}
               >
                 <Icon size={20} />
@@ -125,12 +125,15 @@ export default function TenantAdminLayout() {
       </div>
 
       {/* Main Content */}
-      <div className={`flex-1 ${sidebarOpen ? 'ml-64' : 'ml-20'} flex flex-col transition-all duration-300`}>
+      <div
+        className={`flex-1 ${sidebarOpen ? "ml-64" : "ml-20"} flex flex-col transition-all duration-300`}
+      >
         {/* Top Bar */}
         <div className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">
-              {navItems.find((item) => isActive(item.path))?.label || 'Dashboard'}
+              {navItems.find((item) => isActive(item.path))?.label ||
+                "Dashboard"}
             </h2>
             {tenantId && (
               <p className="text-xs text-slate-500">Tenant ID: {tenantId}</p>

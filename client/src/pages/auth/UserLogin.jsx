@@ -148,7 +148,7 @@ export const UserLogin = () => {
     const dashboardMap = {
       rider: "/rider/dashboard",
       driver: "/driver/dashboard",
-      "fleet-owner": "/fleet-owner/dashboard",
+      "fleet-owner": "/fleet/dashboard",
     };
 
     const destination = dashboardMap[role] || "/";

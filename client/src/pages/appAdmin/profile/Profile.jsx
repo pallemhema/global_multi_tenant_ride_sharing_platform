@@ -1,10 +1,10 @@
-import { useAdmin } from "../../../context/AdminContext";
+import { useAdminAuth } from "../../../context/AdminContext";
 import Card from "../../../components/common/Card";
 import Button from "../../../components/common/Button";
 import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
-  const { user, logout } = useAdmin();
+  const { user, logout } = useAdminAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {

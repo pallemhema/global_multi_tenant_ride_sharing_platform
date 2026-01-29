@@ -1,39 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAdmin } from "../../context/AdminContext";
-import { tenantAdminAPI } from "../../services/tenantAdminApi";
+import { useAdminAuth } from "../../context/AdminAuthContext";
+import { useTenant } from "../../context/TenantContext";
 import Loader from "../../components/common/Loader";
 import Button from "../../components/common/Button";
 import { User, LogOut, AlertCircle, Copy, Check } from "lucide-react";
 
 export default function Profile() {
-  const { tenantId, user, logout } = useAdmin();
+  const { user, logout } = useAdminAuth();
+  const { tenant, loading: tenantLoading, loadTenantProfile } = useTenant();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [profile, setProfile] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  // Fetch tenant profile
+  // Load tenant profile on mount
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        setLoading(true);
-        setError("");
-        const response = await tenantAdminAPI.getTenantProfile(tenantId);
-        setProfile(response.data);
-      } catch (err) {
-        console.error("Failed to fetch profile:", err);
-        setError(err.response?.data?.detail || "Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (tenantId) {
-      fetchProfile();
-    }
-  }, [tenantId]);
+    loadTenantProfile();
+  }, [loadTenantProfile]);
 
   const handleLogout = () => {
     logout();
@@ -41,12 +24,14 @@ export default function Profile() {
   };
 
   const handleCopyTenantId = () => {
-    navigator.clipboard.writeText(tenantId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (tenant?.id) {
+      navigator.clipboard.writeText(tenant.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
-  if (loading) {
+  if (tenantLoading) {
     return <Loader />;
   }
 
@@ -118,7 +103,7 @@ export default function Profile() {
             </label>
             <div className="flex items-center gap-2">
               <code className="px-4 py-2 bg-slate-50 rounded-lg font-mono text-sm text-slate-900 border border-slate-200 flex-1">
-                {tenantId}
+                {tenant?.id || "N/A"}
               </code>
               <button
                 onClick={handleCopyTenantId}
@@ -159,15 +144,13 @@ export default function Profile() {
           </div>
 
           {/* Tenant Details */}
-          {profile && (
+          {tenant && (
             <>
               <div className="pb-6 border-b border-slate-200">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Tenant Name
                 </label>
-                <p className="text-lg text-slate-900">
-                  {profile.tenantName || "N/A"}
-                </p>
+                <p className="text-lg text-slate-900">{tenant.name || "N/A"}</p>
               </div>
 
               <div className="pb-6 border-b border-slate-200">
@@ -175,7 +158,7 @@ export default function Profile() {
                   Business Type
                 </label>
                 <p className="text-lg text-slate-900">
-                  {profile.businessType || "N/A"}
+                  {tenant.businessType || "N/A"}
                 </p>
               </div>
 
@@ -184,7 +167,7 @@ export default function Profile() {
                   Tenant Status
                 </label>
                 <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  {profile.status || "Active"}
+                  {tenant.status || "Active"}
                 </div>
               </div>
             </>

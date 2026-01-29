@@ -7,13 +7,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-import { useAuth } from "../../context/AuthContext";
-import {
-  fetchTenantRegions,
-  enableRegionCity,
-  disableRegionCity,
-} from "../../services/tenants/tenant";
-
+import { useTenant } from "../../context/TenantContext";
 import AddRegionModal from "./AddRegionModel";
 
 /* ---------- Status Badge ---------- */
@@ -89,30 +83,19 @@ const CountryAccordion = ({ country, onToggleCity }) => {
 /* ---------- Region Section ---------- */
 
 const RegionSection = () => {
-  const { user } = useAuth();
-  const tenantId = user?.tenant_id;
-
-  const [regions, setRegions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { regions, loading, loadRegions, enableRegionCity, disableRegionCity } =
+    useTenant();
   const [showAdd, setShowAdd] = useState(false);
-
-  const loadRegions = async () => {
-    if (!tenantId) return;
-    setLoading(true);
-    const res = await fetchTenantRegions(tenantId);
-    setRegions(res.data);
-    setLoading(false);
-  };
 
   useEffect(() => {
     loadRegions();
-  }, [tenantId]);
+  }, [loadRegions]);
 
   const toggleCity = async (cityId, isActive) => {
     if (isActive) {
-      await disableRegionCity(tenantId, cityId);
+      await disableRegionCity(cityId);
     } else {
-      await enableRegionCity(tenantId, cityId);
+      await enableRegionCity(cityId);
     }
     loadRegions();
   };
@@ -146,7 +129,6 @@ const RegionSection = () => {
       {/* Add Region Modal */}
       {showAdd && (
         <AddRegionModal
-          tenantId={tenantId}
           onClose={() => setShowAdd(false)}
           onSuccess={loadRegions}
         />

@@ -60,18 +60,33 @@ def require_driver(
 
     return driver   # ✅ ORM object - works even if pending/inactive
 
+def ensure_user_can_be_driver(db: Session, user_id: int):
+    if db.query(FleetOwner).filter(FleetOwner.user_id == user_id).first():
+        raise HTTPException(
+            status_code=400,
+            detail="User is already registered as fleet owner"
+        )
+
+    if db.query(TenantStaff).filter(TenantStaff.user_id == user_id).first():
+        raise HTTPException(
+            status_code=400,
+            detail="Tenant staff cannot become driver"
+        )
 def get_or_create_driver(
     db: Session = Depends(get_db),
     user: dict = Depends(verify_access_token),
 ) -> Driver:
     user_id = int(user.get("sub"))
-
+    ensure_user_can_be_driver(db, user_id)  
+    
+    # Try to get existing driver with FOR UPDATE lock to prevent race conditions
     driver = (
         db.query(Driver)
         .filter(Driver.user_id == user_id)
+        .with_for_update()  # Lock the row to prevent concurrent modifications
         .first()
     )
-
+    
     if not driver:
         driver = Driver(
             user_id=user_id,
@@ -105,6 +120,47 @@ def require_fleet_owner(
 
     return fleet
 
+def ensure_user_can_be_fleet_owner(db: Session, user_id: int):
+    if db.query(Driver).filter(Driver.user_id == user_id).first():
+        raise HTTPException(
+            status_code=400,
+            detail="User is already registered as driver"
+        )
+
+    if db.query(TenantStaff).filter(TenantStaff.user_id == user_id).first():
+        raise HTTPException(
+            status_code=400,
+            detail="Tenant staff cannot become fleet owner"
+        )
+
+def get_or_create_fleet_owner(
+    db: Session = Depends(get_db),
+    user: dict = Depends(verify_access_token),
+) -> FleetOwner:
+    user_id = int(user.get("sub"))
+    ensure_user_can_be_fleet_owner(db, user_id)
+    
+    # Try to get existing fleet owner with FOR UPDATE lock to prevent race conditions
+    fleet_owner = (
+        db.query(FleetOwner)
+        .filter(FleetOwner.user_id == user_id)
+        .with_for_update()  # Lock the row to prevent concurrent modifications
+        .first()
+    )
+
+    # If not found, create one
+    if not fleet_owner:
+        fleet_owner = FleetOwner(
+            user_id=user_id,
+            business_name="",  # Empty string - will be filled during onboarding
+            onboarding_status="draft",
+        )
+        db.add(fleet_owner)
+        db.commit()
+        db.refresh(fleet_owner)
+
+    return fleet_owner
+    
 
 
 def require_tenant_admin(
@@ -120,8 +176,6 @@ def require_tenant_admin(
         raise HTTPException(403, "Tenant scope missing")
 
     return user
-
-
 
 
 def require_app_admin(user=Depends(verify_access_token)):
@@ -142,7 +196,6 @@ def require_vehicle_owner(
             .filter(
                 Driver.user_id == int(user["sub"]),
                 Driver.driver_type == "individual",
-                Driver.kyc_status=="approved"
             )
             .first()
         )
@@ -154,7 +207,7 @@ def require_vehicle_owner(
             "type": "driver",
             "id": driver.driver_id,
             "tenant_id": driver.tenant_id,
-            "user_id": driver.user_id,   # ✅ FIX
+            "user_id": driver.user_id,
             "role": "driver",
         }
 
@@ -164,8 +217,7 @@ def require_vehicle_owner(
             db.query(FleetOwner)
             .filter(
                 FleetOwner.user_id == int(user["sub"]),
-                FleetOwner.approval_status=="approved"
-                )
+            )
             .first()
         )
 
@@ -176,7 +228,7 @@ def require_vehicle_owner(
             "type": "fleet_owner",
             "id": fleet.fleet_owner_id,
             "tenant_id": fleet.tenant_id,
-            "user_id": fleet.user_id,    # ✅ FIX
+            "user_id": fleet.user_id,
             "role": "fleet_owner",
         }
 

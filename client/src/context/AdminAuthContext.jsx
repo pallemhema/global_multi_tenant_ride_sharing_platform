@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const AdminContext = createContext(null);
 
-export function AdminProvider({ children }) {
+export function AdminAuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
@@ -102,10 +102,10 @@ export function AdminProvider({ children }) {
   );
 }
 
-export function useAdmin() {
+export function useAdminAuth() {
   const ctx = useContext(AdminContext);
   if (!ctx) {
-    throw new Error('useAdmin must be used inside AdminProvider');
+    throw new Error('useAdminAuth must be used inside AdminAuthProvider');
   }
   return ctx;
 }

@@ -1,5 +1,5 @@
 // import { useEffect, useState } from 'react';
-// import { useAdmin } from '../../context/AdminContext';
+// import { useAdminAuth } from '../../context/AdminContext';
 // import { tenantAdminAPI } from '../../services/tenantAdminApi';
 // import DataTable from '../../components/tenant-admin/DataTable';
 // import EmptyState from '../../components/tenant-admin/EmptyState';
@@ -8,7 +8,7 @@
 // import { MapPin, Plus, AlertCircle } from 'lucide-react';
 
 // export default function Regions() {
-//   const { tenantId } = useAdmin();
+//   const { tenantId } = useAdminAuth();
 //   const [loading, setLoading] = useState(true);
 //   const [error, setError] = useState('');
 //   const [regions, setRegions] = useState([]);
@@ -281,8 +281,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-import { useAdmin } from "../../context/AdminContext";
-import { tenantAdminAPI } from "../../services/tenantAdminApi";
+import { useTenant } from "../../context/TenantContext";
 import AddRegionModal from "./AddRegionModel";
 
 /* ---------- Status Badge ---------- */
@@ -358,29 +357,19 @@ const CountryAccordion = ({ country, onToggleCity }) => {
 /* ---------- Region Section ---------- */
 
 const RegionSection = () => {
-  const { tenantId } = useAdmin();
-
-  const [regions, setRegions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { regions, loading, loadRegions, enableRegionCity, disableRegionCity } =
+    useTenant();
   const [showAdd, setShowAdd] = useState(false);
-
-  const loadRegions = async () => {
-    if (!tenantId) return;
-    setLoading(true);
-    const res = await tenantAdminAPI.getRegions(tenantId);
-    setRegions(res.data);
-    setLoading(false);
-  };
 
   useEffect(() => {
     loadRegions();
-  }, [tenantId]);
+  }, [loadRegions]);
 
   const toggleCity = async (cityId, isActive) => {
     if (isActive) {
-      await tenantAdminAPI.disableRegionCity(tenantId, cityId);
+      await disableRegionCity(cityId);
     } else {
-      await tenantAdminAPI.enableRegionCity(tenantId, cityId);
+      await enableRegionCity(cityId);
     }
     loadRegions();
   };
@@ -414,7 +403,6 @@ const RegionSection = () => {
       {/* Add Region Modal */}
       {showAdd && (
         <AddRegionModal
-          tenantId={tenantId}
           onClose={() => setShowAdd(false)}
           onSuccess={loadRegions}
         />

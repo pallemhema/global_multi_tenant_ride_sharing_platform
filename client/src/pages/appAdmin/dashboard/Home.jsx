@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
-import { Building2, CheckCircle, Clock, TrendingUp } from 'lucide-react';
-import Card from '../../../components/common/Card';
-import Loader from '../../../components/common/Loader';
-import { useAdmin } from '../../../context/AdminContext';
-import { appAdminAPI } from '../../../services/appAdminApi';
+import { useState, useEffect } from "react";
+import { Building2, CheckCircle, Clock, TrendingUp } from "lucide-react";
+import Card from "../../../components/common/Card";
+import Loader from "../../../components/common/Loader";
+import { useAdminAuth } from "../../../context/AdminAuthContext";
+import { appAdminAPI } from "../../../services/appAdminApi";
 
 export default function DashboardHome() {
-  const { loading: adminLoading } = useAdmin();
+  const { loading: adminLoading } = useAdminAuth();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     // Only fetch when AdminContext is done loading
@@ -24,7 +24,7 @@ export default function DashboardHome() {
       const response = await appAdminAPI.getTenantsSummary();
       setSummary(response.data);
     } catch (err) {
-      setError('Failed to fetch summary');
+      setError("Failed to fetch summary");
       console.error(err);
     } finally {
       setLoading(false);
@@ -38,42 +38,42 @@ export default function DashboardHome() {
   const stats = [
     {
       icon: Building2,
-      label: 'Total Tenants',
+      label: "Total Tenants",
       value: summary?.total_tenants || 0,
-      color: 'indigo',
+      color: "indigo",
     },
     {
       icon: CheckCircle,
-      label: 'Approved',
+      label: "Approved",
       value: summary?.approved || 0,
-      color: 'emerald',
+      color: "emerald",
     },
     {
       icon: Clock,
-      label: 'Pending',
+      label: "Pending",
       value: summary?.pending || 0,
-      color: 'amber',
+      color: "amber",
     },
     {
       icon: TrendingUp,
-      label: 'Active',
+      label: "Active",
       value: summary?.active || 0,
-      color: 'indigo',
+      color: "indigo",
     },
   ];
 
   const colorClasses = {
     indigo: {
-      bg: 'bg-indigo-50',
-      text: 'text-indigo-600',
+      bg: "bg-indigo-50",
+      text: "text-indigo-600",
     },
     emerald: {
-      bg: 'bg-emerald-50',
-      text: 'text-emerald-600',
+      bg: "bg-emerald-50",
+      text: "text-emerald-600",
     },
     amber: {
-      bg: 'bg-amber-50',
-      text: 'text-amber-600',
+      bg: "bg-amber-50",
+      text: "text-amber-600",
     },
   };
 
@@ -121,9 +121,7 @@ export default function DashboardHome() {
 
       <div className="mt-12">
         <Card>
-          <h3 className="text-lg font-bold text-slate-900 mb-4">
-            Quick Stats
-          </h3>
+          <h3 className="text-lg font-bold text-slate-900 mb-4">Quick Stats</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200">
               <span className="text-slate-600">Total Tenants</span>
@@ -144,7 +142,7 @@ export default function DashboardHome() {
                   ? Math.round(
                       ((summary?.approved || 0) /
                         (summary?.total_tenants || 1)) *
-                        100
+                        100,
                     )
                   : 0}
                 %

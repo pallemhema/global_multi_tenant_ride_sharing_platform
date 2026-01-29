@@ -12,5 +12,9 @@ node_modules/
 dist/
 build/
 
+echo "backend/app/uploads/" >> .gitignore
+echo "*.zip" >> .gitignore
+git add .gitignore
+
 # OS
 .DS_Store

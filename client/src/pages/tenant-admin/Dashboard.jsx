@@ -1,55 +1,24 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  FileText,
-  Car,
-  Truck,
-  Users,
-  AlertCircle,
-} from 'lucide-react';
-import { useAdmin } from '../../context/AdminContext';
-import { tenantAdminAPI } from '../../services/tenantAdminApi';
-import StatCard from '../../components/tenant-admin/StatCard';
-import Loader from '../../components/common/Loader';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { FileText, Car, Truck, Users, AlertCircle } from "lucide-react";
+import { useTenant } from "../../context/TenantContext";
+import StatCard from "../../components/tenant-admin/StatCard";
+import Loader from "../../components/common/Loader";
 
 export default function Dashboard() {
-  const { tenantId, loading: adminLoading } = useAdmin();
+  const { dashboardStats, loading, error, loadDashboardStats } = useTenant();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [stats, setStats] = useState({
+
+  useEffect(() => {
+    loadDashboardStats();
+  }, [loadDashboardStats]);
+
+  const stats = dashboardStats || {
     pendingDocuments: 0,
     pendingVehicles: 0,
     pendingFleetOwners: 0,
     pendingDrivers: 0,
-  });
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        setError('');
-
-        // Fetch dashboard stats
-        const response = await tenantAdminAPI.getDashboardStats(tenantId);
-        setStats(response.data);
-      } catch (err) {
-        console.error('Failed to fetch dashboard data:', err);
-        setError(
-          err.response?.data?.detail || 'Failed to load dashboard data'
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Only fetch when AdminContext is done loading and tenantId is available
-    if (!adminLoading && tenantId) {
-      fetchDashboardData();
-    } else if (!adminLoading && !tenantId) {
-      setLoading(false);
-    }
-  }, [tenantId, adminLoading]);
+  };
 
   if (loading) {
     return <Loader />;
@@ -83,28 +52,28 @@ export default function Dashboard() {
           count={stats.pendingDocuments}
           icon={FileText}
           color="amber"
-          onClick={() => navigate('/tenant-admin/documents')}
+          onClick={() => navigate("/tenant-admin/documents")}
         />
         <StatCard
           title="Pending Vehicles"
           count={stats.pendingVehicles}
           icon={Car}
           color="blue"
-          onClick={() => navigate('/tenant-admin/vehicles')}
+          onClick={() => navigate("/tenant-admin/vehicles")}
         />
         <StatCard
           title="Pending Fleet Owners"
           count={stats.pendingFleetOwners}
           icon={Truck}
           color="indigo"
-          onClick={() => navigate('/tenant-admin/fleet-owners')}
+          onClick={() => navigate("/tenant-admin/fleet-owners")}
         />
         <StatCard
           title="Pending Drivers"
           count={stats.pendingDrivers}
           icon={Users}
           color="rose"
-          onClick={() => navigate('/tenant-admin/drivers')}
+          onClick={() => navigate("/tenant-admin/drivers")}
         />
       </div>
 
@@ -112,28 +81,30 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
         <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Quick Actions</h2>
+          <h2 className="text-lg font-bold text-slate-900 mb-4">
+            Quick Actions
+          </h2>
           <div className="space-y-3">
             <button
-              onClick={() => navigate('/tenant-admin/documents')}
+              onClick={() => navigate("/tenant-admin/documents")}
               className="w-full px-4 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200"
             >
               ✓ Review Documents
             </button>
             <button
-              onClick={() => navigate('/tenant-admin/vehicles')}
+              onClick={() => navigate("/tenant-admin/vehicles")}
               className="w-full px-4 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200"
             >
               🚗 Approve Vehicles
             </button>
             <button
-              onClick={() => navigate('/tenant-admin/drivers')}
+              onClick={() => navigate("/tenant-admin/drivers")}
               className="w-full px-4 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200"
             >
               👤 Approve Drivers
             </button>
             <button
-              onClick={() => navigate('/tenant-admin/fleet-owners')}
+              onClick={() => navigate("/tenant-admin/fleet-owners")}
               className="w-full px-4 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200"
             >
               🚚 Approve Fleet Owners
@@ -152,7 +123,9 @@ export default function Dashboard() {
                 <p className="font-medium text-slate-900">
                   Documents Processing
                 </p>
-                <p className="text-sm text-slate-500">All systems operational</p>
+                <p className="text-sm text-slate-500">
+                  All systems operational
+                </p>
               </div>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                 Active
@@ -160,10 +133,10 @@ export default function Dashboard() {
             </div>
             <div className="flex items-start justify-between pb-4 border-b border-slate-200">
               <div>
-                <p className="font-medium text-slate-900">
-                  Vehicle Management
+                <p className="font-medium text-slate-900">Vehicle Management</p>
+                <p className="text-sm text-slate-500">
+                  All systems operational
                 </p>
-                <p className="text-sm text-slate-500">All systems operational</p>
               </div>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                 Active
@@ -171,10 +144,10 @@ export default function Dashboard() {
             </div>
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-slate-900">
-                  Driver Management
+                <p className="font-medium text-slate-900">Driver Management</p>
+                <p className="text-sm text-slate-500">
+                  All systems operational
                 </p>
-                <p className="text-sm text-slate-500">All systems operational</p>
               </div>
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                 Active

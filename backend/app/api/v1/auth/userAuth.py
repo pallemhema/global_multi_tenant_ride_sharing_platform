@@ -139,7 +139,6 @@ def switch_role(
     if role == "driver":
         driver = db.query(Driver).filter(
             Driver.user_id == user_id,
-            
         ).first()
 
         if not driver:
@@ -161,6 +160,7 @@ def switch_role(
     if role == "fleet-owner":
         fleet = db.query(FleetOwner).filter(
             FleetOwner.user_id == user_id,
+          
         ).first()
 
         if not fleet:
@@ -174,6 +174,7 @@ def switch_role(
                 fleet_owner_id=fleet.fleet_owner_id,
             ),
             "token_type": "bearer",
+            "onboarding_status": fleet.onboarding_status,
         }
 
     # --------------------
@@ -243,15 +244,8 @@ def get_available_roles(
 
     fleet = db.query(FleetOwner).filter(
         FleetOwner.user_id == user_id,
-       
     ).first()
-
-    # ❗ Safety check
-    if driver and fleet:
-        raise HTTPException(
-            500,
-            "Invalid state: driver and fleet-owner together",
-        )
+    print(fleet)
 
     if driver:
         roles.append({
@@ -263,6 +257,7 @@ def get_available_roles(
         roles.append({
             "role": "fleet-owner",
             "fleet_owner_id": fleet.fleet_owner_id,
+            "onboarding_status": fleet.onboarding_status,
         })
 
     return {

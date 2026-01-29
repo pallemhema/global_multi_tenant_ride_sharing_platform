@@ -11,11 +11,11 @@ const ROLE_LABELS = {
   "tenant-admin": "Tenant Admin",
 };
 
-const ROLE_ROUTES = {
-  rider: "/rider/dashboard",
-  driver: "/driver/dashboard",
-  "fleet-owner": "/fleet-owner/dashboard",
-};
+// const ROLE_ROUTES = {
+//   rider: "/rider/dashboard",
+//   driver: "/driver/dashboard",
+//   "fleet-owner": "/fleet/dashboard",
+// };
 
 export default function RoleSwitcher() {
   const { user, availableRoles, switchUserRole } = useUserAuth();
@@ -26,16 +26,30 @@ export default function RoleSwitcher() {
 
   const currentRole = user?.role;
 
-  const handleSwitch = async (role) => {
-    try {
-      await switchUserRole(role);
-      setOpen(false);
-      navigate(ROLE_ROUTES[role]);
-    } catch {
-      alert("Failed to switch role");
+  
+const handleSwitch = async (role) => {
+  try{
+    const response = await switchUserRole(role);
+   localStorage.setItem("token", response.access_token);
+  if (role === "fleet-owner") {
+    
+    if (response.onboarding_status === "completed") {
+      navigate("/fleet/dashboard");
+    } else {
+      navigate("/fleet/registration");
     }
-  };
-
+  } else if (role === "driver") {
+    if (response.onboarding_status === "completed") {
+      navigate("/driver/dashboard");
+    } else {
+      navigate("/driver/registration");
+    }
+  }else if (role === "rider") {
+    navigate("/rider/dashboard");
+  }}catch{
+    alert("Failed to switch role");
+  }
+};
   return (
     <div className="relative">
       <button

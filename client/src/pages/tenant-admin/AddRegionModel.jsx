@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { lookupsAPI } from "../../services/appAdminApi";
+import { useTenant } from "../../context/TenantContext";
 
-import { tenantAdminAPI } from "../../services/tenantAdminApi";
-
-const AddRegionModal = ({ tenantId, onClose, onSuccess }) => {
+const AddRegionModal = ({ onClose, onSuccess }) => {
+  const { addRegion, availableCities } = useTenant();
   const [countries, setCountries] = useState([]);
   const [cities, setCities] = useState([]);
 
@@ -21,13 +21,10 @@ const AddRegionModal = ({ tenantId, onClose, onSuccess }) => {
     if (!countryId) return;
 
     setLoadingCities(true);
-    setCities([]);
+    setCities(availableCities || []);
     setSelectedCities([]);
-
-    tenantAdminAPI.getAvailableCities(tenantId, countryId)
-      .then((res) => setCities(res.data))
-      .finally(() => setLoadingCities(false));
-  }, [countryId, tenantId]);
+    setLoadingCities(false);
+  }, [countryId, availableCities]);
 
   /* ---------- Toggle City ---------- */
   const toggleCity = (cityId) => {
@@ -40,11 +37,10 @@ const AddRegionModal = ({ tenantId, onClose, onSuccess }) => {
 
   /* ---------- Submit ---------- */
   const handleSubmit = async () => {
-    await tenantAdminAPI.addTenantRegion(tenantId, {
-      country_id: Number(countryId),
-      cities: selectedCities.map((id) => ({ city_id: id })),
-    });
-
+    await addRegion(
+      Number(countryId),
+      selectedCities.map((id) => ({ city_id: id })),
+    );
     onSuccess();
     onClose();
   };
