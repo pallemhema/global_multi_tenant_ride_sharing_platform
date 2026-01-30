@@ -18,3 +18,4 @@ git add .gitignore
 
 # OS
 .DS_Store
+backend/app/uploads/
