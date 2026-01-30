@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db
-from app.models.core.drivers.driver_invites import DriverInvite
+from app.models.core.fleet_owners.driver_invites import DriverInvite
 from app.core.security.roles import require_driver
 from datetime import datetime
 from app.schemas.core.drivers.driver_invites import DriverInviteAction

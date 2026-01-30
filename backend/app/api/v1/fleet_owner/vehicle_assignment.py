@@ -4,25 +4,20 @@ from datetime import datetime
 
 from app.core.dependencies import get_db
 from app.core.security.roles import require_fleet_owner
-from app.models.core.drivers.driver_invites import DriverInvite
-from app.models.core.drivers.driver_vehicle_assignments import DriverVehicleAssignment
+from app.models.core.fleet_owners.driver_invites import DriverInvite
+from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
 from app.models.core.vehicles.vehicles import Vehicle
 
-router = APIRouter(
-    tags=["Fleet Owner – Vehicle Assignment"],
-)
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 
 
-from app.models.core.drivers.driver_vehicle_assignments import DriverVehicleAssignment
 from app.models.core.vehicles.vehicles import Vehicle
 from app.schemas.core.drivers.driver_vehicle_assigment import DriverVehicleAssignmentCreate
 
 router = APIRouter(
-    prefix="/fleet-owner",
     tags=["Fleet Owner – Vehicle Assignment"],
 )
 

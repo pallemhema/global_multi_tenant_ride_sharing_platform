@@ -49,7 +49,7 @@ function FleetLayout() {
       path: "/fleet/vehicles",
     },
     {
-      label: "Driver Invites",
+      label: "Invite Drivers",
       icon: Users,
       path: "/fleet/invites",
     },

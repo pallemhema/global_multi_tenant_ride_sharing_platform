@@ -9,10 +9,11 @@ from .vehicle_assignment import router as vehicle_assigent_to_driver_router
 from .fleets import router as fleet_router
 
 router = APIRouter(prefix="/fleet-owner")
-router.include_router(fleet_router)
+
 router.include_router(onboarding_router)
 router.include_router(dashboard_router)
 router.include_router(documents_router)
 router.include_router(fleet_cities_router)
 router.include_router(driver_invite_router)
 router.include_router(vehicle_assigent_to_driver_router)
+router.include_router(fleet_router)

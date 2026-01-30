@@ -33,7 +33,7 @@ export const fleetOwnerApi = {
     }
   },
 
-  async fillFleetDetails(detailsData) {
+  async uploadFleetDetails(detailsData) {
     try {
       const res = await apiClient.post(
         "/fleet-owner/upload-fleet-details",
@@ -49,15 +49,17 @@ export const fleetOwnerApi = {
     }
   },
 
-  async getFleetOnboardingStatus() {
+  async getFleet() {
     try {
-      const res = await apiClient.get("/fleet-owner/status");
+      console.log("Fetching fleet details...");
+      const res = await apiClient.get("/fleet-owner");
+      console.log("Fleet data from api:", res.data);
       return res.data;
     } catch (err) {
       throw new Error(
         err.response?.data?.detail ||
           err.response?.data?.message ||
-          "Failed to fetch onboarding status",
+          "Failed to fetch fleet details",
       );
     }
   },
@@ -68,6 +70,7 @@ export const fleetOwnerApi = {
 
   async getFleetDocuments() {
     try {
+      console.log("Fetching fleet documents..."); 
       const res = await apiClient.get("/fleet-owner/documents");
       console.log(res.data)
       return res.data;
@@ -130,103 +133,24 @@ export const fleetOwnerApi = {
   },
 
   /* ===============================
-     VEHICLES ENDPOINTS
+     DRIVER INVITES ENDPOINTS
   =============================== */
-
-  async getFleetVehicles() {
+  async getAvaialibleDrivers() {
     try {
-      const res = await apiClient.get("/fleet-owner/vehicles");
-      return res.data;
-    } catch (err) {
-      throw new Error(
-        err.response?.data?.message ||
-          err.response?.data?.detail ||
-          "Failed to fetch vehicles",
-      );
-    }
-  },
-
-  async addFleetVehicle(vehicleData) {
-    try {
-      const res = await apiClient.post("/fleet-owner/vehicles", vehicleData);
-      return res.data;
-    } catch (err) {
-      throw new Error(
-        err.response?.data?.message ||
-          err.response?.data?.detail ||
-          "Failed to add vehicle",
-      );
-    }
-  },
-
-  async updateFleetVehicle(vehicleId, vehicleData) {
-    try {
-      const res = await apiClient.put(
-        `/fleet-owner/vehicles/${vehicleId}`,
-        vehicleData,
-      );
-      return res.data;
-    } catch (err) {
-      throw new Error(
-        err.response?.data?.message ||
-          err.response?.data?.detail ||
-          "Failed to update vehicle",
-      );
-    }
-  },
-
-  async deleteFleetVehicle(vehicleId) {
-    try {
-      const res = await apiClient.delete(`/fleet-owner/vehicles/${vehicleId}`);
-      return res.data;
-    } catch (err) {
-      throw new Error(
-        err.response?.data?.message ||
-          err.response?.data?.detail ||
-          "Failed to delete vehicle",
-      );
-    }
-  },
-
-  async getVehicleDocuments(vehicleId) {
-    try {
-      const res = await apiClient.get(
-        `/fleet-owner/vehicles/${vehicleId}/documents`,
-      );
-      return res.data;
-    } catch (err) {
-      throw new Error(
-        err.response?.data?.message ||
-          err.response?.data?.detail ||
-          "Failed to fetch vehicle documents",
-      );
-    }
-  },
-
-  async uploadVehicleDocument(vehicleId, formData) {
-    try {
-      const res = await apiClient.post(
-        `/fleet-owner/vehicles/${vehicleId}/documents`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } },
-      );
+      const res = await apiClient.get("/fleet-owner/drivers/available");
       return res.data;
     } catch (err) {
       throw new Error(
         err.response?.data?.detail ||
           err.response?.data?.message ||
-          "Failed to upload vehicle document",
+          "Failed to fetch available drivers",
       );
     }
   },
 
-  /* ===============================
-     DRIVER INVITES ENDPOINTS
-  =============================== */
-
   async getDriverInvites() {
     try {
-      const res = await apiClient.get("/fleet-owner/invites");
+      const res = await apiClient.get("/fleet-owner/drivers/invite");
       return res.data;
     } catch (err) {
       throw new Error(
@@ -239,7 +163,7 @@ export const fleetOwnerApi = {
 
   async inviteDriver(driverId) {
     try {
-      const res = await apiClient.post("/fleet-owner/invites", {
+      const res = await apiClient.post("/fleet-owner/drivers/invite", {
         driver_id: driverId,
       });
       return res.data;
@@ -254,7 +178,7 @@ export const fleetOwnerApi = {
 
   async cancelInvite(inviteId) {
     try {
-      const res = await apiClient.delete(`/fleet-owner/invites/${inviteId}`);
+      const res = await apiClient.put(`/fleet-owner/drivers/invites/${inviteId}/cancel`);
       return res.data;
     } catch (err) {
       throw new Error(

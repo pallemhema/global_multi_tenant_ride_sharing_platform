@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db
-from app.core.security.roles import require_fleet_owner,get_or_create_fleet_owner
+from app.core.security.roles import get_or_create_fleet_owner
 from app.models.core.fleet_owners.fleet_owner_documents import FleetOwnerDocument
 from app.models.core.fleet_owners.fleet_owners import FleetOwner
 from app.schemas.core.fleet_owners.fleet_owner_documents import FleetOwnerDocumentOut
@@ -163,7 +163,6 @@ def update_fleet_owner_document(
     db.refresh(doc)
     return doc
 
-
 # 🔹 List Fleet Owner Documents
 @router.get(
     "/documents",
@@ -172,11 +171,9 @@ def update_fleet_owner_document(
 def list_fleet_owner_documents(
     db: Session = Depends(get_db),
     fleet=Depends(get_or_create_fleet_owner),
+
 ):
-    print(f"Fleet object: {fleet}")
-    print(f"Fleet ID: {fleet.fleet_owner_id if fleet else 'None'}")
-    print(f"Fleet Tenant ID: {fleet.tenant_id if fleet else 'None'}")
-    
+    print("found fleet for documents:", fleet.fleet_owner_id)
     if not fleet:
         raise HTTPException(403, "Access denied for this FLEET")
     
@@ -184,11 +181,10 @@ def list_fleet_owner_documents(
         db.query(FleetOwnerDocument)
         .filter(
             FleetOwnerDocument.fleet_owner_id == fleet.fleet_owner_id,
+             FleetOwnerDocument.tenant_id == fleet.tenant_id,
         )
         .all()
     )
-    print(f"Found {len(docs)} documents")
-    for doc in docs:
-        print(f"Document: {doc.document_type}, Status: {doc.verification_status}, Tenant: {doc.tenant_id}")
+    print(f"Found {len(docs)} documents for fleet owner {fleet.fleet_owner_id}")
     return docs
     

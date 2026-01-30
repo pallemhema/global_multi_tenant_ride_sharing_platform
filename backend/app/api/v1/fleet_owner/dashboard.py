@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.core.dependencies import get_db
-from app.core.security.roles import require_fleet_owner
+from app.core.security.roles import get_or_create_fleet_owner
 from app.models.core.vehicles.vehicles import Vehicle
 from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 from app.models.core.accounting.ledger import FinancialLedger
@@ -16,7 +16,7 @@ router = APIRouter(
 def fleet_dashboard(
     tenant_id: int,
     db: Session = Depends(get_db),
-    fleet = Depends(require_fleet_owner),
+    fleet = Depends(get_or_create_fleet_owner),
 ):
     total_vehicles = db.query(Vehicle).filter(
         Vehicle.fleet_owner_id == fleet.fleet_owner_id

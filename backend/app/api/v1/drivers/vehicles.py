@@ -5,7 +5,7 @@ from sqlalchemy import func
 from app.core.dependencies import get_db
 from app.core.security.roles import require_driver
 from app.models.core.vehicles.vehicles import Vehicle
-from app.models.core.drivers.driver_vehicle_assignments import DriverVehicleAssignment
+from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
 
 router = APIRouter(
     prefix="/driver/vehicles",

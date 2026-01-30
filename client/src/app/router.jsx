@@ -56,7 +56,6 @@ import VehicleForm from "../pages/vehicles/VehicleForm";
 import FleetLayout from "../layouts/FleetLayout";
 import FleetDashboard from "../pages/fleets/FleetDashboard";
 import FleetDocuments from "../pages/fleets/FleetDocuments";
-import FleetVehicles from "../pages/fleets/FleetVehicles";
 import FleetInvites from "../pages/fleets/FleetInvites";
 import FleetRegistration from "../pages/fleets/FleetRegistration";
 
@@ -157,8 +156,17 @@ const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <FleetDashboard /> },
       { path: "documents", element: <FleetDocuments /> },
-      { path: "vehicles", element: <FleetVehicles /> },
       { path: "invites", element: <FleetInvites /> },
+      {
+        path: "vehicles",
+        children: [
+          { index: true, element: <Vehicles /> },
+          { path: "add", element: <VehicleForm /> },
+          { path: ":vehicleId/edit", element: <VehicleForm /> },
+          { path: ":vehicleId/documents", element: <VehicleDocuments /> },
+        ],
+      },
+
     ],
   },
 

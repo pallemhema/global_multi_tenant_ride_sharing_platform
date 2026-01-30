@@ -3,21 +3,23 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app.core.dependencies import get_db
-from app.core.security.roles import require_fleet_owner
+from app.core.security.roles import get_or_create_fleet_owner
 
 from app.models.core.fleet_owners.fleet_owner_documents import FleetOwnerDocument
 from app.models.core.fleet_owners.fleet_owners import FleetOwner
 from app.models.lookups.tenant_Fleet_document_types import TenantFleetDocumentType
 
-router = APIRouter()
+router = APIRouter(tags=["Fleet Owner – Details"],)
 
-@router.get("/{fleet_owner_id}")
+@router.get("/")
 def get_fleet(
-    fleet_owner_id: int,
+   
     db: Session = Depends(get_db),
-    _: FleetOwner = Depends(require_fleet_owner),
+    fleetIDget :FleetOwner = Depends(get_or_create_fleet_owner),
 ):
-    fleet = db.get(FleetOwner, fleet_owner_id)
+    fleetOwnerId = fleetIDget.fleet_owner_id
+    fleet = db.get(FleetOwner, fleetOwnerId)
+    print(fleet)
 
     if not fleet:
         raise HTTPException(404, "Fleet owner not found")
@@ -26,13 +28,14 @@ def get_fleet(
         "fleet_owner_id": fleet.fleet_owner_id,
         "fleet_name": fleet.business_name,
         "approval_status": fleet.approval_status,
+        "onboarding_status": fleet.onboarding_status,
     }
 
 @router.get("/{fleet_owner_id}/compliance")
 def fleet_compliance_status(
     fleet_owner_id: int,
     db: Session = Depends(get_db),
-    _: FleetOwner = Depends(require_fleet_owner),
+    _: FleetOwner = Depends(get_or_create_fleet_owner),
 ):
     required = (
         db.query(TenantFleetDocumentType)

@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.core.dependencies import get_db
-from app.core.security.roles import get_or_create_fleet_owner
+from app.core.security.roles import get_or_create_fleet_owner, ensure_user_can_be_fleet_owner
+from app.core.security.jwt import verify_access_token
 
 from app.models.core.tenants.tenants import Tenant
 from app.models.core.fleet_owners.fleet_owners import FleetOwner
@@ -28,18 +29,28 @@ router = APIRouter(
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_fleet_owner(
     db: Session = Depends(get_db),
-    fleet_owner: FleetOwner = Depends(get_or_create_fleet_owner),
+    user: dict = Depends(verify_access_token),
 ):
     """
-    FIRST STEP:
+    FIRST STEP: Register as Fleet Owner
     When user clicks "Fleet Registration" button, check if they're eligible.
     - If user is already a driver or tenant staff: REJECT
-    - If user is new: Create fleet row with onboarding_status='draft'
-    - If user already has a fleet: Return existing fleet
+    - If user is new: Create/return fleet with onboarding_status='draft'
     
-    NOTE: ensure_user_can_be_fleet_owner (in get_or_create_fleet_owner dependency) 
-    handles the driver/tenant_staff rejection.
+    This endpoint has stricter checks than get_or_create_fleet_owner
+    because it's the explicit registration action.
     """
+    user_id = int(user.get("sub"))
+    
+    # Check if user can be a fleet owner (not already driver/tenant staff)
+    ensure_user_can_be_fleet_owner(db, user_id)
+    
+    # Get or create fleet owner
+    fleet_owner = get_or_create_fleet_owner(
+        db=db,
+        user=user
+    )
+    
     return {
         "status": "registration_created",
         "fleet_owner_id": fleet_owner.fleet_owner_id,
@@ -160,22 +171,23 @@ def fill_fleet_details(
     }
 
 
-@router.get("/status", status_code=status.HTTP_200_OK)
-def get_fleet_onboarding_status(
-    db: Session = Depends(get_db),
-    fleet_owner: FleetOwner = Depends(get_or_create_fleet_owner),
-):
-    """
-    Get current onboarding status and details.
-    """
-    return {
-        "fleet_owner_id": fleet_owner.fleet_owner_id,
-        "business_name": fleet_owner.business_name,
-        "contact_email": fleet_owner.contact_email,
-        "tenant_id": fleet_owner.tenant_id,
-        "onboarding_status": fleet_owner.onboarding_status,
-        "approval_status": fleet_owner.approval_status,
-        "is_active": fleet_owner.is_active,
-    }
+# @router.get("/status", status_code=status.HTTP_200_OK)
+# def get_fleet_onboarding_status(
+#     db: Session = Depends(get_db),
+#     fleet_owner: FleetOwner = Depends(get_or_create_fleet_owner),
+# ):
+#     """
+#     Get current onboarding status and details.
+#     """
+#     print(fleet_owner)
+#     return {
+#         "fleet_owner_id": fleet_owner.fleet_owner_id,
+#         "business_name": fleet_owner.business_name,
+#         "contact_email": fleet_owner.contact_email,
+#         "tenant_id": fleet_owner.tenant_id,
+#         "onboarding_status": fleet_owner.onboarding_status,
+#         "approval_status": fleet_owner.approval_status,
+#         "is_active": fleet_owner.is_active,
+#     }
 
 

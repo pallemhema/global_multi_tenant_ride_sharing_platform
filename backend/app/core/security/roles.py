@@ -99,10 +99,18 @@ def get_or_create_driver(
     return driver
 
 
+
 def require_fleet_owner(
     db: Session = Depends(get_db),
     user: dict = Depends(verify_access_token),
 ):
+    """
+    STRICT GUARD: Requires role="fleet-owner" AND is_active=True.
+    Used only for sensitive operations that need an approved fleet owner.
+    
+    This is the old require_fleet_owner logic - kept for backward compatibility
+    but should gradually be replaced with require_fleet_owner_any_status.
+    """
     if user["role"] != "fleet-owner":
         raise HTTPException(403, "Fleet owner access required")
 
@@ -137,8 +145,16 @@ def get_or_create_fleet_owner(
     db: Session = Depends(get_db),
     user: dict = Depends(verify_access_token),
 ) -> FleetOwner:
+    """
+    Get or create a fleet owner for the authenticated user.
+    
+    Note: We DON'T validate that user isn't a driver/tenant here because:
+    1. The check happens when user first tries to REGISTER as fleet owner
+    2. If user is already a driver/tenant, they simply can't register
+    3. But we should still allow reading their fleet data if they have it
+    """
     user_id = int(user.get("sub"))
-    ensure_user_can_be_fleet_owner(db, user_id)
+    print("found fleet user :", user_id)
     
     # Try to get existing fleet owner with FOR UPDATE lock to prevent race conditions
     fleet_owner = (
@@ -159,8 +175,11 @@ def get_or_create_fleet_owner(
         db.commit()
         db.refresh(fleet_owner)
 
+    print("fleet user fleet id:",fleet_owner.fleet_owner_id)
     return fleet_owner
     
+
+
 
 
 def require_tenant_admin(

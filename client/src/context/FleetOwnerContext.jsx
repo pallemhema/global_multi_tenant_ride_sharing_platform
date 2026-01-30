@@ -1,109 +1,107 @@
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+  useRef,
+} from "react";
 import { useUserAuth } from "./UserAuthContext";
 import { fleetOwnerApi } from "../services/fleetOwnerApi";
 
 const FleetOwnerContext = createContext(null);
 
 export const FleetOwnerProvider = ({ children }) => {
-  const { isAuthenticated, loading: authLoading } = useUserAuth();
-
-  const [fleetOwner, setFleetOwner] = useState(null);
-  const fleetOwnerId = fleetOwner?.fleet_owner_id ?? null;
+  const { user, isAuthenticated, loading: authLoading } = useUserAuth();
+  const fleetOwnerId = user?.fleet_owner_id ?? null;
+  const [fleetOwner,setFleetOwner] = useState(null);
 
   const [documents, setDocuments] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
+
   const [invites, setInvites] = useState([]);
   const [assignedDrivers, setAssignedDrivers] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  /* Reset fleet-scoped state when fleet owner changes */
-  useEffect(() => {
-    setDocuments([]);
-    setVehicles([]);
-    setInvites([]);
-    setAssignedDrivers([]);
-    setDashboardStats(null);
-  }, [fleetOwnerId]);
+  // 🔒 Prevent multiple initial loads
+  const hasLoadedRef = useRef(false);
 
-  const loadFleetOwnerData = async () => {
+  /* ================= INITIAL LOAD ================= */
+const loadInitialFleetData = async () => {
+  setLoading(true);
+  setError(null);
+
+  try {
+ 
     try {
-      setLoading(true);
-      setError(null);
-
-      const status = await fleetOwnerApi.getFleetOnboardingStatus();
-      setFleetOwner(status);
-
-      if (!status?.fleet_owner_id) {
-        setDocuments([]);
-        setVehicles([]);
-        setInvites([]);
-        return;
-      }
-
-      try {
-        const docs = await fleetOwnerApi.getFleetDocuments();
-        console.log("docs:", docs);
-        setDocuments(docs || []);
-      } catch (docErr) {
-        console.error("Failed to fetch documents:", docErr);
-        setDocuments([]);
-      }
-
-      try {
-        const vehcls = await fleetOwnerApi.getFleetVehicles();
-        setVehicles(vehcls || []);
-      } catch (vehErr) {
-        console.error("Failed to fetch vehicles:", vehErr);
-        setVehicles([]);
-      }
-
-      try {
-        const invts = await fleetOwnerApi.getDriverInvites();
-        setInvites(invts || []);
-      } catch (invErr) {
-        console.error("Failed to fetch invites:", invErr);
-        setInvites([]);
-      }
-
-      try {
-        const stats = await fleetOwnerApi.getDashboardStats();
-        setDashboardStats(stats || null);
-      } catch (statsErr) {
-        console.error("Failed to fetch stats:", statsErr);
-        setDashboardStats(null);
-      }
+        console.log("Loading fleet owner data...");
+      const fleet = await fleetOwnerApi.getFleet();
+      setFleetOwner(fleet);
     } catch (err) {
-      console.error(err);
-      setError("Failed to load fleet owner data");
-    } finally {
-      setLoading(false);
+      setFleetOwner(null);
     }
-  };
+
+    // 2️⃣ Documents (ALWAYS allowed)
+    try {
+      const docs = await fleetOwnerApi.getFleetDocuments();
+      setDocuments(docs || []);
+    } catch {
+      setDocuments([]);
+    }
+
+
+    // 4️⃣ Invites
+    try {
+      const invs = await fleetOwnerApi.getDriverInvites();
+      setInvites(invs || []);
+    } catch {
+      setInvites([]);
+    }
+
+    // 5️⃣ Dashboard
+    try {
+      const stats = await fleetOwnerApi.getDashboardStats();
+      setDashboardStats(stats || null);
+    } catch {
+      setDashboardStats(null);
+    }
+
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  /* ================= AUTH EFFECT ================= */
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      loadFleetOwnerData();
-    } else if (!authLoading && !isAuthenticated) {
-      setFleetOwner(null);
-      setLoading(false);
+    if (!authLoading && isAuthenticated && fleetOwnerId) {
+      if (!hasLoadedRef.current) {
+        hasLoadedRef.current = true;
+        loadInitialFleetData();
+      }
     }
-  }, [authLoading, isAuthenticated]);
+
+    if (!isAuthenticated) {
+      hasLoadedRef.current = false;
+      setDocuments([]);
+      setInvites([]);
+      setAssignedDrivers([]);
+      setDashboardStats(null);
+    }
+  }, [authLoading, isAuthenticated,fleetOwnerId]);
 
   /* ================= ACTIONS ================= */
 
   const registerFleetOwner = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      setError(null);
       const res = await fleetOwnerApi.registerFleetOwner();
-      await loadFleetOwnerData();
+      hasLoadedRef.current = false;
+      await loadInitialFleetData();
       return res;
-    } catch (err) {
-      setError(err.message || "Failed to register as fleet owner");
-      throw err;
     } finally {
       setLoading(false);
     }
@@ -111,74 +109,81 @@ export const FleetOwnerProvider = ({ children }) => {
 
   const selectTenant = async (tenantId) => {
     const res = await fleetOwnerApi.selectTenantForFleetOwner(tenantId);
-    await loadFleetOwnerData();
+    hasLoadedRef.current = false;
+    await loadInitialFleetData();
     return res;
   };
 
-  const uploadDocument = async (payload) => {
-    const res = await fleetOwnerApi.uploadFleetDocument(payload);
-    await loadFleetOwnerData();
+  const fillFleetDetails = async (detailsData) => {
+    const res = await fleetOwnerApi.uploadFleetDetails(detailsData);
+    hasLoadedRef.current = false;
+    await loadInitialFleetData();
     return res;
+  };
+
+  
+   
+
+  /* -------- Documents -------- */
+
+  const uploadDocument = async (payload) => {
+    const doc = await fleetOwnerApi.uploadFleetDocument(payload);
+    setDocuments((prev) => [...prev, doc]);
+    return doc;
   };
 
   const updateDocument = async (documentId, payload) => {
-    const res = await fleetOwnerApi.updateFleetDocument(documentId, payload);
-    await loadFleetOwnerData();
-    return res;
+    const updated = await fleetOwnerApi.updateFleetDocument(documentId, payload);
+    setDocuments((prev) =>
+      prev.map((d) => (d.document_id === documentId ? updated : d))
+    );
+    return updated;
   };
 
   const deleteDocument = async (documentId) => {
     await fleetOwnerApi.deleteFleetDocument(documentId);
-    await loadFleetOwnerData();
+    setDocuments((prev) =>
+      prev.filter((d) => d.document_id !== documentId)
+    );
   };
 
-  const fillFleetDetails = async (payload) => {
-    const res = await fleetOwnerApi.fillFleetDetails(payload);
-    await loadFleetOwnerData();
-    return res;
-  };
 
-  const addVehicle = async (payload) => {
-    const res = await fleetOwnerApi.addFleetVehicle(payload);
-    await loadFleetOwnerData();
-    return res;
-  };
 
-  const updateVehicle = async (vehicleId, payload) => {
-    const res = await fleetOwnerApi.updateFleetVehicle(vehicleId, payload);
-    await loadFleetOwnerData();
-    return res;
-  };
 
-  const deleteVehicle = async (vehicleId) => {
-    await fleetOwnerApi.deleteFleetVehicle(vehicleId);
-    await loadFleetOwnerData();
-  };
+
+  /* -------- Drivers -------- */
 
   const inviteDriver = async (driverId) => {
-    const res = await fleetOwnerApi.inviteDriver(driverId);
-    await loadFleetOwnerData();
-    return res;
+    const invite = await fleetOwnerApi.inviteDriver(driverId);
+    setInvites((prev) => [...prev, invite]);
+    return invite;
   };
 
   const assignVehicleToDriver = async (inviteId, vehicleId) => {
-    const res = await fleetOwnerApi.assignVehicleToDriver(inviteId, vehicleId);
-    await loadFleetOwnerData();
-    return res;
+    const assignment = await fleetOwnerApi.assignVehicleToDriver(
+      inviteId,
+      vehicleId
+    );
+    setAssignedDrivers((prev) => [...prev, assignment]);
+    return assignment;
   };
 
   const unassignVehicle = async (assignmentId) => {
-    const res = await fleetOwnerApi.unassignVehicle(assignmentId);
-    await loadFleetOwnerData();
-    return res;
+    await fleetOwnerApi.unassignVehicle(assignmentId);
+    setAssignedDrivers((prev) =>
+      prev.filter((a) => a.assignment_id !== assignmentId)
+    );
   };
+
+  console.log("fleet data from context:", fleetOwner);
+  /* ================= CONTEXT VALUE ================= */
+
 
   const value = useMemo(
     () => ({
       fleetOwner,
-      fleetOwnerId,
       documents,
-      vehicles,
+  
       invites,
       assignedDrivers,
       dashboardStats,
@@ -187,29 +192,23 @@ export const FleetOwnerProvider = ({ children }) => {
 
       registerFleetOwner,
       selectTenant,
+      fillFleetDetails,
       uploadDocument,
       updateDocument,
       deleteDocument,
-      fillFleetDetails,
-      addVehicle,
-      updateVehicle,
-      deleteVehicle,
       inviteDriver,
       assignVehicleToDriver,
       unassignVehicle,
-      loadFleetOwnerData,
     }),
     [
       fleetOwner,
-      fleetOwnerId,
       documents,
-      vehicles,
       invites,
       assignedDrivers,
       dashboardStats,
       loading,
       error,
-    ],
+    ]
   );
 
   return (
@@ -219,10 +218,12 @@ export const FleetOwnerProvider = ({ children }) => {
   );
 };
 
+/* ================= HOOK ================= */
+
 export const useFleetOwner = () => {
   const ctx = useContext(FleetOwnerContext);
   if (!ctx) {
-    throw new Error("useFleetOwner must be used inside FleetOwnerProvider");
+    throw new Error("useFleetOwner must be used within FleetOwnerProvider");
   }
   return ctx;
 };

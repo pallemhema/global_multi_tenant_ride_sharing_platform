@@ -15,3 +15,15 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Response logging for debugging
+apiClient.interceptors.response.use(
+  (res) => {
+    console.log('API Response:', res.config.method.toUpperCase(), res.config.url, res.status);
+    return res;
+  },
+  (err) => {
+    console.error('API Error:', err.config?.method?.toUpperCase(), err.config?.url, err.response?.status, err.message);
+    return Promise.reject(err);
+  },
+);
