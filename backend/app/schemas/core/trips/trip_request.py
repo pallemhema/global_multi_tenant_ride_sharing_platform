@@ -24,7 +24,7 @@ class TripRequestCreate(BaseModel):
 class TripRequestOut(BaseModel):
     """Response for created TripRequest"""
     trip_request_id: int
-    rider_id: int
+    user_id: int
     city_id: Optional[int]
     status: str
     pickup_lat: float
@@ -34,6 +34,28 @@ class TripRequestOut(BaseModel):
     estimated_distance_km: Optional[float]
     estimated_duration_minutes: Optional[int]
     created_at_utc: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TripAssignedInfo(BaseModel):
+    trip_id: int
+    driver_id: int
+    driver_phone: str | None = None
+    driver_name: str | None = None
+    driver_rating_avg: float | None = None
+    driver_rating_count: int | None = None
+    vehicle_number: str | None = None
+    vehicle_type: str | None = None
+    driver_lat: float | None = None
+    driver_lng: float | None = None
+    eta_minutes: int | None = None
+
+
+class TripStatusOut(TripRequestOut):
+    assigned_info: TripAssignedInfo | None = None
+    otp: str | None = None
 
     class Config:
         from_attributes = True

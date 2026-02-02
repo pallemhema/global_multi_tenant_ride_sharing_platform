@@ -17,49 +17,52 @@ from ...mixins import AuditMixin, TimestampMixin
 class TripBatch(Base, AuditMixin, TimestampMixin):
     """
     Batch group for driver candidate selection.
-    
-    One TripRequest can have multiple TripBatch records (if first batch fails).
-    Each batch contains TripCandidate records for each driver in the batch.
-    """
-    __tablename__ = "trip_batches"
 
+    This model is now mapped to the legacy `trip_dispatch_rounds` table so the
+    application can reuse existing DB rows and avoid adding a duplicate table.
+    """
+    __tablename__ = "trip_dispatch_rounds"
+
+    # Map to existing columns in trip_dispatch_rounds
     trip_batch_id: Mapped[int] = mapped_column(
         BigInteger, primary_key=True, autoincrement=True
     )
 
     trip_request_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("trip_requests.trip_request_id"), 
-        nullable=False, index=True
+        BigInteger,
+        ForeignKey("trip_requests.trip_request_id"),
+        nullable=False,
+        index=True,
     )
 
     tenant_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("tenants.tenant_id"), 
-        nullable=False, index=True
+        BigInteger, ForeignKey("tenants.tenant_id"), nullable=False, index=True
     )
 
-    # Batch number (1st batch, 2nd batch, etc.)
+    # Batch number (1st batch, 2nd batch, etc.) maps to round_no
     batch_number: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    # Status of the batch
+    # Status of the batch - added to existing table via migration
     batch_status: Mapped[str] = mapped_column(
         String(50),
         default="pending",
-        nullable=False
+        nullable=False,
+        name="batch_status",
     )
     # Status values: pending, active, completed, no_acceptance
 
     # Batch window config
-    search_radius_km: Mapped[Optional[float]] = mapped_column(String(50))
-    max_drivers_in_batch: Mapped[Optional[int]] = mapped_column(Integer)
-    timeout_seconds: Mapped[Optional[int]] = mapped_column(Integer)
+    search_radius_km: Mapped[Optional[float]] = mapped_column(String(50), name="search_radius_km")
+    max_drivers_in_batch: Mapped[Optional[int]] = mapped_column(Integer, name="max_drivers_in_batch")
+    timeout_seconds: Mapped[Optional[int]] = mapped_column(Integer, name="timeout_seconds")
 
-    # Timestamps
+    # Timestamps (existing column names match)
     created_at_utc: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=datetime.utcnow, nullable=False, name="created_at_utc"
     )
     started_at_utc: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True)
+        DateTime(timezone=True), name="started_at_utc"
     )
     ended_at_utc: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True)
+        DateTime(timezone=True), name="ended_at_utc"
     )

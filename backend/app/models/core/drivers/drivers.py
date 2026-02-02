@@ -31,7 +31,7 @@ class Driver(Base, TimestampMixin, AuditMixin):
         unique=True
     )
 
-    home_city_id: Mapped[int | None] = mapped_column(
+    city_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("cities.city_id"),
         nullable=True

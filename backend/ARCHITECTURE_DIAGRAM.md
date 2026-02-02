@@ -58,7 +58,7 @@ SYSTEM: Prepare Driver Pool
              ├─ [3] is_active = True
              ├─ [4] is_online = True
              ├─ [5] runtime_status = "available"
-             ├─ [6] home_city_id = trip.city_id
+             ├─ [6] city_id = trip.city_id
              ├─ [7] vehicle (category + active + docs_approved)
              ├─ [8] kyc_status = "approved"
              └─ [9] current_trip_id = NULL
@@ -273,7 +273,7 @@ Before EVERY operation:
   ├─ Driver State Re-validation
   │   ├─ is_active, kyc_status, approval_status
   │   ├─ is_online, runtime_status
-  │   └─ home_city_id
+  │   └─ city_id
   │
   ├─ Vehicle State Re-validation
   │   ├─ is_active, document_status

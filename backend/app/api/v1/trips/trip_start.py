@@ -12,9 +12,10 @@ from pydantic import BaseModel
 
 from app.core.dependencies import get_db
 from app.core.security.roles import require_driver
-from app.core.trips.trip_otp_service import TripOTPService
+from app.core.trips.trip_otp_service import verify_trip_otp
 from app.models.core.trips.trips import Trip
 from app.models.core.trips.trip_status_history import TripStatusHistory
+from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 from app.models.core.drivers.drivers import Driver
 
 router = APIRouter(
@@ -81,11 +82,12 @@ def start_trip(
     # ------------------------------------------------
     # 2️⃣ Verify OTP
     # ------------------------------------------------
-    is_valid = TripOTPService.verify_otp(
-        db=db,
+    # trip_otp_service.verify_trip_otp(trip_id, otp) -> bool
+    is_valid = verify_trip_otp(
         trip_id=trip_id,
-        provided_otp=payload.otp,
+        otp=payload.otp,
     )
+    print(is_valid)
     
     if not is_valid:
         raise HTTPException(
@@ -99,6 +101,35 @@ def start_trip(
     trip.trip_status = "picked_up"
     trip.picked_up_at_utc = now
     db.add(trip)
+
+    # Also update TripRequest status to in_progress so rider knows trip has started
+    from app.models.core.trips.trip_request import TripRequest
+    trip_req = db.query(TripRequest).filter(
+        TripRequest.trip_request_id == trip.trip_request_id
+    ).first()
+    if trip_req:
+        trip_req.status = "in_progress"
+        db.add(trip_req)
+
+    driver_current_status = db.query(DriverCurrentStatus).filter(
+            DriverCurrentStatus.driver_id == driver.driver_id
+            ).with_for_update().first()
+
+    if not driver_current_status:
+        raise HTTPException(
+            status_code=500,
+            detail="Driver runtime status not found"
+        )
+
+    driver_current_status.runtime_status = "on_trip"
+    driver_current_status.current_trip_id = trip.trip_id
+    driver_current_status.last_updated_utc = datetime.now(timezone.utc)
+
+    db.add(driver_current_status)   # ✅ INSTANCE
+    db.flush()
+
+
+   
     
     # Record status transition
     db.add(TripStatusHistory(

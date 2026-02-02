@@ -17,6 +17,7 @@ export default function Drivers() {
     approveDriver,
     approveDriverDocument,
     rejectDriverDocument,
+    getDriverDocuments,
   } = useTenant();
 
   const [error, setError] = useState("");
@@ -27,6 +28,7 @@ export default function Drivers() {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [approvingDriver, setApprovingDriver] = useState(null);
   const [approving, setApproving] = useState(false);
+  console.log(selectedDriver);
 
   // Load drivers on mount
   useEffect(() => {
@@ -36,20 +38,19 @@ export default function Drivers() {
   // Fetch driver documents
   const handleViewDocuments = async (driver) => {
     try {
+      console.log("view documents entered");
       setDocLoading(true);
       setError("");
 
-      const response = await tenantAdminAPI.getDriverDocuments(
-        tenantId,
-        driver.driver.driver_id,
-      );
+      const driverId = driver.driver?.driver_id || driver.id;
+      const response = await getDriverDocuments(driverId);
 
-      const normalizedDocs = response.data.map((doc) => ({
+      const normalizedDocs = response.map((doc) => ({
         id: doc.document_id,
         documentType: doc.document_type,
         documentNumber: doc.document_number,
         documentUrl: doc.document_url,
-        status: doc.verification_status, // 🔑 KEY FIX
+        status: doc.verification_status,
         expiryDate: doc.expiry_date,
       }));
 

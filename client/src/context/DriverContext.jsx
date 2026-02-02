@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+} from "react";
 import { useUserAuth } from "./UserAuthContext";
 import { driverApi } from "../services/driverApi";
 
@@ -7,27 +13,73 @@ const DriverContext = createContext(null);
 export const DriverProvider = ({ children }) => {
   const { isAuthenticated, loading: authLoading } = useUserAuth();
 
+  /* ================= CORE STATE ================= */
+
   const [driver, setDriver] = useState(null);
   const driverId = driver?.driver_id ?? null;
 
   const [documents, setDocuments] = useState([]);
   const [activeShift, setActiveShift] = useState(null);
   const [runtimeStatus, setRuntimeStatus] = useState(null);
+  const [activeTrip, setActiveTrip] = useState(null);
   const [vehicleSummary, setVehicleSummary] = useState(null);
   const [invites, setInvites] = useState([]);
 
+  const [tripRequests, setTripRequests] = useState([]);
+  const [tripRequestsLoading, setTripRequestsLoading] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [invitesLoading, setInvitesLoading] = useState(false);
 
-  /* reset driver-scoped state when driver changes */
+    /* ================= RESET ON DRIVER CHANGE ================= */
+
   useEffect(() => {
     setDocuments([]);
     setActiveShift(null);
     setRuntimeStatus(null);
+    setActiveTrip(null);
     setVehicleSummary(null);
     setInvites([]);
+    setTripRequests([]);
   }, [driverId]);
+
+  /* ================= HELPERS ================= */
+
+ const refreshRuntime = async () => {
+  const res = await driverApi.getRuntimeStatus();
+  setRuntimeStatus(res?.runtime_status ?? null);
+  return res;
+};
+
+
+
+  const loadTripRequests = async () => {
+    try {
+      setTripRequestsLoading(true);
+      const res = await driverApi.getTripRequests();
+      setTripRequests(res || []);
+    } catch (err) {
+      console.error("Failed to load trip requests", err);
+      setTripRequests([]);
+    } finally {
+      setTripRequestsLoading(false);
+    }
+  };
+
+  const refreshActiveTrip = async () => {
+    try {
+      const res = await driverApi.getactiveTrip();
+      console.log("ACTIVE TRIP FETCHED:", res);
+      setActiveTrip(res);
+    } catch (err) {
+      console.warn("No active trip");
+      setActiveTrip(null);
+    }
+  };
+
+
+
+  /* ================= INITIAL DRIVER LOAD ================= */
 
   const loadDriverData = async () => {
     try {
@@ -38,10 +90,7 @@ export const DriverProvider = ({ children }) => {
       const nextDriver = profile?.driver ?? null;
       setDriver(nextDriver);
 
-      if (!nextDriver?.driver_id) {
-        setDocuments([]);
-        return;
-      }
+      if (!nextDriver?.driver_id) return;
 
       const [docs, shift, runtime, vehicle] = await Promise.all([
         driverApi.getDriverDocuments(),
@@ -54,6 +103,9 @@ export const DriverProvider = ({ children }) => {
       setActiveShift(shift || null);
       setRuntimeStatus(runtime || null);
       setVehicleSummary(vehicle || null);
+      await refreshActiveTrip();
+
+      await loadTripRequests();
     } catch (err) {
       console.error(err);
       setError("Failed to load driver data");
@@ -71,13 +123,24 @@ export const DriverProvider = ({ children }) => {
     }
   }, [authLoading, isAuthenticated]);
 
-  const can_start_shift = activeShift?.shift_status == "offline" &&
-                         vehicleSummary?.active_vehicles > 0;
-                         console.log(can_start_shift)
-  /* ================= ACTIONS ================= */
+  /* ================= ACTIVE TRIP — ONLY WHEN NEEDED ================= */
+useEffect(() => {
+  if (runtimeStatus?.runtime_status === "trip_accepted" || runtimeStatus?.runtime_status === "on_trip") {
+    refreshActiveTrip();
+  } else {
+    setActiveTrip(null);
+  }
+}, [runtimeStatus]);
+
+  /* ================= DERIVED ================= */
+
+  const can_start_shift =
+    activeShift?.shift_status === "offline" &&
+    (vehicleSummary?.active_vehicles ?? 0) > 0;
+
+  /* ================= DOCUMENT & PROFILE ================= */
 
   const uploadDocument = async (payload) => {
-    console.log(payload);
     const res = await driverApi.uploadDriverDocument(payload);
     await loadDriverData();
     return res;
@@ -94,12 +157,13 @@ export const DriverProvider = ({ children }) => {
     await loadDriverData();
   };
 
-  const selectTenant = async (payload) => {
-    const res = await driverApi.selectTenantForDriver(payload);
+  const selectTenant = async (tenant_id) => {
+    const res = await driverApi.selectTenantForDriver(tenant_id);
     await loadDriverData();
     return res;
   };
-  const selectDiverType = async (type) => {
+
+  const selectDriverType = async (type) => {
     const res = await driverApi.updateDriverType(type);
     await loadDriverData();
     return res;
@@ -117,24 +181,75 @@ export const DriverProvider = ({ children }) => {
     return res;
   };
 
+  /* ================= SHIFT ================= */
+
   const startShift = async (payload) => {
     const res = await driverApi.startShift(payload);
     await loadDriverData();
     return res;
   };
 
-  const endShift = async (payload) => {
-    const res = await driverApi.endShift(payload);
+  const endShift = async () => {
+    const res = await driverApi.endShift();
     await loadDriverData();
     return res;
   };
 
+  /* ================= RUNTIME ================= */
+
   const updateRuntimeStatus = async (status) => {
     const res = await driverApi.updateRuntimeStatus(status);
-    // Update local state
     setRuntimeStatus(res);
     return res;
   };
+
+  /* ================= TRIP ACTIONS ================= */
+
+  const acceptTrip = async ({ trip_request_id, batch_id }) => {
+    const res = await driverApi.respondToOffer(
+      trip_request_id,
+      batch_id,
+      "accepted"
+    );
+    await refreshRuntime();
+    await loadTripRequests();
+    return res;
+  };
+
+  const rejectTrip = async ({ trip_request_id, batch_id }) => {
+    const res = await driverApi.respondToOffer(
+      trip_request_id,
+      batch_id,
+      "rejected"
+    );
+    await loadTripRequests();
+    return res;
+  };
+
+  const startTrip = async ({ trip_id, otp }) => {
+    const res = await driverApi.startTrip(trip_id, otp);
+    await refreshRuntime();
+    return res;
+  };
+
+  const completeTrip = async ({ trip_id, distance_km, duration_minutes }) => {
+    const res = await driverApi.completeTrip(trip_id, {
+      distance_km,
+      duration_minutes,
+    });
+    await refreshRuntime();
+    return res;
+  };
+
+  const cancelTrip = async ({ trip_id, reason }) => {
+    const res = await driverApi.cancelTrip(trip_id, { reason });
+    await refreshRuntime();
+    return res;
+  };
+console.log("RUNTIME STATUS RAW:", runtimeStatus, typeof runtimeStatus);
+console.log("ACTIVE TRIP RAW:", activeTrip, typeof activeTrip);
+
+  /* ================= CONTEXT VALUE ================= */
 
   const value = useMemo(
     () => ({
@@ -143,23 +258,34 @@ export const DriverProvider = ({ children }) => {
       documents,
       activeShift,
       runtimeStatus,
+      activeTrip,
       vehicleSummary,
       invites,
       loading,
       error,
-      invitesLoading,
+
       can_start_shift,
+
+      tripRequests,
+      tripRequestsLoading,
 
       uploadDocument,
       updateDocument,
       deleteDocument,
       selectTenant,
+      selectDriverType,
       submitDocuments,
       updateProfile,
-      selectDiverType,
+
       startShift,
       endShift,
       updateRuntimeStatus,
+
+      acceptTrip,
+      rejectTrip,
+      startTrip,
+      completeTrip,
+      cancelTrip,
     }),
     [
       driver,
@@ -167,18 +293,24 @@ export const DriverProvider = ({ children }) => {
       documents,
       activeShift,
       runtimeStatus,
+      activeTrip,
       vehicleSummary,
       invites,
       loading,
       error,
-      invitesLoading,
-    ],
+      tripRequests,
+      tripRequestsLoading,
+    ]
   );
 
   return (
-    <DriverContext.Provider value={value}>{children}</DriverContext.Provider>
+    <DriverContext.Provider value={value}>
+      {children}
+    </DriverContext.Provider>
   );
 };
+
+/* ================= HOOK ================= */
 
 export const useDriver = () => {
   const ctx = useContext(DriverContext);

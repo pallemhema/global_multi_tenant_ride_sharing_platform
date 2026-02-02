@@ -61,7 +61,7 @@ class DriverEligibility:
         driver = db.query(Driver).filter(
             Driver.driver_id == driver_id,
             Driver.tenant_id == tenant_id,
-            Driver.home_city_id == city_id,
+            Driver.city_id == city_id,
             Driver.is_active.is_(True),
             Driver.approval_status == "approved",
             Driver.kyc_status == "approved",
@@ -117,7 +117,7 @@ class DriverEligibility:
         # Get all drivers of tenant in city with approved KYC + active status
         drivers = db.query(Driver).filter(
             Driver.tenant_id == tenant_id,
-            Driver.home_city_id == city_id,
+            Driver.city_id == city_id,
             Driver.is_active.is_(True),
             Driver.approval_status == "approved",
             Driver.kyc_status == "approved",

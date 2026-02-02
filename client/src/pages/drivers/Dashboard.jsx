@@ -1,5 +1,3 @@
-
-
 import { useNavigate } from 'react-router-dom';
 import {
   FileText,
@@ -14,6 +12,9 @@ import {
 import { useDriver } from '../../context/DriverContext';
 import StatCard from '../../components/tenant-admin/StatCard';
 import Loader from '../../components/common/Loader';
+import TripRequestsList from '../../components/drivers/TripRequestsList';
+import DriverTripControls from '../../components/drivers/DriverTripControls';
+import DriverLocationTracker from '../../components/drivers/DriverLocationTracker';
 
 export default function DriverDashboard() {
   const navigate = useNavigate();
@@ -27,7 +28,10 @@ export default function DriverDashboard() {
     loading,
     error,
   } = useDriver();
-console.log(" vehicleSummary:",vehicleSummary);
+// console.log(" vehicleSummary:",vehicleSummary);
+console.log("driver:",driver);
+
+
   if (loading) return <Loader />;
 
   /* ---------------- STATS ---------------- */
@@ -101,6 +105,26 @@ const inviteCount =
             <b>Verification:</b>{' '}
             {verificationBadge(driver.kyc_status)}
           </p>
+
+          {/* REAL-TIME OFFERS */}
+          {/* <div className="mt-4">
+            <DriverOffers />
+          </div> */}
+
+          {/* TRIP REQUESTS LIST (DB-based) */}
+          <div className="mt-4">
+            <TripRequestsList />
+          </div>
+
+          {/* TRIP CONTROLS */}
+          <div className="mt-4">
+            <DriverTripControls />
+          </div>
+
+          {/* LOCATION TRACKING */}
+          <div className="mt-4">
+            <DriverLocationTracker />
+          </div>
         </div>
       )}
 

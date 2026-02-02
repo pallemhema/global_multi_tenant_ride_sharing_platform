@@ -46,6 +46,11 @@ class DriverCurrentStatus(Base):
         ForeignKey("lu_driver_runtime_status.status_code"),
         nullable=False
     )
+    current_trip_id= Column(
+        BigInteger,
+        ForeignKey("trips.trip_id"),
+        nullable=True
+    )   
 
     last_updated_utc = Column(
         TIMESTAMP(timezone=True),

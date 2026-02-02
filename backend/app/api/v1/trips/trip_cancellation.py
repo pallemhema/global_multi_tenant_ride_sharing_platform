@@ -18,7 +18,6 @@ from decimal import Decimal
 
 from app.core.dependencies import get_db
 from app.core.security.roles import require_rider, require_driver
-from app.models.core.riders.riders import Rider
 from app.models.core.drivers.drivers import Driver
 from app.models.core.trips.trips import Trip
 from app.models.core.trips.trip_status_history import TripStatusHistory
@@ -57,7 +56,7 @@ def cancel_trip_rider(
     trip_id: int,
     payload: CancellationRequest,
     db: Session = Depends(get_db),
-    rider: Rider = Depends(require_rider),
+    rider: User = Depends(require_rider),
 ):
     """
     STEP 16A: Rider cancels trip.
@@ -82,7 +81,7 @@ def cancel_trip_rider(
     # ------------------------------------------------
     trip = db.query(Trip).filter(
         Trip.trip_id == trip_id,
-        Trip.rider_id == rider.rider_id,
+        Trip.user_id == rider.user_id,
     ).with_for_update().first()
     
     if not trip:
@@ -155,7 +154,7 @@ def cancel_trip_rider(
         from_status=trip.trip_status,
         to_status="cancelled",
         changed_at_utc=now,
-        changed_by=rider.rider_id,
+        changed_by=rider.user_id,
     ))
     
     db.commit()

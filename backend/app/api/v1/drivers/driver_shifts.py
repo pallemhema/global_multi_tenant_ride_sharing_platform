@@ -18,6 +18,7 @@ from redis import Redis
 from datetime import timezone
 
 from app.schemas.core.drivers.runtime_status import RuntimeStatusSchema
+from app.models.core.trips.trip_dispatch_candidates import TripDispatchCandidate
 
 router = APIRouter(
     prefix="/driver",
@@ -198,9 +199,17 @@ def get_runtime_status(
 
     if not status:
         return {
-            "runtime_status": "offline",
+            "runtime_status": "not_available",
             "city_id": None,
             "last_updated_utc": None,
+        }
+    
+    if status.runtime_status == "trip_accepted":
+        return{
+            "current_trip_id": status.current_trip_id,
+            "runtime_status": status.runtime_status,
+            "city_id": status.city_id,
+            "last_updated_utc": status.last_updated_utc,
         }
 
     return {
@@ -241,6 +250,8 @@ def location_heartbeat(
         "lat": str(payload.latitude),
         "lng": str(payload.longitude),
     }
+
+    print("payload:",payload)
     
     # Add timestamp - use provided or current time in milliseconds
     if payload.timestamp is not None:
@@ -261,6 +272,26 @@ def location_heartbeat(
         mapping=mapping
     )
     redis.expire(f"driver:{driver.driver_id}:location", 60)
+
+    # --- Add/update driver location in Redis GEO key for driver discovery ---
+    # Get tenant_id from driver, city_id from payload if present, else from driver
+    tenant_id = getattr(driver, "tenant_id", None)
+    city_id = getattr(payload, "city_id", None)
+    if city_id is None:
+        city_id = getattr(driver, "city_id", None)
+    print(f"[HEARTBEAT DEBUG] driver_id={driver.driver_id}, tenant_id={tenant_id}, city_id={city_id}, lat={payload.latitude}, lng={payload.longitude}")
+    # Only update GEO if all required info is present
+    if tenant_id and city_id and payload.latitude is not None and payload.longitude is not None:
+        geo_key = f"drivers:geo:{tenant_id}:{city_id}"
+        print(f"[HEARTBEAT DEBUG] GEOADD {geo_key} {payload.longitude} {payload.latitude} {driver.driver_id}")
+        try:
+            redis.execute_command('GEOADD', geo_key, str(payload.longitude), str(payload.latitude), str(driver.driver_id))
+            redis.expire(geo_key, 120)
+            print(f"[HEARTBEAT DEBUG] GEOADD success for driver {driver.driver_id}")
+        except Exception as exc:
+            print(f"[HEARTBEAT DEBUG] Failed to update GEO for driver {driver.driver_id}: {exc}")
+    else:
+        print(f"[HEARTBEAT DEBUG] Missing tenant_id or city_id, GEOADD skipped for driver {driver.driver_id}")
     return {"ok": True}
 
 @router.get("/shift/current")
@@ -281,3 +312,23 @@ def get_shift_status(
         "shift_status": "online" if shift else "offline",
         "started_at": shift.shift_start_utc if shift else None,
     }
+
+@router.get("/trip-requests")
+def get_trip_requests(
+    db: Session = Depends(get_db),
+    driver=Depends(require_driver),
+):
+    # Return all trip_dispatch_candidates for this driver where response_code is null (pending)
+    candidates = db.query(TripDispatchCandidate).filter(
+        TripDispatchCandidate.driver_id == driver.driver_id,
+        TripDispatchCandidate.response_code.is_(None)
+    ).all()
+    # Return minimal info for UI
+    return [
+        {
+            "trip_request_id": c.trip_request_id,
+            "batch_id": c.trip_batch_id,
+            "request_sent_at": c.request_sent_at_utc,
+        }
+        for c in candidates
+    ]

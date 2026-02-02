@@ -23,3 +23,13 @@ class LocationHeartbeatSchema(BaseModel):
         None,
         description="Client timestamp in milliseconds; server time used if omitted",
     )
+
+    city_id: Optional[int] = Field(
+        None,
+        description="City ID for driver location context"
+    )
+
+    tenant_id: Optional[int] = Field(
+        None,
+        description="Tenant ID for driver location context"
+    )

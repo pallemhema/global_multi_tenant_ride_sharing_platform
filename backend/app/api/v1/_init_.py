@@ -41,7 +41,7 @@ from app.api.v1.fleet_owner.router import router as fleet_owner_router
 from app.api.v1.vehicles.router import router as vehicle_router
 
 from app.api.v1.drivers.router import router as driver_router
-# from app.api.v1.trips.router import router as trip_router
+from app.api.v1.trips.router import router as trip_router
 from app.api.v1.public.tentants import router as public_router
 from fastapi import APIRouter
 
@@ -58,5 +58,5 @@ api_router.include_router(fleet_owner_router)
 
 api_router.include_router(driver_router)
 api_router.include_router(vehicle_router)
-# api_router.include_router(trip_router)
+api_router.include_router(trip_router)
 

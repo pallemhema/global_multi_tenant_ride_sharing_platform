@@ -21,6 +21,7 @@ from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 from app.models.core.drivers.drivers import Driver
 from app.models.core.vehicles.vehicles import Vehicle
 from app.core.ledger.ledger_service import LedgerService
+from app.core.trips.trip_lifecycle import TripLifecycle
 
 router = APIRouter(
     prefix="/driver/trips",
@@ -90,11 +91,15 @@ def complete_trip(
     # ------------------------------------------------
     # 1️⃣ Fetch trip (strict validation)
     # ------------------------------------------------
+
+
     trip = db.query(Trip).filter(
         Trip.trip_id == trip_id,
         Trip.driver_id == driver.driver_id,
         Trip.trip_status == "picked_up",
     ).with_for_update().first()
+    print(trip)
+
     
     if not trip:
         raise HTTPException(
@@ -130,10 +135,9 @@ def complete_trip(
         db=db,
         tenant_id=trip.tenant_id,
         city_id=trip.city_id,
-        vehicle_category=vehicle.vehicle_category,
+        vehicle_category=vehicle.category_code,
         distance_km=payload.distance_km,
         duration_minutes=payload.duration_minutes,
-        coupon_discount=Decimal("0"),  # TODO: Apply coupon logic
     )
     
     # ------------------------------------------------
@@ -163,36 +167,22 @@ def complete_trip(
     
     db.add(trip_fare)
     db.flush()
-    
-    # ------------------------------------------------
-    # 6️⃣ Release driver availability
-    # ------------------------------------------------
-    driver_status = db.query(DriverCurrentStatus).filter(
-        DriverCurrentStatus.driver_id == trip.driver_id,
-    ).with_for_update().first()
-    
-    if driver_status:
-        driver_status.runtime_status = "available"
-        driver_status.current_trip_id = None
-        driver_status.updated_at_utc = now
-        db.add(driver_status)
-        db.flush()
+
+
+    TripLifecycle.release_driver(
+        db=db,
+        driver_id=trip.driver_id
+    )
     
     # ------------------------------------------------
     # 7️⃣ Create settlement ledger entries
     # ------------------------------------------------
-    LedgerService.create_settlement_entries(
-        db=db,
-        trip=trip,
-        total_fare=Decimal(str(fare_breakdown["total_fare"])),
-        coupon_discount=Decimal(str(fare_breakdown["coupon_discount"])),
-        now=now,
-    )
+    
     
     # ------------------------------------------------
     # 8️⃣ Move trip to payment_pending status
     # ------------------------------------------------
-    trip.trip_status = "payment_pending"
+    trip.trip_status = "completed"
     trip.completed_at_utc = now
     db.add(trip)
     
@@ -201,7 +191,7 @@ def complete_trip(
         tenant_id=trip.tenant_id,
         trip_id=trip.trip_id,
         from_status="picked_up",
-        to_status="payment_pending",
+        to_status="completed",
         changed_at_utc=now,
         changed_by=driver.driver_id,
     ))
@@ -224,9 +214,8 @@ def complete_trip(
         message=f"Trip {trip_id} completed. Final fare: ₹{fare_breakdown['total_fare']:.2f}"
     )
 
-    return {
-        "status": "payment_initiated",
-        "trip_id": trip.trip_id,
-        "payment_id": payment.payment_id,
-        "amount": fare["final_fare"],
-    }
+    # return {
+    #     "trip_status": trip.trip_status,
+    #     "trip_id": trip.trip_id,
+     
+    # }

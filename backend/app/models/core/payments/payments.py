@@ -31,9 +31,9 @@ class Payment(Base):
         nullable=False,
     )
 
-    rider_id: Mapped[int] = mapped_column(
+    user_id: Mapped[int] = mapped_column(
         BigInteger,
-        ForeignKey("riders.rider_id"),
+        ForeignKey("users.user_id"),
         nullable=False,
     )
 

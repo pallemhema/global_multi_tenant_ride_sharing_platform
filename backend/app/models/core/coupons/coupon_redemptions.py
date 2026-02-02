@@ -15,7 +15,7 @@ class CouponRedemption(Base):
     coupon_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("tenant_coupons.coupon_id")
     )
-    rider_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("riders.rider_id"))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.user_id"))
     trip_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("trips.trip_id"))
 
     discount_amount: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)

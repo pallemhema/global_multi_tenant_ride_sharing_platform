@@ -15,7 +15,7 @@ from decimal import Decimal
 
 from app.core.dependencies import get_db
 from app.core.security.roles import require_rider
-from app.models.core.riders.riders import Rider
+from app.models.core.users.users import User
 from app.models.core.trips.trips import Trip
 from app.models.core.drivers.drivers import Driver
 
@@ -51,7 +51,7 @@ def rate_trip(
     trip_id: int,
     payload: TripRatingRequest,
     db: Session = Depends(get_db),
-    rider: Rider = Depends(require_rider),
+    rider: user = Depends(require_rider),
 ):
     """
     STEP 15: Rider rates completed trip.
@@ -78,7 +78,7 @@ def rate_trip(
     # ------------------------------------------------
     trip = db.query(Trip).filter(
         Trip.trip_id == trip_id,
-        Trip.rider_id == rider.rider_id,
+        Trip.user_id == rider.user_id,
         Trip.trip_status == "completed",
     ).first()
     
@@ -150,7 +150,7 @@ def rate_trip(
 def get_trip_receipt(
     trip_id: int,
     db: Session = Depends(get_db),
-    rider: Rider = Depends(require_rider),
+    rider: User = Depends(require_rider),
 ):
     """
     Get trip receipt/invoice after completion.
@@ -159,7 +159,7 @@ def get_trip_receipt(
     """
     trip = db.query(Trip).filter(
         Trip.trip_id == trip_id,
-        Trip.rider_id == rider.rider_id,
+        Trip.user_id == rider.user_id,
     ).first()
     
     if not trip:

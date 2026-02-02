@@ -38,6 +38,7 @@ export default function Vehicles() {
     approveVehicle,
     rejectVehicleDocument,
     approveVehicleDocument,
+    getVehicleDocuments,
   } = useTenant();
 
   const [error, setError] = useState("");
@@ -128,13 +129,9 @@ export default function Vehicles() {
   const openDocuments = async (vehicle) => {
     try {
       setDocLoading(true);
-      const res = await tenantAdminAPI.getVehicleDocuments(
-        tenantId,
-        vehicle.id,
-      );
-      console.log("res:", res);
+      const res = await getVehicleDocuments(vehicle.id);
       setSelectedVehicle(vehicle);
-      setDocuments(res.data);
+      setDocuments(res);
       setShowDocsModal(true);
     } catch {
       setError("Failed to load documents");

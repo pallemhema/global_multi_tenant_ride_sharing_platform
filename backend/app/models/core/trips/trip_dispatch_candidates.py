@@ -27,14 +27,15 @@ class TripDispatchCandidate(Base):
         ForeignKey("tenants.tenant_id")
     )
 
-    trip_id: Mapped[Optional[int]] = mapped_column(
+    # Link back to TripRequest that originated this dispatch
+    trip_request_id: Mapped[Optional[int]] = mapped_column(
         BigInteger,
-        ForeignKey("trips.trip_id")
+        ForeignKey("trip_requests.trip_request_id")
     )
 
-    round_id: Mapped[Optional[int]] = mapped_column(
+    trip_batch_id: Mapped[Optional[int]] = mapped_column(
         BigInteger,
-        ForeignKey("trip_dispatch_rounds.round_id")
+        ForeignKey("trip_dispatch_rounds.trip_batch_id")
     )
 
     driver_id: Mapped[Optional[int]] = mapped_column(

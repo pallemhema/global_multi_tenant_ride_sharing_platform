@@ -154,7 +154,7 @@ Output:
 3. Is active driver (is_active=True)
 4. Driver shift status = online (is_online=True)
 5. Driver runtime status = available (runtime_status="available")
-6. Driver city matches trip city (home_city_id=trip.city_id)
+6. Driver city matches trip city (city_id=trip.city_id)
 7. Driver has vehicle:
    - Of selected category
    - Is active (is_active=True)

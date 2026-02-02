@@ -13,7 +13,7 @@ class TripRequestCreate(BaseModel):
 class TripOut(BaseModel):
     trip_id: int
     tenant_id: int
-    rider_id: int
+    user_id: int
     trip_status: str
 
     model_config = ConfigDict(from_attributes=True)

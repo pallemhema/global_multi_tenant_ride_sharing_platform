@@ -1,102 +1,68 @@
-"""
-Trip OTP Service - Step 9 & 11 of Trip Lifecycle
-
-Generates and verifies OTP for trip start.
-"""
-
-from sqlalchemy.orm import Session
-from datetime import datetime, timezone, timedelta
-import random
-import string
-
-from app.models.core.trips.trips import Trip
+import hashlib
+import secrets
+import os
 from app.core.redis import redis_client
 
+OTP_TTL_SECONDS = 1800
+MAX_OTP_ATTEMPTS = 5
 
-class TripOTPService:
-    """
-    Handle OTP generation, storage, and verification.
-    """
 
-    @staticmethod
-    def generate_otp(db: Session, trip_id: int) -> str:
-        """
-        Generate 4-digit OTP for trip start.
-        
-        - Store in database
-        - Cache in Redis with 15-minute expiry
-        """
-        now = datetime.now(timezone.utc)
-        
-        # Generate random 4-digit OTP
-        otp = ''.join(random.choices(string.digits, k=4))
-        
-        # Store in database
-        trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
-        if trip:
-            trip.otp_code = otp
-            db.add(trip)
-            db.flush()
-        
-        # Cache in Redis for quick lookup (15 minutes)
-        redis_key = f"trip:otp:{trip_id}"
-        redis_client.setex(redis_key, 900, otp)  # 900 seconds = 15 minutes
-        
-        return otp
+def _hash_otp(otp: str) -> str:
+    return hashlib.sha256(otp.encode()).hexdigest()
 
-    @staticmethod
-    def verify_otp(db: Session, trip_id: int, provided_otp: str) -> bool:
-        """
-        Verify OTP matches and hasn't expired.
-        
-        - Check database record
-        - Ensure OTP is not empty
-        - Delete OTP from cache after verification (one-time use)
-        """
-        trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
-        
-        if not trip or not trip.otp_code:
-            return False
-        
-        if trip.otp_code != provided_otp:
-            return False
-        
-        # OTP is valid - delete from Redis to prevent reuse
-        redis_key = f"trip:otp:{trip_id}"
-        redis_client.delete(redis_key)
-        
-        # Clear from database
-        trip.otp_code = None
-        db.add(trip)
-        db.flush()
-        
-        return True
 
-    @staticmethod
-    def get_otp(trip_id: int) -> str | None:
-        """
-        Retrieve OTP from cache (for driver display / testing).
-        
-        Do not delete on retrieval - only delete on verification.
-        """
-        redis_key = f"trip:otp:{trip_id}"
-        otp = redis_client.get(redis_key)
-        
-        if otp:
-            return otp.decode() if isinstance(otp, bytes) else otp
-        
-        return None
+def _otp_key(trip_id: int) -> str:
+    return f"trip:otp:{trip_id}"
 
-    @staticmethod
-    def is_otp_expired(trip_id: int) -> bool:
-        """
-        Check if OTP has expired in Redis.
-        """
-        redis_key = f"trip:otp:{trip_id}"
-        ttl = redis_client.ttl(redis_key)
-        
-        # ttl == -2 means key doesn't exist (expired)
-        # ttl == -1 means key exists but no expiry (shouldn't happen)
-        # ttl > 0 means key exists with time remaining
-        
-        return ttl == -2
+
+def _otp_plain_key(trip_id: int) -> str:
+    return f"trip:otp:plain:{trip_id}"
+
+
+def _attempts_key(trip_id: int) -> str:
+    return f"trip:otp_attempts:{trip_id}"
+
+
+def generate_trip_otp() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def store_trip_otp(trip_id: int, otp: str) -> None:
+    # Print OTP for development (visible in server logs)
+    print(f"[TRIP OTP] trip_id={trip_id} → {otp}")
+
+    # store hashed OTP for verification
+    redis_client.setex(
+        _otp_key(trip_id),
+        OTP_TTL_SECONDS,
+        _hash_otp(otp),
+    )
+    redis_client.setex(
+        _attempts_key(trip_id),
+        OTP_TTL_SECONDS,
+        0,
+    )
+
+    # Always store plaintext OTP so riders can see it (for development & testing)
+    redis_client.setex(_otp_plain_key(trip_id), OTP_TTL_SECONDS, otp)
+
+
+def verify_trip_otp(trip_id: int, otp: str) -> bool:
+    stored = redis_client.get(_otp_key(trip_id))
+    if not stored:
+        return False
+
+    attempts = int(redis_client.get(_attempts_key(trip_id)) or 0)
+
+    if attempts >= MAX_OTP_ATTEMPTS:
+        redis_client.delete(_otp_key(trip_id))
+        redis_client.delete(_attempts_key(trip_id))
+        return False
+
+    if _hash_otp(otp) != stored:
+        redis_client.incr(_attempts_key(trip_id))
+        return False
+
+    redis_client.delete(_otp_key(trip_id))
+    redis_client.delete(_attempts_key(trip_id))
+    return True

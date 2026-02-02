@@ -8,7 +8,7 @@ from app.core.dependencies import get_db
 from app.core.security.roles import require_driver
 from app.schemas.core.drivers.driver_location import DriverLocationUpdate
 from app.models.core.drivers.driver_shifts import DriverShift
-from backend.app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
+from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
 from app.core.redis import redis_client
 from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 

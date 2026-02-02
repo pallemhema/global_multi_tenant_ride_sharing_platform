@@ -26,8 +26,8 @@ class TripRequest(Base, AuditMixin, TimestampMixin):
         BigInteger, primary_key=True, autoincrement=True
     )
 
-    rider_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("riders.rider_id"), nullable=False, index=True
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.user_id"), nullable=False, index=True
     )
 
     # Pickup location
@@ -43,6 +43,14 @@ class TripRequest(Base, AuditMixin, TimestampMixin):
     # City resolved from pickup location
     city_id: Mapped[Optional[int]] = mapped_column(
         BigInteger, ForeignKey("cities.city_id"), index=True
+    )
+
+    # Vehicle category requested by rider (e.g., sedan, suv, etc.)
+    vehicle_category: Mapped[Optional[str]] = mapped_column(
+        String(50),
+        ForeignKey("lu_vehicle_category.category_code"),
+        nullable=True,
+        index=True
     )
 
     # Tenant selected by rider (after viewing available tenants)

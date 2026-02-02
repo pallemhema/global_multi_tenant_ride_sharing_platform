@@ -17,6 +17,7 @@ export default function FleetOwners() {
     approveFleetOwner,
     approveFleetOwnerDocument,
     rejectFleetOwnerDocument,
+    getFleetOwnerDocuments,
   } = useTenant();
 
   const [error, setError] = useState("");
@@ -38,12 +39,9 @@ export default function FleetOwners() {
     try {
       setDocLoading(true);
       setError("");
-      const response = await tenantAdminAPI.getFleetOwnerDocuments(
-        tenantId,
-        fleetOwner.id,
-      );
+      const response = await getFleetOwnerDocuments(fleetOwner.id);
       setSelectedFleetOwner(fleetOwner);
-      setFleetOwnerDocuments(response.data);
+      setFleetOwnerDocuments(response);
       setShowDocumentsModal(true);
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to load documents");

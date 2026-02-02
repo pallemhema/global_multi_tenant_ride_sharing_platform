@@ -9,26 +9,41 @@ Trip Request Endpoints - Multi-tenant ride-sharing trip flow
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from datetime import datetime, timezone
 import math
+import json
+from sqlalchemy import or_, and_
+
 
 from app.core.dependencies import get_db
 from app.core.security.roles import require_rider
-from app.models.core.riders.riders import Rider
+from app.models.core.users.users import User
 from app.models.core.tenants.tenants import Tenant
 from app.models.core.tenants.tenant_cities import TenantCity
 from app.models.lookups.city import City
 from app.models.core.trips.trip_request import TripRequest
+from app.models.core.drivers.driver_shifts import DriverShift
+from app.models.core.drivers.driver_current_status import DriverCurrentStatus
+from app.models.core.vehicles.vehicles import Vehicle
+from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
+from app.models.core.trips.trips import Trip
 from app.schemas.core.trips.trip_request import (
     TripRequestCreate,
     TripRequestOut,
     AvailableTenantsListOut,
-    TenantAvailabilityInfo,
     VehiclePricingInfo,
+    TenantAvailabilityInfo,
     TenantSelectionPayload,
     TenantSelectionResponse,
 )
+from app.core.fare.tenant_vehicle_categoy_price import get_vehicle_pricing
+from app.models.lookups.vehicle_category import VehicleCategory
+from app.schemas.core.trips.trip_request import TripStatusOut
+from sqlalchemy.orm import aliased
+VehicleAssignmentVehicle = aliased(Vehicle)
+import os
+from app.core.trips.trip_otp_service import _otp_plain_key
 
 router = APIRouter(
     prefix="/rider/trips",
@@ -62,7 +77,7 @@ def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
 def create_trip_request(
     payload: TripRequestCreate,
     db: Session = Depends(get_db),
-    rider: Rider = Depends(require_rider),
+    rider: User = Depends(require_rider),
 ):
     """
     STEP 1: Rider creates a trip request.
@@ -76,37 +91,54 @@ def create_trip_request(
     """
     now = datetime.now(timezone.utc)
     
-    # ====== Resolve city from pickup coordinates ======
-    # Find city closest to pickup location
-    city = (
-        db.query(City)
-        .filter(City.is_active.is_(True))
-        .all()
+    # ====== Resolve city from pickup coordinates using city boundary polygon ======
+    # We require pickup and drop to be inside the same city's boundary polygon.
+    from sqlalchemy import text
+    from sqlalchemy.exc import ProgrammingError
+
+    # Cast both sides to geometry explicitly to avoid mixed-type errors when
+    # boundary may be stored as geography or geometry in different environments.
+    pickup_filter_sql = text(
+        "ST_Contains(boundary::geometry, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geometry)"
     )
-    
-    closest_city = None
-    min_distance = float('inf')
-    
-    for c in city:
-        if c.latitude is None or c.longitude is None:
-            continue
-        
-        dist = haversine_distance(
-            payload.pickup_lat,
-            payload.pickup_lng,
-            float(c.latitude),
-            float(c.longitude)
+    drop_filter_sql = text(
+        "ST_Contains(boundary::geometry, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geometry)"
+    )
+
+    try:
+        closest_city = (
+            db.query(City)
+            .filter(City.is_active.is_(True))
+            .filter(pickup_filter_sql)
+            .params(lng=payload.pickup_lng, lat=payload.pickup_lat)
+            .first()
         )
-        
-        if dist < min_distance:
-            min_distance = dist
-            closest_city = c
-    
-    if not closest_city or min_distance > 50:  # Within 50km of a city
-        raise HTTPException(
-            status_code=400,
-            detail="Service not available in your location"
+    except ProgrammingError as exc:
+        # Common cause: PostGIS not installed or column types mismatch
+        raise HTTPException(status_code=500, detail=(
+            "Spatial query failed. Ensure PostGIS is installed and the cities.boundary "
+            "column is a geometry(Polygon,4326) or appropriate cast exists. Debug: " + str(exc)
+        ))
+
+    if not closest_city:
+        raise HTTPException(status_code=400, detail="Service not available in your pickup location")
+
+    try:
+        drop_in_city = (
+            db.query(City)
+            .filter(City.city_id == closest_city.city_id)
+            .filter(drop_filter_sql)
+            .params(lng=payload.drop_lng, lat=payload.drop_lat)
+            .first()
         )
+    except ProgrammingError as exc:
+        raise HTTPException(status_code=500, detail=(
+            "Spatial query failed when checking drop location. Ensure PostGIS is installed "
+            "and cities.boundary is a valid geometry. Debug: " + str(exc)
+        ))
+
+    if not drop_in_city:
+        raise HTTPException(status_code=400, detail="Drop location is outside service area for this city")
     
     # ====== Calculate estimated distance ======
     estimated_distance = haversine_distance(
@@ -121,7 +153,7 @@ def create_trip_request(
     
     # ====== Create TripRequest ======
     trip_request = TripRequest(
-        rider_id=rider.rider_id,
+        user_id=rider.user_id,
         pickup_lat=payload.pickup_lat,
         pickup_lng=payload.pickup_lng,
         pickup_address=payload.pickup_address,
@@ -150,7 +182,7 @@ def create_trip_request(
 def list_available_tenants(
     trip_request_id: int,
     db: Session = Depends(get_db),
-    rider: Rider = Depends(require_rider),
+    rider: User = Depends(require_rider),
 ):
     """
     STEP 2: Show rider all available tenants in the city with pricing.
@@ -169,7 +201,7 @@ def list_available_tenants(
     # ====== Get trip request ======
     trip_req = db.query(TripRequest).filter(
         TripRequest.trip_request_id == trip_request_id,
-        TripRequest.rider_id == rider.rider_id,
+        TripRequest.user_id == rider.user_id,
     ).first()
     
     if not trip_req:
@@ -213,13 +245,27 @@ def list_available_tenants(
         
         if not tenant:
             continue
+
+        estimated_duration = trip_req.estimated_duration_minutes
         
-        # TODO: Get vehicle pricing from TenantVehiclePricing table
-        # For now, return empty vehicles list as placeholder
+
+        vehicle_categories = db.query(VehicleCategory).all()
+
         vehicles = []
-        
-        if not vehicles:
-            continue
+
+        for category in vehicle_categories:
+            pricing = get_vehicle_pricing(
+                db=db,
+                tenant_id=tenant.tenant_id,
+                city_id=city_id,
+                vehicle_category=category.category_code,
+                estimated_distance_km=estimated_distance,
+                estimated_duration_minutes=estimated_duration,
+            )
+
+            if pricing:
+                vehicles.append(VehiclePricingInfo(**pricing))
+
         
         # Calculate acceptance rate
         # acceptance_rate = accepted_trips / total_trip_requests (last 7 days)
@@ -259,80 +305,75 @@ def select_tenant(
     trip_request_id: int,
     payload: TenantSelectionPayload,
     db: Session = Depends(get_db),
-    rider: Rider = Depends(require_rider),
+    rider: User = Depends(require_rider),
 ):
-    """
-    STEP 3: Rider selects a tenant and vehicle category.
-    
-    After this:
-    - TripRequest.status = "tenant_selected"
-    - Backend will search for drivers ONLY from selected tenant
-    - No cross-tenant driver search
-    
-    Returns: Confirmation of selection
-    """
-    
-    # ====== Get trip request ======
     trip_req = db.query(TripRequest).filter(
         TripRequest.trip_request_id == trip_request_id,
-        TripRequest.rider_id == rider.rider_id,
+        TripRequest.user_id == rider.user_id,
     ).first()
-    
+
     if not trip_req:
         raise HTTPException(status_code=404, detail="Trip request not found")
-    
+
     if trip_req.status != "searching":
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot select tenant when trip status is {trip_req.status}"
+            detail=f"Cannot select tenant when trip status is {trip_req.status}",
         )
-    
-    # ====== Verify tenant operates in city ======
-    tenant_city = (
-        db.query(TenantCity)
-        .filter(
-            TenantCity.tenant_id == payload.tenant_id,
-            TenantCity.city_id == trip_req.city_id,
-            TenantCity.is_active.is_(True),
-        )
-        .first()
-    )
-    
+
+    tenant_city = db.query(TenantCity).filter(
+        TenantCity.tenant_id == payload.tenant_id,
+        TenantCity.city_id == trip_req.city_id,
+        TenantCity.is_active.is_(True),
+    ).first()
+
     if not tenant_city:
         raise HTTPException(
             status_code=400,
-            detail="Selected tenant does not operate in this city"
+            detail="Selected tenant does not operate in this city",
         )
-    
-    # TODO: Verify vehicle category exists in TenantVehiclePricing table
-    
-    # ====== Update TripRequest ======
+
     trip_req.selected_tenant_id = payload.tenant_id
+    trip_req.vehicle_category = payload.vehicle_category
     trip_req.status = "tenant_selected"
     trip_req.updated_at_utc = datetime.now(timezone.utc)
-    
-    db.add(trip_req)
+
     db.commit()
     db.refresh(trip_req)
-    
+
     return TenantSelectionResponse(
         trip_request_id=trip_req.trip_request_id,
         status="tenant_selected",
-        selected_tenant_id=trip_req.selected_tenant_id,
+        selected_tenant_id=payload.tenant_id,
         vehicle_category=payload.vehicle_category,
         message=f"Searching for {payload.vehicle_category} drivers...",
     )
-
-
 # ============================================
 # 4️⃣ START BATCH-WISE DRIVER SEARCH
 # ============================================
 
+# DEV CONFIG – large radius so drivers are always found
 BATCH_CONFIG = [
-    {"batch_number": 1, "radius_km": 3.0, "max_drivers": 5, "timeout_sec": 15},
-    {"batch_number": 2, "radius_km": 6.0, "max_drivers": 8, "timeout_sec": 20},
-    {"batch_number": 3, "radius_km": 10.0, "max_drivers": 12, "timeout_sec": 25},
+    {
+        "batch_number": 1,
+        "radius_km": 10.0,   # was 3.0
+        "max_drivers": 5,
+        "timeout_sec": 15,
+    },
+    {
+        "batch_number": 2,
+        "radius_km": 20.0,   # was 6.0
+        "max_drivers": 8,
+        "timeout_sec": 20,
+    },
+    {
+        "batch_number": 3,
+        "radius_km": 30.0,   # was 10.0
+        "max_drivers": 12,
+        "timeout_sec": 25,
+    },
 ]
+
 
 
 class DriverSearchStartResponse:
@@ -348,101 +389,121 @@ class DriverSearchStartResponse:
 def start_driver_search(
     trip_request_id: int,
     db: Session = Depends(get_db),
-    rider: Rider = Depends(require_rider),
+    rider: User = Depends(require_rider),
 ):
-    """
-    STEP 4: Start batch-wise driver search after tenant selection.
-    
-    Algorithm:
-    1. Get nearby drivers from Redis GEO (within search radius)
-    2. Sort by distance (nearest first)
-    3. Split into batches (e.g., 3-5 drivers per batch)
-    4. Create TripBatch and TripCandidate records
-    5. Notify drivers in batch via Redis pub/sub
-    6. Wait for response window (timeout)
-    7. On success: Create Trip record, stop further batches
-    8. On timeout: Move to next batch
-    9. If all exhausted: Mark as "no_drivers_available"
-    
-    Returns: Batch info with number of drivers notified
-    """
     from app.models.core.trips.trip_batch import TripBatch
     from app.models.core.trips.trip_dispatch_candidates import TripDispatchCandidate
     from app.core.redis import redis_client
-    
-    # ====== Get trip request ======
+
+    # ------------------------------------------------
+    # 1️⃣ Fetch trip request
+    # ------------------------------------------------
     trip_req = db.query(TripRequest).filter(
         TripRequest.trip_request_id == trip_request_id,
-        TripRequest.rider_id == rider.rider_id,
+        TripRequest.user_id == rider.user_id,
     ).first()
-    
+
     if not trip_req:
         raise HTTPException(status_code=404, detail="Trip request not found")
-    
+
     if trip_req.status != "tenant_selected":
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot search drivers when trip status is {trip_req.status}"
+            detail=f"Cannot search drivers when trip status is {trip_req.status}",
         )
-    
+
     if not trip_req.selected_tenant_id:
-        raise HTTPException(
-            status_code=400,
-            detail="No tenant selected"
-        )
-    
+        raise HTTPException(status_code=400, detail="No tenant selected")
+
     now = datetime.now(timezone.utc)
     tenant_id = trip_req.selected_tenant_id
     city_id = trip_req.city_id
-    
-    # ====== Start with first batch config ======
+
+    # ------------------------------------------------
+    # 2️⃣ Batch config (start with batch 1)
+    # ------------------------------------------------
     batch_cfg = BATCH_CONFIG[0]
-    
-    # ====== Fetch nearby drivers from Redis GEO ======
+
+    # ------------------------------------------------
+    # 3️⃣ Redis GEO lookup (CAST TO FLOAT!)
+    # ------------------------------------------------
     geo_key = f"drivers:geo:{tenant_id}:{city_id}"
-    
-    # Query Redis GEO for drivers within search radius
-    nearby_drivers = redis_client.georadius(
-        geo_key,
-        trip_req.pickup_lng,
-        trip_req.pickup_lat,
-        radius=batch_cfg["radius_km"],
-        unit="km",
-        count=batch_cfg["max_drivers"],
-        sort="ASC",
-        withcoord=False,
-    )
-    
+    print("geo key :",geo_key)
+
+    pickup_lat = float(trip_req.pickup_lat)
+    pickup_lng = float(trip_req.pickup_lng)
+    print("pickup_lat:",pickup_lat)
+    print("pickup_lng:",pickup_lng)
+
+    nearby_driver_ids = []
+
+    for batch_cfg in BATCH_CONFIG:
+        nearby_drivers = redis_client.georadius(
+            geo_key,
+            pickup_lng,
+            pickup_lat,
+            float(batch_cfg["radius_km"]),
+            unit="km",
+            count=int(batch_cfg["max_drivers"]),
+            sort="ASC",
+        )
+
+        print(
+            f"[BATCH {batch_cfg['batch_number']}] "
+            f"radius={batch_cfg['radius_km']}km → drivers={nearby_drivers}"
+        )
+
+        if nearby_drivers:
+            nearby_driver_ids = [
+                int(d.decode() if isinstance(d, bytes) else d)
+                for d in nearby_drivers
+            ]
+            break
+
+
+    # nearby_drivers = redis_client.georadius(
+    #     geo_key,
+    #     pickup_lng,
+    #     pickup_lat,
+    #     float(batch_cfg["radius_km"]),
+    #     unit="km",
+    #     count=int(batch_cfg["max_drivers"]),
+    #     sort="ASC",
+    # )
+
+    print("nearby_drivers:",nearby_drivers)
+
     if not nearby_drivers:
         raise HTTPException(
             status_code=404,
-            detail="No drivers available in your area"
+            detail="No drivers available in your area",
         )
-    
-    # Convert to driver IDs (may be bytes or strings from Redis)
-    driver_ids = [
-        int(d.decode() if isinstance(d, bytes) else d)
-        for d in nearby_drivers
+
+    # ------------------------------------------------
+    # 4️⃣ Filter available drivers (CORRECT KEYS)
+    # ------------------------------------------------
+    nearby_driver_ids = [
+    int(raw_id.decode() if isinstance(raw_id, bytes) else raw_id)
+    for raw_id in nearby_drivers
     ]
-    
-    # Filter for online/available drivers
-    available_drivers = []
-    for driver_id in driver_ids:
-        status_key = f"driver:status:{driver_id}"
-        online = redis_client.hget(status_key, "is_online")
-        runtime_status = redis_client.hget(status_key, "runtime_status")
-        
-        # Only include if online and idle
-        if online == b"true" and runtime_status == b"idle":
-            available_drivers.append(driver_id)
-    
-    if not available_drivers:
+
+    if not nearby_driver_ids:
         raise HTTPException(
             status_code=404,
-            detail="No available drivers in your area"
+            detail="No drivers available in your area",
         )
+
+
+
+   
+    available_driver_ids =nearby_driver_ids
+
+
     
-    # ====== Create TripBatch ======
+
+    # ------------------------------------------------
+    # 6️⃣ Create TripBatch
+    # ------------------------------------------------
     trip_batch = TripBatch(
         trip_request_id=trip_req.trip_request_id,
         tenant_id=tenant_id,
@@ -456,42 +517,290 @@ def start_driver_search(
     )
     db.add(trip_batch)
     db.flush()
-    
-    # ====== Create TripCandidate records ======
+
+    # ------------------------------------------------
+    # 7️⃣ Create TripDispatchCandidate records (link to pre-created trip)
+    # ------------------------------------------------
     candidates = [
         TripDispatchCandidate(
             tenant_id=tenant_id,
-            trip_id=None,  # Not yet assigned
-            round_id=trip_batch.trip_batch_id,  # Using batch ID as round
+            trip_request_id=trip_req.trip_request_id,
+            trip_batch_id=trip_batch.trip_batch_id,
             driver_id=driver_id,
             request_sent_at_utc=now,
         )
-        for driver_id in available_drivers
+        for driver_id in available_driver_ids
     ]
+
     db.add_all(candidates)
-    
-    # ====== Update TripRequest status ======
+
+    # ------------------------------------------------
+    # 8️⃣ Update TripRequest status
+    # ------------------------------------------------
     trip_req.status = "driver_searching"
     trip_req.updated_at_utc = now
     db.add(trip_req)
-    
+
     db.commit()
     db.refresh(trip_batch)
-    
-    # ====== Notify drivers (Redis pub/sub) ======
-    # In production, use WebSocket/push notifications
-    for driver_id in available_drivers:
-        channel = f"driver:trip_request:{driver_id}"
+
+    # ------------------------------------------------
+    # 8️⃣ Notify drivers
+    # ------------------------------------------------
+    for driver_id in available_driver_ids:
         redis_client.publish(
-            channel,
-            f"{{'trip_request_id': {trip_req.trip_request_id}, 'batch_id': {trip_batch.trip_batch_id}}}"
+            f"driver:trip_request:{driver_id}",
+            json.dumps({"trip_request_id": trip_req.trip_request_id, "batch_id": trip_batch.trip_batch_id}),
         )
-    
+
     return {
         "trip_request_id": trip_req.trip_request_id,
         "batch_id": trip_batch.trip_batch_id,
         "batch_number": batch_cfg["batch_number"],
-        "drivers_notified": len(available_drivers),
+        "drivers_notified": len(available_driver_ids),
         "status": "driver_search_started",
-        "message": f"Notified {len(available_drivers)} drivers in batch {batch_cfg['batch_number']}",
+        "message": f"Notified {len(available_driver_ids)} drivers",
     }
+
+
+# ============================================
+# STATUS CHECK (for frontend polling)
+# ============================================
+# STATUS CHECK - FOR TRIP REQUEST (before driver accepts)
+# ============================================
+@router.get("/request/{trip_request_id}/status", response_model=TripStatusOut)
+def get_trip_request_status(
+    trip_request_id: int,
+    db: Session = Depends(get_db),
+    rider: User = Depends(require_rider),
+):
+    """
+    Get trip request status (before driver accepts).
+    Once driver accepts and Trip is created, client should switch to /trips/{trip_id}/status
+    """
+    from app.core.redis import redis_client
+    from app.models.core.drivers.drivers import Driver
+    from app.models.core.users.user_profiles import UserProfile
+    
+    trip_req = db.query(TripRequest).filter(
+        TripRequest.trip_request_id == trip_request_id,
+        TripRequest.user_id == rider.user_id,
+    ).first()
+
+    if not trip_req:
+        raise HTTPException(status_code=404, detail="Trip request not found")
+
+    # Build response dict from trip_req
+    out_dict = {
+        "trip_request_id": trip_req.trip_request_id,
+        "user_id": trip_req.user_id,
+        "city_id": trip_req.city_id,
+        "status": trip_req.status,
+        "pickup_lat": trip_req.pickup_lat,
+        "pickup_lng": trip_req.pickup_lng,
+        "drop_lat": trip_req.drop_lat,
+        "drop_lng": trip_req.drop_lng,
+        "estimated_distance_km": trip_req.estimated_distance_km,
+        "estimated_duration_minutes": trip_req.estimated_duration_minutes,
+        "created_at_utc": trip_req.created_at_utc,
+        "assigned_info": None,
+        "otp": None,
+    }
+
+    # If driver assigned, enrich with trip/driver info
+    if trip_req.status == "driver_assigned":
+        trip = db.query(Trip).filter(Trip.trip_request_id == trip_request_id).first()
+        if trip:
+            assigned = {
+                "trip_id": trip.trip_id,
+                "driver_id": trip.driver_id,
+                "driver_phone": None,
+                "driver_name": None,
+                "driver_rating_avg": None,
+                "driver_rating_count": None,
+                "vehicle_number": None,
+                "vehicle_type": None,
+                "driver_lat": None,
+                "driver_lng": None,
+                "eta_minutes": None,
+            }
+
+            # Lookup driver phone via User
+            if trip.driver_id:
+                driver = db.query(Driver).filter(Driver.driver_id == trip.driver_id).first()
+                if driver:
+                    user = db.query(User).filter(User.user_id == driver.user_id).first()
+                    if user:
+                        assigned["driver_phone"] = user.phone_e164
+                    
+                    # Get driver name from UserProfile
+                    profile = db.query(UserProfile).filter(UserProfile.user_id == driver.user_id).first()
+                    if profile:
+                        assigned["driver_name"] = profile.full_name
+                    
+                    # Get driver rating
+                    assigned["driver_rating_avg"] = driver.rating_avg
+                    assigned["driver_rating_count"] = driver.rating_count
+
+                    # Try to get driver GEO from Redis
+                    try:
+                        geo_key = f"drivers:geo:{trip.tenant_id}:{trip.city_id}"
+                        pos = redis_client.geopos(geo_key, str(driver.driver_id))
+                        if pos and pos[0]:
+                            lng, lat = pos[0]
+                            assigned["driver_lat"] = float(lat)
+                            assigned["driver_lng"] = float(lng)
+
+                            # Estimate ETA: distance / avg_speed (30 km/h)
+                            dist_km = haversine_distance(
+                                float(lat),
+                                float(lng),
+                                float(trip.pickup_latitude),
+                                float(trip.pickup_longitude),
+                            )
+                            eta = int((dist_km / 30.0) * 60)
+                            assigned["eta_minutes"] = eta
+                    except Exception:
+                        # best-effort -- do not fail status endpoint
+                        pass
+            
+            # Lookup vehicle info
+            if trip.vehicle_id:
+                from app.models.core.vehicles.vehicles import Vehicle
+                vehicle = db.query(Vehicle).filter(Vehicle.vehicle_id == trip.vehicle_id).first()
+                if vehicle:
+                    assigned["vehicle_number"] = vehicle.license_plate
+                    assigned["vehicle_type"] = vehicle.category_code
+
+            # attach assigned_info to the response dict
+            out_dict["assigned_info"] = assigned
+            
+            # Try to fetch OTP from Redis using trip_id
+            try:
+                key = _otp_plain_key(trip.trip_id)
+                otp = redis_client.get(key)
+                otp_val = otp.decode() if otp else None
+                if otp_val:
+                    out_dict['otp'] = otp_val
+            except Exception as e:
+                print(f"OTP fetch error: {e}")
+
+    return TripStatusOut(**out_dict)
+
+
+# ============================================
+# STATUS CHECK - FOR TRIP (after driver accepts, use trip_id instead)
+# ============================================
+def get_trip_status_by_trip_id(
+    trip_id: int,
+    db: Session = Depends(get_db),
+    rider: User = Depends(require_rider),
+):
+    from app.models.core.trips.trips import Trip
+    from app.core.redis import redis_client
+    from app.core.trips.trip_otp_service import _otp_plain_key
+
+    trip = (
+            db.query(Trip)
+            .join(TripRequest, Trip.trip_request_id == TripRequest.trip_request_id)
+            .filter(
+                Trip.trip_id == trip_id,
+                TripRequest.user_id == rider.user_id,
+            )
+            .first()
+        )
+
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    response = {
+        "trip_id": trip.trip_id,
+        "status": trip.trip_status,
+        "otp": None,
+    }
+
+    # OTP only valid before trip starts
+    if trip.trip_status in ("assigned"):
+        try:
+            otp = redis_client.get(_otp_plain_key(trip_id))
+            response["otp"] = otp.decode() if otp else None
+        except Exception:
+            pass
+
+    return response
+
+# ================================================================
+# DEV: Rider OTP retrieval & resend (only available when DEV_MODE=true)
+# ================================================================
+@router.get("/{trip_id}/otp", status_code=200)
+def get_trip_otp(
+    trip_id: int,
+    db: Session = Depends(get_db),
+    rider: User = Depends(require_rider),
+):
+    """Return plaintext OTP for a trip when DEV_MODE is enabled (for testing)."""
+
+
+    if os.environ.get("DEV_MODE", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="OTP retrieval is disabled in production")
+
+    # verify ownership
+    trip = (
+        db.query(Trip)
+        .join(TripRequest, Trip.trip_request_id == TripRequest.trip_request_id)
+        .filter(
+            Trip.trip_id == trip_id,
+            TripRequest.user_id == rider.user_id,
+        )
+        .first()
+    )
+
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    # try to read plaintext OTP from redis
+    try:
+        from app.core.redis import redis_client
+        key = _otp_plain_key(trip_id)
+        otp = redis_client.get(key)
+        otp = otp.decode() if otp else None
+    except Exception:
+        otp = None
+
+    if not otp:
+        raise HTTPException(status_code=404, detail="OTP not available or expired")
+
+    return {"trip_id": trip_id, "otp": otp}
+
+
+@router.post("/{trip_id}/resend-otp", status_code=200)
+def resend_trip_otp(
+    trip_id: int,
+    db: Session = Depends(get_db),
+    rider: User = Depends(require_rider),
+):
+    """Regenerate & store OTP (dev) — in production this would trigger an SMS/notification."""
+    import os
+    from app.core.trips.trip_otp_service import generate_trip_otp, store_trip_otp
+
+    if os.environ.get("DEV_MODE", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="OTP resend is disabled in production")
+
+    trip = (
+            db.query(Trip)
+            .join(TripRequest, Trip.trip_request_id == TripRequest.trip_request_id)
+            .filter(
+                Trip.trip_id == trip_id,
+                TripRequest.user_id == rider.user_id,
+            )
+            .first()
+        )
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    # Get the associated trip to store OTP with trip_id
+ 
+
+    otp = generate_trip_otp()
+    store_trip_otp(trip.trip_id, otp)
+
+    # In real system: send SMS to rider.phone_e164
+    return {"trip_id": trip.trip_id, "message": "OTP regenerated and (dev) stored"}

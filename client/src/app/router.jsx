@@ -41,7 +41,7 @@ import TenantDrivers from "../pages/tenant-admin/Drivers";
 
 /* ===== Driver ===== */
 import DriverLayout from "../layouts/DriverLayout";
-import Dashboard from "../pages/drivers/Dashboard";
+import DriverDashboard from "../pages/drivers/Dashboard";
 import DriverDocuments from "../pages/drivers/Documents";
 import DriverProfile from "../pages/drivers/Profile";
 import DriverShifts from "../pages/drivers/Shifts";
@@ -60,7 +60,16 @@ import FleetInvites from "../pages/fleets/FleetInvites";
 import FleetRegistration from "../pages/fleets/FleetRegistration";
 
 /* ===== Rider ===== */
-import RiderDashboard from "../pages/user/RiderDashboard";
+import RiderDashboard from "../pages/rider/RiderDashboard";
+import RiderLayout from "../pages/rider/RiderLayout";
+import PickupDrop from "../pages/rider/PickupDrop";
+import ChooseOption from "../pages/rider/ChooseOption";
+import Searching from "../pages/rider/Searching";
+import Assigned from "../pages/rider/Assigned";
+import InProgress from "../pages/rider/InProgress";
+import Payment from "../pages/rider/Payment";
+import RiderProfile from "../pages/rider/RiderProfile";
+import TripCompletion from "../pages/rider/TripCompletion";
 
 const router = createBrowserRouter([
   {
@@ -77,7 +86,7 @@ const router = createBrowserRouter([
     path: "/dashboard",
     element: (
       <AdminGaurd>
-          <DashboardLayout />
+        <DashboardLayout />
       </AdminGaurd>
     ),
     children: [
@@ -103,8 +112,7 @@ const router = createBrowserRouter([
     path: "/tenant-admin",
     element: (
       <AdminGaurd>
-          <TenantAdminLayout />
-      
+        <TenantAdminLayout />
       </AdminGaurd>
     ),
     children: [
@@ -123,12 +131,11 @@ const router = createBrowserRouter([
     path: "/driver",
     element: (
       <DriverRoute>
-
-            <DriverLayout />
+        <DriverLayout />
       </DriverRoute>
     ),
     children: [
-      { path: "dashboard", element: <Dashboard /> },
+      { path: "dashboard", element: <DriverDashboard /> },
       { path: "documents", element: <DriverDocuments /> },
       { path: "shifts", element: <DriverShifts /> },
       { path: "profile", element: <DriverProfile /> },
@@ -150,7 +157,7 @@ const router = createBrowserRouter([
     path: "/fleet",
     element: (
       <FleetOwnerRoute>
-          <FleetLayout />
+        <FleetLayout />
       </FleetOwnerRoute>
     ),
     children: [
@@ -166,18 +173,29 @@ const router = createBrowserRouter([
           { path: ":vehicleId/documents", element: <VehicleDocuments /> },
         ],
       },
-
     ],
   },
 
   /* ===== Rider ===== */
   {
-    path: "/rider/dashboard",
+    path: "/rider",
     element: (
       <RiderRoute>
-        <RiderDashboard />
+        <RiderLayout />
       </RiderRoute>
     ),
+    children: [
+      { path: "dashboard", element: <RiderDashboard /> },
+      { path: "/rider/pickup", element: <PickupDrop /> },
+      { path: "pickup", element: <PickupDrop /> },
+      { path: "options/:tripRequestId", element: <ChooseOption /> },
+      { path: "searching/:tripRequestId", element: <Searching /> },
+      { path: "assigned/:tripRequestId", element: <Assigned /> },
+      { path: "in-progress/:tripId", element: <InProgress /> },
+      { path: "trip-completion/:tripId", element: <TripCompletion /> },
+      { path: "payment/:tripId", element: <Payment /> },
+      { path: "profile", element: <RiderProfile /> },
+    ],
   },
 
   /* ===== Registration ===== */

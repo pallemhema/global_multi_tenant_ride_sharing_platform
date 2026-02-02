@@ -52,35 +52,6 @@ export const driverApi = {
      DOCUMENT ENDPOINTS
   =============================== */
 
-// uploadDriverDocument: async (
-//   document_type,
-//   document_number,
-//   expiry_date,
-//   file
-// ) => {
-//   console.log("file in driverApi:",file);
-//   console.log("document_type in driverApi:",document_type);
-//   console.log("document_number in driverApi:",document_number);
-//   console.log("expiry_date in driverApi:",expiry_date);
-//   const formData = new FormData();
-
-//   formData.append("document_type", document_type);
-
-//   if (document_number) {
-//     formData.append("document_number", document_number);
-//   }
-
-//   if (expiry_date) {
-//     formData.append("expiry_date", expiry_date);
-//   }
-
-//   formData.append("file", file); // ✅ correct key
-
-//   // ❌ DO NOT set Content-Type manually
-//   const res = await apiClient.post("/driver/documents", formData);
-
-//   return res.data;
-// },
 uploadDriverDocument: async ({
   document_type,
   document_number,
@@ -237,6 +208,12 @@ uploadDriverDocument: async ({
     return res.data;
   },
 
+  /* send full location update (updates GEO for rider discovery) */
+  sendLocation: async (payload) => {
+    const res = await apiClient.post("/driver/location", payload);
+    return res.data;
+  },
+
   async getRuntimeStatus() {
     try {
       const res = await apiClient.get("/driver/runtime-status");
@@ -259,6 +236,51 @@ uploadDriverDocument: async ({
           err.response?.data?.message ||
           "Failed to update runtime status",
       );
+    }
+  },
+
+  /* ===============================
+     DRIVER TRIP ACTIONS
+  =============================== */
+  getTripRequests: async () => {
+  const res = await apiClient.get("/driver/trip-requests");
+  return res.data;
+},
+
+  respondToOffer: async (trip_request_id, batch_id, response) => {
+    try {
+      const res = await apiClient.post(`/driver/trips/respond/${trip_request_id}/${batch_id}`, {
+        response,
+      });
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.detail || err.response?.data?.message || 'Failed to respond to offer');
+    }
+  },
+
+  startTrip: async (trip_id, otp) => {
+    try {
+      const res = await apiClient.post(`/driver/trips/${trip_id}/start`, { otp });
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.detail || err.response?.data?.message || 'Failed to start trip');
+    }
+  },
+  getactiveTrip: async () => {
+    try {
+      const res = await apiClient.get(`/driver/trip/active`);  
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.detail || err.response?.data?.message || 'Failed to fetch active trip');
+    }
+  },
+
+  completeTrip: async (trip_id, payload) => {
+    try {
+      const res = await apiClient.post(`/driver/trips/${trip_id}/complete`, payload);
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.detail || err.response?.data?.message || 'Failed to complete trip');
     }
   },
 };

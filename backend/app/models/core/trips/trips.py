@@ -21,9 +21,7 @@ class Trip(Base,AuditMixin,TimestampMixin):
         BigInteger, ForeignKey("tenants.tenant_id"), nullable=False
     )
 
-    rider_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("riders.rider_id"), nullable=False
-    )
+   
 
     driver_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("drivers.driver_id")
@@ -40,22 +38,6 @@ class Trip(Base,AuditMixin,TimestampMixin):
     trip_status: Mapped[str] = mapped_column(
         Text, ForeignKey("lu_trip_status.status_code"), nullable=False
     )
-
-    pickup_latitude: Mapped[float] = mapped_column(Numeric(9, 6))
-    pickup_longitude: Mapped[float] = mapped_column(Numeric(9, 6))
-    drop_latitude: Mapped[float] = mapped_column(Numeric(9, 6))
-    drop_longitude: Mapped[float] = mapped_column(Numeric(9, 6))
-
-    pickup_address: Mapped[str | None] = mapped_column(
-        String(500),
-        nullable=True,
-    )
-
-    drop_address: Mapped[str | None] = mapped_column(
-        String(500),
-        nullable=True,
-    )
-
     requested_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     assigned_at_utc: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     picked_up_at_utc: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -11,7 +11,10 @@ class City(Base):
     city_name: Mapped[str] = mapped_column(Text)
     timezone: Mapped[str] = mapped_column(Text)
 
-    latitude: Mapped[float | None] = mapped_column(Numeric(9, 6))
-    longitude: Mapped[float | None] = mapped_column(Numeric(9, 6))
+    # City service boundary (PostGIS polygon, SRID 4326)
+    # Stored as a geometry(Polygon,4326) column in the database.
+    # We map it as Text so SQLAlchemy can still access the column and
+    # we use raw SQL (ST_Contains) for spatial queries.
+    boundary: Mapped[str | None] = mapped_column(Text)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
