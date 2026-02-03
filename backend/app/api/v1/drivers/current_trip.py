@@ -16,18 +16,29 @@ def get_driver_active_trip(
     db: Session = Depends(get_db),
     driver: Driver = Depends(require_driver),
 ):
-    print(driver.driver_id)
+    """
+    Get the active trip for this driver.
+    
+    🔒 STRICT OWNERSHIP: Only return if:
+    - Trip belongs to authenticated driver (driver.driver_id === trip.driver_id)
+    - Trip is not completed
+    
+    Returns: trip_id, trip_status, trip_request_id
+    """
+    print(f"[Active Trip] Fetching for driver_id={driver.driver_id}")
+    
+    # 🔒 Strict filter: Only this driver's active trips
     trip = (
-    db.query(Trip)
-    .filter(
-        Trip.driver_id == driver.driver_id,
-        Trip.trip_status != "completed",
+        db.query(Trip)
+        .filter(
+            Trip.driver_id == driver.driver_id,  # MANDATORY ownership check
+            Trip.trip_status != "completed",
+        )
+        .order_by(Trip.created_at_utc.desc())
+        .first()
     )
-    .order_by(Trip.created_at_utc.desc())
-    .first()
-)
 
-    print("Active trip fetched:", trip.trip_id)
+    print(f"[Active Trip] Result: {trip.trip_id if trip else None}")
 
     if not trip:
         return {"active_trip": None}

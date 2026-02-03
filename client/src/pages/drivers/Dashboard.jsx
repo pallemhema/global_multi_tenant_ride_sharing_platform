@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import {
   FileText,
   Car,
@@ -7,14 +7,14 @@ import {
   CheckCircle,
   Clock3,
   Users,
-} from 'lucide-react';
+} from "lucide-react";
 
-import { useDriver } from '../../context/DriverContext';
-import StatCard from '../../components/tenant-admin/StatCard';
-import Loader from '../../components/common/Loader';
-import TripRequestsList from '../../components/drivers/TripRequestsList';
-import DriverTripControls from '../../components/drivers/DriverTripControls';
-import DriverLocationTracker from '../../components/drivers/DriverLocationTracker';
+import { useDriver } from "../../context/DriverContext";
+import StatCard from "../../components/tenant-admin/StatCard";
+import Loader from "../../components/common/Loader";
+import TripRequestsList from "../../components/drivers/TripRequestsList";
+import DriverTripControls from "../../components/drivers/DriverTripControls";
+import DriverLocationTracker from "../../components/drivers/DriverLocationTracker";
 
 export default function DriverDashboard() {
   const navigate = useNavigate();
@@ -28,44 +28,45 @@ export default function DriverDashboard() {
     loading,
     error,
   } = useDriver();
-// console.log(" vehicleSummary:",vehicleSummary);
-console.log("driver:",driver);
+  // console.log(" vehicleSummary:",vehicleSummary);
+  console.log("driver:", driver);
 
+  // Check if driver needs to complete registration
+  if (!loading && (!driver || !driver.driver_type)) {
+    // Driver hasn't selected tenant/type yet - redirect to registration
+    navigate("/driver/registration", { replace: true });
+    return <Loader />;
+  }
 
   if (loading) return <Loader />;
 
   /* ---------------- STATS ---------------- */
   const pendingDocuments =
-    documents?.filter(d => d.verification_status === 'pending').length ?? 0;
+    documents?.filter((d) => d.verification_status === "pending").length ?? 0;
 
   const approvedDocuments =
-    documents?.filter(d => d.verification_status === 'approved').length ?? 0;
+    documents?.filter((d) => d.verification_status === "approved").length ?? 0;
 
   const vehicleCount =
-  driver?.driver_type === 'individual'
-    ? vehicleSummary?.total_vehicles ?? 0
-    : 0;
+    driver?.driver_type === "individual"
+      ? (vehicleSummary?.total_vehicles ?? 0)
+      : 0;
 
-const inviteCount =
-  driver?.driver_type === 'fleet_driver'
-    ? invites?.length ?? 0
-    : 0;
-
+  const inviteCount =
+    driver?.driver_type === "fleet_driver" ? (invites?.length ?? 0) : 0;
 
   const activeShiftCount = activeShift?.is_active ? 1 : 0;
 
-  
-
   /* ---------------- HELPERS ---------------- */
-  const verificationBadge = status => {
+  const verificationBadge = (status) => {
     switch (status) {
-      case 'approved':
+      case "approved":
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
             <CheckCircle size={14} /> Approved
           </span>
         );
-      case 'rejected':
+      case "rejected":
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-red-100 text-red-800">
             <AlertCircle size={14} /> Rejected
@@ -95,15 +96,14 @@ const inviteCount =
       {driver && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
           <p className="text-sm">
-            <b>Driver Type:</b>{' '}
-            {driver.driver_type === 'individual'
-              ? 'Individual Driver'
-              : 'Fleet Driver'}
+            <b>Driver Type:</b>{" "}
+            {driver.driver_type === "individual"
+              ? "Individual Driver"
+              : "Fleet Driver"}
           </p>
 
           <p className="mt-2 text-sm">
-            <b>Verification:</b>{' '}
-            {verificationBadge(driver.kyc_status)}
+            <b>Verification:</b> {verificationBadge(driver.kyc_status)}
           </p>
 
           {/* REAL-TIME OFFERS */}
@@ -143,7 +143,7 @@ const inviteCount =
           count={pendingDocuments}
           icon={FileText}
           color="amber"
-          onClick={() => navigate('/driver/documents')}
+          onClick={() => navigate("/driver/documents")}
         />
 
         <StatCard
@@ -151,26 +151,26 @@ const inviteCount =
           count={approvedDocuments}
           icon={CheckCircle}
           color="green"
-          onClick={() => navigate('/driver/documents')}
+          onClick={() => navigate("/driver/documents")}
         />
 
-        {driver?.driver_type === 'individual' && (
+        {driver?.driver_type === "individual" && (
           <StatCard
             title="Your Vehicles"
             count={vehicleCount}
             icon={Car}
             color="blue"
-            onClick={() => navigate('/driver/vehicles')}
+            onClick={() => navigate("/driver/vehicles")}
           />
         )}
 
-        {driver?.driver_type === 'fleet_driver' && (
+        {driver?.driver_type === "fleet_driver" && (
           <StatCard
             title="Fleet Invites"
             count={inviteCount}
             icon={Users}
             color="indigo"
-            onClick={() => navigate('/driver/invites')}
+            onClick={() => navigate("/driver/invites")}
           />
         )}
 
@@ -179,7 +179,7 @@ const inviteCount =
           count={activeShiftCount}
           icon={Clock}
           color="purple"
-          onClick={() => navigate('/driver/shifts')}
+          onClick={() => navigate("/driver/shifts")}
         />
       </div>
     </div>

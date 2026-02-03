@@ -89,11 +89,11 @@ export const tenantAdminAPI = {
 
   // Fleet Owners
   getPendingFleetOwners: (tenantId) => {
-    return apiClient.get(`/tenant-admin/${tenantId}/fleet-owners/pending`);
+    return apiClient.get(`/tenant-admin/${tenantId}/fleet-owners`);
   },
 
   getFleetOwners: (tenantId) => {
-    return apiClient.get(`/tenant-admin/${tenantId}/fleet-owners/pending`);
+    return apiClient.get(`/tenant-admin/${tenantId}/fleet-owners/`);
   },
 
   getFleetOwnerDocuments: (tenantId, fleetOwnerId) => {
@@ -103,13 +103,13 @@ export const tenantAdminAPI = {
   },
 
   approveFleetOwnerDocument: (tenantId, fleetOwnerId, docId) => {
-    return apiClient.post(
+    return apiClient.put(
       `/tenant-admin/${tenantId}/fleet-owners/${fleetOwnerId}/documents/${docId}/approve`
     );
   },
 
   rejectFleetOwnerDocument: (tenantId, fleetOwnerId, docId, reason) => {
-    return apiClient.post(
+    return apiClient.put(
       `/tenant-admin/${tenantId}/fleet-owners/${fleetOwnerId}/documents/${docId}/reject`,
       { reason }
     );

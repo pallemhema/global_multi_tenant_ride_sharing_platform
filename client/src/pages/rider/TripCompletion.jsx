@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { CheckCircle, MapPin, Clock, DollarSign } from "lucide-react";
+import { CheckCircle, MapPin, Clock, DollarSign, Lock } from "lucide-react";
 import * as tripApi from "../../services/tripApi";
 
 export default function TripCompletion() {
@@ -8,6 +8,7 @@ export default function TripCompletion() {
   const navigate = useNavigate();
   const [receipt, setReceipt] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchReceipt = async () => {
@@ -17,6 +18,7 @@ export default function TripCompletion() {
         setReceipt(res);
       } catch (e) {
         console.error("Failed to fetch receipt:", e);
+        setError("Failed to load trip details. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -32,8 +34,22 @@ export default function TripCompletion() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-red-600">{error}</p>
+        <button
+          onClick={() => navigate("/rider/dashboard")}
+          className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
       {/* SUCCESS HEADER */}
       <div className="text-center">
         <CheckCircle className="mx-auto text-green-600 mb-3" size={48} />
@@ -44,22 +60,23 @@ export default function TripCompletion() {
       {/* TRIP DETAILS */}
       {receipt && (
         <div className="space-y-4">
-          {/* DRIVER & VEHICLE */}
-          {receipt.driver && (
-            <div className="p-4 bg-white rounded shadow">
-              <div className="font-semibold">
-                {receipt.driver.name || "Driver"}
-              </div>
-              <div className="text-sm text-slate-600">
-                {receipt.vehicle?.license_plate || "—"} •{" "}
-                {receipt.vehicle?.category_code || "—"}
-              </div>
-              {receipt.driver.rating_avg && (
-                <div className="text-sm text-yellow-600 mt-1">
-                  ⭐ {receipt.driver.rating_avg} (
-                  {receipt.driver.rating_count || 0} reviews)
+          {/* OTP SECTION - VISIBLE FOR PAYMENT VERIFICATION */}
+          {receipt.otp && (
+            <div className="p-4 bg-amber-50 rounded shadow border border-amber-200">
+              <div className="flex items-start gap-3">
+                <Lock size={18} className="text-amber-600 flex-shrink-0 mt-1" />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-amber-900">
+                    Payment Verification OTP
+                  </p>
+                  <p className="text-2xl font-mono font-bold text-amber-700 mt-1">
+                    {receipt.otp}
+                  </p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    Keep this OTP for payment reference (Valid for 30 minutes)
+                  </p>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -112,27 +129,63 @@ export default function TripCompletion() {
 
           {/* FARE BREAKDOWN */}
           <div className="p-4 bg-white rounded shadow space-y-2">
-            <h3 className="font-semibold">Fare Breakdown</h3>
+            <h3 className="font-semibold text-lg">Fare Breakdown</h3>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-600">Base Fare</span>
-                <span>₹{receipt.base_fare || "0"}</span>
+                <span>₹{parseFloat(receipt.base_fare || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600">Distance</span>
-                <span>₹{receipt.distance_charge || "0"}</span>
+                <span className="text-slate-600">Distance Charge</span>
+                <span>
+                  ₹{parseFloat(receipt.distance_charge || 0).toFixed(2)}
+                </span>
               </div>
-              {receipt.surge_multiplier > 1 && (
-                <div className="flex justify-between text-orange-600">
-                  <span>Surge ({receipt.surge_multiplier}x)</span>
-                  <span>₹{receipt.surge_charge || "0"}</span>
+              {receipt.time_charge > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Time Charge</span>
+                  <span>
+                    ₹{parseFloat(receipt.time_charge || 0).toFixed(2)}
+                  </span>
                 </div>
               )}
-              <div className="border-t pt-1 flex justify-between font-semibold">
-                <span>Total Fare</span>
-                <span className="text-lg">₹{receipt.total_fare || "0"}</span>
+              {receipt.surge_multiplier && receipt.surge_multiplier > 1 && (
+                <div className="flex justify-between text-orange-600">
+                  <span>Surge ({receipt.surge_multiplier}x)</span>
+                  <span>
+                    +₹
+                    {(
+                      parseFloat(receipt.base_fare || 0) *
+                      (receipt.surge_multiplier - 1)
+                    ).toFixed(2)}
+                  </span>
+                </div>
+              )}
+              {receipt.discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount</span>
+                  <span>-₹{parseFloat(receipt.discount || 0).toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-xs text-slate-600 py-1">
+                <span>Tax</span>
+                <span>₹{parseFloat(receipt.tax || 0).toFixed(2)}</span>
+              </div>
+              <div className="border-t pt-2 flex justify-between font-bold text-lg">
+                <span>Payable Amount</span>
+                <span className="text-indigo-600">
+                  ₹{parseFloat(receipt.total_fare || 0).toFixed(2)}
+                </span>
               </div>
             </div>
+          </div>
+
+          {/* PAYMENT STATUS */}
+          <div className="p-4 bg-green-50 rounded border border-green-200">
+            <p className="text-sm text-green-800">
+              ✓ Payment marked complete. Your receipt has been sent to
+              registered email.
+            </p>
           </div>
 
           {/* ACTION BUTTON */}

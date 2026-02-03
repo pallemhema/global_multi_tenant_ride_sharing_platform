@@ -11,6 +11,11 @@ from app.schemas.core.drivers.driver_invites import DriverListOut
 from sqlalchemy import and_, exists
 from app.models.core.fleet_owners.driver_invites import DriverInvite
 from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
+from app.models.core.fleet_owners.fleet_owner_drivers import FleetOwnerDriver
+from app.models.core.vehicles.vehicles import Vehicle
+from app.models.core.users.users import User
+from app.models.core.users.user_profiles import UserProfile
+
 router = APIRouter(
     tags=["Fleet Owner – invites"],
 )
@@ -18,21 +23,34 @@ router = APIRouter(
 @router.get("/drivers/available")
 def list_available_drivers(
     db: Session = Depends(get_db),
-    fleet_owner = Depends(require_fleet_owner),
+    fleet_owner=Depends(require_fleet_owner),
 ):
     tenant_id = fleet_owner.tenant_id
-
-    # Subquery: drivers with active fleet assignment
-    active_assignment = (
-        db.query(DriverVehicleAssignment.driver_id)
+    approved_vehicle_exists = (
+        db.query(Vehicle)
         .filter(
-            DriverVehicleAssignment.driver_id == Driver.driver_id,
-            DriverVehicleAssignment.ended_at.is_(None),
+            Vehicle.tenant_id == fleet_owner.tenant_id,
+            Vehicle.fleet_owner_id == fleet_owner.fleet_owner_id,
+            Vehicle.status == "approved",
+        )
+    )
+    
+    print("approved_vehicle_exists:",approved_vehicle_exists)
+
+    if not approved_vehicle_exists:
+        return []
+
+    # ❌ Drivers already active under any fleet
+    active_fleet_membership = (
+        db.query(FleetOwnerDriver.driver_id)
+        .filter(
+            FleetOwnerDriver.driver_id == Driver.driver_id,
+            FleetOwnerDriver.is_active.is_(True),
         )
         .exists()
     )
 
-    # Subquery: drivers with active (sent/accepted) invite
+    # ❌ Drivers with active invites (sent / accepted)
     active_invite = (
         db.query(DriverInvite.driver_id)
         .filter(
@@ -42,19 +60,37 @@ def list_available_drivers(
         .exists()
     )
 
-    drivers = (
-        db.query(Driver)
+    results = (
+        db.query(
+            Driver,
+            User.phone_e164,
+            UserProfile.full_name,
+        )
+        .join(User, User.user_id == Driver.user_id)
+        .outerjoin(UserProfile, UserProfile.user_id == User.user_id)
         .filter(
-            Driver.tenant_id == tenant_id,          # ✅ same tenant
+            Driver.tenant_id == tenant_id,
             Driver.is_active.is_(True),
-            Driver.verification_status == "approved",  # ✅ tenant approved
-            ~active_assignment,                      # ❌ not assigned
-            ~active_invite,                          # ❌ not invited
+            Driver.kyc_status == "approved",
+            Driver.driver_type == "fleet_driver",
+
+            ~active_fleet_membership,
+            ~active_invite,
         )
         .all()
     )
+    print("eligible-drivers:",results)
 
-    return drivers
+    # 🎯 Normalize response
+    return [
+        {
+            "driver_id": driver.driver_id,
+            "driver_type": driver.driver_type,
+            "phone_e164": phone,
+            "full_name": full_name,
+        }
+        for driver, phone, full_name in results
+    ]
 
 @router.post("/drivers/invite")
 

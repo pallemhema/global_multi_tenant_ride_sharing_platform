@@ -1,14 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDriver } from "../../context/DriverContext";
 
 export default function DriverTripControls() {
-  const { activeTrip, startTrip, completeTrip, runtimeStatus, cancelTrip } =
-    useDriver();
+  const {
+    activeTrip,
+    startTrip,
+    completeTrip,
+    runtimeStatus,
+    cancelTrip,
+    refreshActiveTrip,
+  } = useDriver();
 
   const [otp, setOtp] = useState("");
   const [starting, setStarting] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [fare, setFare] = useState(null);
+
+  // Auto-poll active trip only when on_trip (not during OTP entry)
+  useEffect(() => {
+    if (runtimeStatus?.runtime_status !== "on_trip") {
+      return; // Don't poll during trip_accepted (OTP entry phase)
+    }
+
+    const pollInterval = setInterval(() => {
+      refreshActiveTrip();
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [runtimeStatus?.runtime_status, refreshActiveTrip]);
 
   console.log("activeTrip:", activeTrip);
 

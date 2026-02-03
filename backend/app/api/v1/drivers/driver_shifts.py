@@ -224,6 +224,20 @@ def update_runtime_status(
     db: Session = Depends(get_db),
     driver=Depends(require_driver),
 ):
+    # 🚫 ENFORCE: on_trip is system-controlled, never user-controlled
+    if payload.runtime_status == "on_trip":
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot manually set on_trip status. It is automatically managed by the system when trips start."
+        )
+    
+    # ✅ Only allow: available, unavailable
+    if payload.runtime_status not in ("available", "unavailable"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid runtime status: {payload.runtime_status}. Only 'available' and 'unavailable' are allowed."
+        )
+    
     status = db.query(DriverCurrentStatus).filter_by(
         tenant_id=driver.tenant_id,
         driver_id=driver.driver_id,
@@ -231,6 +245,13 @@ def update_runtime_status(
 
     if not status:
         raise HTTPException(400, "Driver is offline")
+
+    # 🚫 Cannot change status while on trip
+    if status.runtime_status == "on_trip":
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot change status while on an active trip. Complete or cancel the trip first."
+        )
 
     status.runtime_status = payload.runtime_status
     status.last_updated_utc = datetime.utcnow()
@@ -318,11 +339,20 @@ def get_trip_requests(
     db: Session = Depends(get_db),
     driver=Depends(require_driver),
 ):
-    # Return all trip_dispatch_candidates for this driver where response_code is null (pending)
+    """
+    Get pending trip requests for this driver.
+    
+    🔒 STRICT OWNERSHIP: Only return candidates where response_code is None (pending)
+    🚫 Filter out: Already accepted, rejected, or expired trips
+    
+    Server-side filtering ensures frontend shows only actionable trips.
+    """
+    # Return all trip_dispatch_candidates for this driver where response_code is pending
     candidates = db.query(TripDispatchCandidate).filter(
         TripDispatchCandidate.driver_id == driver.driver_id,
-        TripDispatchCandidate.response_code.is_(None)
+        TripDispatchCandidate.response_code.is_(None)  # Only pending (not accepted/rejected/expired)
     ).all()
+    
     # Return minimal info for UI
     return [
         {

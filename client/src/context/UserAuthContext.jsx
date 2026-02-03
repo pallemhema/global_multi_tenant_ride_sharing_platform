@@ -76,20 +76,19 @@ export const UserAuthProvider = ({ children }) => {
      FETCH AVAILABLE ROLES
   =============================== */
   const fetchAvailableRoles = async () => {
-  try {
-    const res = await userAuthApi.getAvailableRoles();
+    try {
+      const res = await userAuthApi.getAvailableRoles();
 
-    // 🔑 normalize once
-    setAvailableRoles(res.roles || []);
+      // 🔑 normalize once
+      setAvailableRoles(res.roles || []);
 
-    return res.roles || [];
-  } catch (err) {
-    console.error("Failed to fetch roles", err);
-    setAvailableRoles([]);
-    return [];
-  }
-};
-
+      return res.roles || [];
+    } catch (err) {
+      console.error("Failed to fetch roles", err);
+      setAvailableRoles([]);
+      return [];
+    }
+  };
 
   /* ===============================
      SWITCH ROLE
@@ -100,19 +99,24 @@ export const UserAuthProvider = ({ children }) => {
       const res = await userAuthApi.switchRole(newRole);
       const newToken = res.access_token;
 
+      console.log("New token received:", newToken);
       tokenStorage.set(newToken);
       const decoded = jwtDecode(newToken);
 
+      console.log("Decoded token:", decoded);
       setToken(newToken);
       setUser(decoded);
       setRole(decoded.role || null);
       setContext(decoded.context || null);
+      setIsAuthenticated(true);
+
+      return res;
     } catch (err) {
       console.error("Role switch failed", err);
       throw err;
     }
   };
-  const roleNames = availableRoles.map(r => r.role);
+  const roleNames = availableRoles.map((r) => r.role);
   console.log("availableRoles:", roleNames);
 
   const value = {
@@ -124,7 +128,7 @@ export const UserAuthProvider = ({ children }) => {
     isAuthenticated,
     loading,
     phone,
-    availableRoles:roleNames,
+    availableRoles: roleNames,
 
     // Methods
     loginUser,

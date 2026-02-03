@@ -28,6 +28,7 @@ export default function FleetOwners() {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [approvingFleetOwner, setApprovingFleetOwner] = useState(null);
   const [approving, setApproving] = useState(false);
+  console.log("fleetOwners:", selectedFleetOwner);
 
   // Load fleet owners on mount
   useEffect(() => {
@@ -39,9 +40,20 @@ export default function FleetOwners() {
     try {
       setDocLoading(true);
       setError("");
-      const response = await getFleetOwnerDocuments(fleetOwner.id);
-      setSelectedFleetOwner(fleetOwner);
-      setFleetOwnerDocuments(response);
+        const fleetOwnerId = fleetOwner.fleet_owner?.fleet_owner_id ;
+      const response = await getFleetOwnerDocuments(fleetOwnerId);
+      
+      const normalizedDocs = response.map((doc) => ({
+        id: doc.document_id,
+        documentType: doc.document_type,
+        documentNumber: doc.document_number,
+        documentUrl: doc.document_url,
+        status: doc.verification_status,
+        expiryDate: doc.expiry_date,
+      }));
+
+     setSelectedFleetOwner(fleetOwner);
+      setFleetOwnerDocuments(normalizedDocs);
       setShowDocumentsModal(true);
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to load documents");
@@ -55,7 +67,9 @@ export default function FleetOwners() {
     try {
       setApproving(true);
       setError("");
-      await approveFleetOwner(approvingFleetOwner.id);
+      const fleetOwnerId = selectedFleetOwner.fleet_owner?.fleet_owner_id ;
+
+      await approveFleetOwner(fleetOwnerId);
       setShowApproveModal(false);
       setApprovingFleetOwner(null);
     } catch (err) {
@@ -70,12 +84,17 @@ export default function FleetOwners() {
     try {
       setDocLoading(true);
       setError("");
-      await approveFleetOwnerDocument(selectedFleetOwner.id, docId);
-      setFleetOwnerDocuments(
-        fleetOwnerDocuments.map((doc) =>
-          doc.id === docId ? { ...doc, status: "approved" } : doc,
+       const fleetOwnerId = selectedFleetOwner.fleet_owner?.fleet_owner_id ;
+
+      await approveFleetOwnerDocument(fleetOwnerId, docId);
+      setFleetOwnerDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === docId
+            ? { ...doc, status: "approved" } // UI update
+            : doc,
         ),
       );
+    
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to approve document");
     } finally {
@@ -90,10 +109,14 @@ export default function FleetOwners() {
     try {
       setDocLoading(true);
       setError("");
-      await rejectFleetOwnerDocument(selectedFleetOwner.id, docId, reason);
-      setFleetOwnerDocuments(
-        fleetOwnerDocuments.map((doc) =>
-          doc.id === docId ? { ...doc, status: "rejected" } : doc,
+             const fleetOwnerId = selectedFleetOwner.fleet_owner?.fleet_owner_id ;
+
+      await rejectFleetOwnerDocument(fleetOwnerId, docId, reason);
+     setFleetOwnerDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === docId
+            ? { ...doc, status: "rejected" } // UI update
+            : doc,
         ),
       );
     } catch (err) {
@@ -114,31 +137,40 @@ export default function FleetOwners() {
 
   const columns = [
     {
-      key: "name",
-      label: "Name",
-      sortable: true,
-    },
-    {
-      key: "email",
-      label: "Email",
-      sortable: true,
+      key: "fleet_name",
+      label: "FleetName",
+            sortable: true,
+
+      render: (_, row) => row.fleet_owner?.business_name || "—",
+
     },
     {
       key: "phone",
       label: "Phone",
-      sortable: false,
+            sortable: false,
+
+      render: (_, row) => row.user?.phone_e164 || "—",
+    },
+    {
+      key: "email",
+      label: "Contact Email",
+            sortable: false,
+
+      render: (_, row) => row.fleet_owner?.contact_email || "—",
     },
     {
       key: "status",
       label: "Status",
       sortable: true,
-      render: (value) => <StatusBadge status={value} type="approval" />,
+render: (_, row) => (
+        <StatusBadge status={row.fleet_owner.approval_status} type="approval" />
+      ),      
     },
     {
       key: "id",
       label: "Actions",
       sortable: false,
-      render: (value, row) => (
+       render: (_, row) => (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -146,7 +178,7 @@ export default function FleetOwners() {
           }}
           className="text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center gap-1"
         >
-          <Eye size={16} /> Documents
+          <Eye size={16} /> View Documents
         </button>
       ),
     },
@@ -183,6 +215,7 @@ export default function FleetOwners() {
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <DataTable columns={columns} data={fleetOwners} />
+          
         </div>
       )}
 
@@ -192,7 +225,7 @@ export default function FleetOwners() {
           <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
             <div className="p-6 border-b border-slate-200 sticky top-0 bg-white">
               <h2 className="text-xl font-bold text-slate-900">
-                Fleet Owner Documents - {selectedFleetOwner?.name}
+                Fleet  Documents - {selectedFleetOwner?.fleet_name}
               </h2>
             </div>
 

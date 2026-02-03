@@ -51,7 +51,7 @@ def rate_trip(
     trip_id: int,
     payload: TripRatingRequest,
     db: Session = Depends(get_db),
-    rider: user = Depends(require_rider),
+    rider: User = Depends(require_rider),
 ):
     """
     STEP 15: Rider rates completed trip.
@@ -156,16 +156,31 @@ def get_trip_receipt(
     Get trip receipt/invoice after completion.
     
     Returns all trip details, fare breakdown, and payment info.
+    Verifies ownership through TripRequest -> Trip relationship.
     """
+    from app.models.core.trips.trip_request import TripRequest
+    
+    # Query trip first
     trip = db.query(Trip).filter(
         Trip.trip_id == trip_id,
-        Trip.user_id == rider.user_id,
     ).first()
     
     if not trip:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Trip not found"
+        )
+    
+    # Query trip request to verify ownership and get addresses
+    trip_req = db.query(TripRequest).filter(
+        TripRequest.trip_request_id == trip.trip_request_id,
+        TripRequest.user_id == rider.user_id,
+    ).first()
+    
+    if not trip_req:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Trip not found or access denied"
         )
     
     # Fetch fare details
@@ -175,37 +190,42 @@ def get_trip_receipt(
         TripFare.trip_id == trip_id
     ).first()
     
+    # Try to get OTP from Redis with logging
+    otp = None
+    try:
+        from app.core.redis import redis_client
+        from app.core.trips.trip_otp_service import _otp_plain_key
+        otp_key = _otp_plain_key(trip_id)
+        otp_bytes = redis_client.get(otp_key)
+        if otp_bytes:
+            otp = otp_bytes.decode() if isinstance(otp_bytes, bytes) else otp_bytes
+            print(f"[RECEIPT] Successfully retrieved OTP from Redis for trip_id={trip_id}: {otp}")
+        else:
+            print(f"[RECEIPT] No OTP found in Redis for trip_id={trip_id}")
+    except Exception as e:
+        print(f"[RECEIPT] ERROR reading OTP from Redis for trip_id={trip_id}: {e}")
+        otp = None
+    
     receipt = {
         "trip_id": trip.trip_id,
         "status": trip.trip_status,
-        "pickup": {
-            "latitude": float(trip.pickup_latitude),
-            "longitude": float(trip.pickup_longitude),
-            "address": trip.pickup_address,
-            "time": trip.requested_at_utc.isoformat(),
-        },
-        "dropoff": {
-            "latitude": float(trip.drop_latitude),
-            "longitude": float(trip.drop_longitude),
-            "address": trip.drop_address,
-            "time": trip.completed_at_utc.isoformat() if trip.completed_at_utc else None,
-        },
+        "otp": otp,
+        "pickup_address": trip_req.pickup_address,
+        "drop_address": trip_req.drop_address,
         "distance_km": float(trip.distance_km or 0),
         "duration_minutes": trip.duration_minutes or 0,
-        "fare": {
-            "base_fare": float(fare.base_fare) if fare else 0,
-            "distance_charge": float(fare.distance_fare) if fare else 0,
-            "time_charge": float(fare.time_fare) if fare else 0,
-            "tax": float(fare.tax_amount) if fare else 0,
-            "discount": float(fare.discount_amount) if fare else 0,
-            "total": float(fare.final_fare) if fare else 0,
-            "currency": "INR",
-        },
+        "base_fare": float(fare.base_fare) if fare else 0,
+        "distance_charge": float(fare.distance_fare) if fare else 0,
+        "time_charge": float(fare.time_fare) if fare else 0,
+        "tax": float(fare.tax_amount) if fare else 0,
+        "discount": float(fare.discount_amount) if fare else 0,
+        "total_fare": float(fare.final_fare) if fare else 0,
+        "currency": "INR",
         "driver": {
             "driver_id": trip.driver_id,
             "vehicle_category": trip.selected_vehicle_category,
         },
-        "rating": trip.rider_rating if hasattr(trip, 'rider_rating') else None,
+        "surge_multiplier": float(fare.surge_multiplier) if fare and hasattr(fare, 'surge_multiplier') else 1.0,
     }
     
     return receipt

@@ -222,19 +222,30 @@ def cancel_trip_driver(
     cancellation_fee = Decimal("100")
     
     # ------------------------------------------------
-    # 4️⃣ Release driver (no update needed, already setting as cancelled)
+    # 4️⃣ Release driver back to available
     # ------------------------------------------------
+    if trip.driver_id:
+        driver_status = db.query(DriverCurrentStatus).filter(
+            DriverCurrentStatus.driver_id == trip.driver_id,
+        ).with_for_update().first()
+        
+        if driver_status:
+            driver_status.runtime_status = "available"
+            driver_status.current_trip_id = None
+            driver_status.updated_at_utc = now
+            db.add(driver_status)
+            db.flush()
     
     # ------------------------------------------------
     # 5️⃣ Create cancellation ledger entry
     # ------------------------------------------------
-    LedgerService.create_cancellation_entries(
-        db=db,
-        trip=trip,
-        cancellation_fee=cancellation_fee,
-        cancelled_by="driver",
-        now=now,
-    )
+    # LedgerService.create_cancellation_entries(
+    #     db=db,
+    #     trip=trip,
+    #     cancellation_fee=cancellation_fee,
+    #     cancelled_by="driver",
+    #     now=now,
+    # )
     
     # ------------------------------------------------
     # 6️⃣ Move trip to cancelled
@@ -242,6 +253,7 @@ def cancel_trip_driver(
     trip.trip_status = "cancelled"
     trip.cancelled_at_utc = now
     db.add(trip)
+    
     
     db.add(TripStatusHistory(
         tenant_id=trip.tenant_id,

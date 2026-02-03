@@ -231,7 +231,7 @@ def require_vehicle_owner(
         }
 
     # ===== FLEET OWNER =====
-    if role == "fleet_owner":
+    if role == "fleet-owner":
         fleet = (
             db.query(FleetOwner)
             .filter(

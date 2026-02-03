@@ -28,7 +28,7 @@ export default function Shifts() {
   const isApproved = driver?.kyc_status === "approved";
 
   console.log("activeShift:", activeShift);
-  
+
   // 🔁 Send location heartbeat ONLY when shift is online
   useHeartbeat({
     enabled: activeShift?.shift_status === "online",
@@ -247,34 +247,43 @@ export default function Shifts() {
           <div className="mt-6 flex gap-3">
             <button
               onClick={() => updateRuntimeStatus("available")}
-              disabled={loading || runtime === "available"}
+              disabled={
+                loading || runtime === "available" || runtime === "on_trip"
+              }
+              title={runtime === "on_trip" ? "Complete your trip first" : ""}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 runtime === "available"
                   ? "bg-green-600 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  : runtime === "on_trip"
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
               }`}
             >
               ✓ Available
             </button>
             <button
               onClick={() => updateRuntimeStatus("unavailable")}
-              disabled={loading || runtime === "unavailable"}
+              disabled={
+                loading || runtime === "unavailable" || runtime === "on_trip"
+              }
+              title={runtime === "on_trip" ? "Complete your trip first" : ""}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 runtime === "unavailable"
                   ? "bg-yellow-600 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  : runtime === "on_trip"
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
               }`}
             >
               ⊘ Not Available
             </button>
             <button
-              onClick={() => updateRuntimeStatus("on_trip")}
-              disabled={loading || runtime === "on_trip"}
-              className={`px-4 py-2 rounded-lg font-medium transition ${
-                runtime === "on_trip"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
+              onClick={() => {
+                /* Intentionally disabled - on_trip is system-controlled */
+              }}
+              disabled={true}
+              title="On Trip is automatically set by the system - never manually controlled"
+              className="px-4 py-2 rounded-lg font-medium transition bg-gray-300 text-gray-500 cursor-not-allowed"
             >
               🛵 On Trip
             </button>

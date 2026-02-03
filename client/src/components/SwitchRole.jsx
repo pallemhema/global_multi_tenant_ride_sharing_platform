@@ -2,6 +2,7 @@ import { AlertCircle, ToggleLeft } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserAuth } from "../context/UserAuthContext";
+import { tokenStorage } from "../utils/toeknStorage";
 
 export default function SwitchRole() {
   const { role, availableRoles, switchUserRole } = useUserAuth();
@@ -17,42 +18,23 @@ export default function SwitchRole() {
     return availableRoles.filter((r) => r !== role);
   }, [role, availableRoles]);
 
-  // Map role to dashboard path
-  const getRolePath = (targetRole) => {
-    const paths = {
-      driver: "/driver/dashboard",
-      rider: "/rider/dashboard",
-      "fleet-owner": "/fleet/dashboard",
-    };
-    return paths[targetRole] || "/";
-  };
-
-  // If no other roles, render nothing
-  if (otherRoles.length === 0) {
-    console.log("No other roles available");
-    return null;
-  }
-
+ 
 
   const handleSwitch = async (role) => {
   try{
      setSwitching(true);
       setError("");
     const response = await switchUserRole(role);
-   localStorage.setItem("token", response.access_token);
+    console.log("Role switch response:", response);
+
+   tokenStorage.set(response.access_token);
   if (role === "fleet-owner") {
     
-    if (response.onboarding_status === "completed") {
       navigate("/fleet/dashboard");
-    } else {
-      navigate("/fleet/registration");
-    }
+  
   } else if (role === "driver") {
-    if (response.onboarding_status === "completed") {
       navigate("/driver/dashboard");
-    } else {
-      navigate("/driver/registration");
-    }
+    
   }else if (role === "rider") {
     navigate("/rider/dashboard");
   }}catch (err) {

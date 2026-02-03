@@ -50,3 +50,9 @@ export const resendTripOtp = async (tripId) => {
 export const getTripReceipt = async (tripId) => {
   return apiClient.get(`/rider/trips/${tripId}/receipt`).then((r) => r.data);
 };
+
+export const cancelTripRequest = async (tripRequestId) => {
+  return apiClient
+    .post(`/rider/trips/${tripRequestId}/cancel`)
+    .then((r) => r.data);
+};

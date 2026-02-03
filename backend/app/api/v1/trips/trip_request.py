@@ -315,7 +315,10 @@ def select_tenant(
     if not trip_req:
         raise HTTPException(status_code=404, detail="Trip request not found")
 
-    if trip_req.status != "searching":
+    # ✅ ALLOW re-selection from: searching, tenant_selected, or no_drivers_available
+    # This enables riders to switch providers when no drivers are found
+    allowed_statuses = ("searching", "tenant_selected", "driver_searching", "no_drivers_available")
+    if trip_req.status not in allowed_statuses:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot select tenant when trip status is {trip_req.status}",
@@ -406,7 +409,7 @@ def start_driver_search(
     if not trip_req:
         raise HTTPException(status_code=404, detail="Trip request not found")
 
-    if trip_req.status != "tenant_selected":
+    if trip_req.status not in ("tenant_selected", "no_drivers_available"):
         raise HTTPException(
             status_code=400,
             detail=f"Cannot search drivers when trip status is {trip_req.status}",
@@ -418,6 +421,10 @@ def start_driver_search(
     now = datetime.now(timezone.utc)
     tenant_id = trip_req.selected_tenant_id
     city_id = trip_req.city_id
+
+    # Update status to driver_searching (whether first attempt or retry)
+    trip_req.status = "driver_searching"
+    db.commit()
 
     # ------------------------------------------------
     # 2️⃣ Batch config (start with batch 1)
@@ -473,11 +480,20 @@ def start_driver_search(
 
     print("nearby_drivers:",nearby_drivers)
 
+    # ✅ NO DRIVERS: Return 200 OK with empty drivers list instead of 404
+    # This allows riders to retry or switch tenants without blocking the flow
     if not nearby_drivers:
-        raise HTTPException(
-            status_code=404,
-            detail="No drivers available in your area",
-        )
+        # Update trip request status to no_drivers_available
+        trip_req.status = "no_drivers_available"
+        db.commit()
+        return {
+            "trip_request_id": trip_req.trip_request_id,
+            "batch_id": None,
+            "batch_number": 0,
+            "drivers_notified": 0,
+            "status": "no_drivers_available",
+            "message": "No drivers available right now. Please try again or select a different provider.",
+        }
 
     # ------------------------------------------------
     # 4️⃣ Filter available drivers (CORRECT KEYS)
@@ -488,10 +504,18 @@ def start_driver_search(
     ]
 
     if not nearby_driver_ids:
-        raise HTTPException(
-            status_code=404,
-            detail="No drivers available in your area",
-        )
+        # ✅ NO DRIVERS: Return gracefully instead of blocking
+        # Update trip request status to no_drivers_available
+        trip_req.status = "no_drivers_available"
+        db.commit()
+        return {
+            "trip_request_id": trip_req.trip_request_id,
+            "batch_id": None,
+            "batch_number": 0,
+            "drivers_notified": 0,
+            "status": "no_drivers_available",
+            "message": "No drivers available right now. Please try again or select a different provider.",
+        }
 
 
 
@@ -607,9 +631,11 @@ def get_trip_request_status(
         "otp": None,
     }
 
-    # If driver assigned, enrich with trip/driver info
-    if trip_req.status == "driver_assigned":
+    # If driver assigned or trip in progress, enrich with trip/driver info
+    if trip_req.status in ("driver_assigned", "in_progress"):
+        print(f"[TRIP_STATUS_START] Querying for trip_request_id={trip_request_id}, status={trip_req.status}")
         trip = db.query(Trip).filter(Trip.trip_request_id == trip_request_id).first()
+        print(f"[TRIP_STATUS_RESULT] trip_found={trip is not None}, trip_id={trip.trip_id if trip else 'N/A'}, driver_id={trip.driver_id if trip else 'N/A'}")
         if trip:
             assigned = {
                 "trip_id": trip.trip_id,
@@ -679,23 +705,33 @@ def get_trip_request_status(
             try:
                 key = _otp_plain_key(trip.trip_id)
                 otp = redis_client.get(key)
-                otp_val = otp.decode() if otp else None
-                if otp_val:
-                    out_dict['otp'] = otp_val
+                # Handle both bytes and string returns from Redis
+                if otp:
+                    otp_val = otp.decode() if isinstance(otp, bytes) else otp
+                    if otp_val:
+                        out_dict['otp'] = otp_val
             except Exception as e:
                 print(f"OTP fetch error: {e}")
 
+    print(f"[TRIP_STATUS_RESPONSE] trip_request_id={trip_request_id}, assigned_info={out_dict.get('assigned_info')}, trip_id={out_dict.get('assigned_info', {}).get('trip_id') if isinstance(out_dict.get('assigned_info'), dict) else 'N/A'}")
     return TripStatusOut(**out_dict)
 
 
 # ============================================
 # STATUS CHECK - FOR TRIP (after driver accepts, use trip_id instead)
 # ============================================
+@router.get("/{trip_id}/status")
 def get_trip_status_by_trip_id(
     trip_id: int,
     db: Session = Depends(get_db),
     rider: User = Depends(require_rider),
 ):
+    """
+    Get trip status by trip_id (after driver accepts).
+    
+    🔒 STRICT OWNERSHIP: Only return if trip belongs to authenticated rider
+    Include OTP if trip is in "assigned" status
+    """
     from app.models.core.trips.trips import Trip
     from app.core.redis import redis_client
     from app.core.trips.trip_otp_service import _otp_plain_key
@@ -705,7 +741,7 @@ def get_trip_status_by_trip_id(
             .join(TripRequest, Trip.trip_request_id == TripRequest.trip_request_id)
             .filter(
                 Trip.trip_id == trip_id,
-                TripRequest.user_id == rider.user_id,
+                TripRequest.user_id == rider.user_id,  # STRICT OWNERSHIP
             )
             .first()
         )
@@ -720,10 +756,11 @@ def get_trip_status_by_trip_id(
     }
 
     # OTP only valid before trip starts
-    if trip.trip_status in ("assigned"):
+    if trip.trip_status in ("assigned",):
         try:
             otp = redis_client.get(_otp_plain_key(trip_id))
-            response["otp"] = otp.decode() if otp else None
+            if otp:
+                response["otp"] = otp.decode() if isinstance(otp, bytes) else otp
         except Exception:
             pass
 
@@ -804,3 +841,49 @@ def resend_trip_otp(
 
     # In real system: send SMS to rider.phone_e164
     return {"trip_id": trip.trip_id, "message": "OTP regenerated and (dev) stored"}
+
+
+# ================================================================
+# CANCEL TRIP REQUEST (Before driver is assigned)
+# ================================================================
+@router.post("/{trip_request_id}/cancel", status_code=200)
+def cancel_trip_request(
+    trip_request_id: int,
+    db: Session = Depends(get_db),
+    rider: User = Depends(require_rider),
+):
+    """
+    Cancel trip request before driver is assigned.
+    Allows rider to go back and select a different tenant.
+    """
+    import os
+    from datetime import datetime, timezone
+    
+    trip_req = db.query(TripRequest).filter(
+        TripRequest.trip_request_id == trip_request_id,
+        TripRequest.user_id == rider.user_id,
+    ).with_for_update().first()
+    
+    if not trip_req:
+        raise HTTPException(status_code=404, detail="Trip request not found")
+    
+    # Can only cancel if not yet assigned to a driver
+    if trip_req.status in ["driver_assigned", "completed", "cancelled"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot cancel trip request in '{trip_req.status}' state"
+        )
+    
+    # Mark as cancelled
+    trip_req.status = "cancelled"
+    trip_req.cancelled_at_utc = datetime.now(timezone.utc)
+    db.add(trip_req)
+    db.commit()
+    
+    print(f"[TRIP REQUEST CANCEL] trip_request_id={trip_request_id} cancelled by rider {rider.user_id}")
+    
+    return {
+        "status": "cancelled",
+        "trip_request_id": trip_request_id,
+        "message": "Trip request cancelled. You can create a new one."
+    }

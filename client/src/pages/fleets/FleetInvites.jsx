@@ -1,43 +1,33 @@
 import { useState } from "react";
 import { Users, Send, Trash2, AlertCircle } from "lucide-react";
+
 import { useFleetOwner } from "../../context/FleetOwnerContext";
 
 export default function FleetInvites() {
-  const { fleetOwner, invites, vehicles, inviteDriver, cancelInvite, loading } =
-    useFleetOwner();
-  const [showInviteForm, setShowInviteForm] = useState(false);
-  const [driverId, setDriverId] = useState("");
-  const [inviting, setInviting] = useState(false);
+  const {
+    fleetOwner,
+    eligibleDrivers,
+    invites,
+    inviteDriver,
+    cancelInvite,
+    loading,
+  } = useFleetOwner();
 
-  if (!fleetOwner?.is_active) {
-    return (
-      <>
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-          <AlertCircle className="text-yellow-600 inline mr-2" />
-          <p className="text-yellow-800">
-            Please wait for admin approval before inviting drivers.
-          </p>
-        </div>
-      </>
-    );
-  }
+  const [invitingDriverId, setInvitingDriverId] = useState(null);
+  console.log(eligibleDrivers)
 
-  const handleInviteDriver = async () => {
-    if (!driverId) {
-      alert("Please select a driver");
-      return;
-    }
+  /* =====================
+     HANDLERS
+  ===================== */
 
+  const handleInvite = async (driverId) => {
     try {
-      setInviting(true);
-      await inviteDriver(parseInt(driverId));
-      setDriverId("");
-      setShowInviteForm(false);
-      alert("Driver invitation sent");
+      setInvitingDriverId(driverId);
+      await inviteDriver(driverId);
     } catch (err) {
-      alert(err.message);
+      alert(err.message || "Failed to send invite");
     } finally {
-      setInviting(false);
+      setInvitingDriverId(null);
     }
   };
 
@@ -54,144 +44,153 @@ export default function FleetInvites() {
     }
   };
 
+  /* =====================
+     LOADING / BLOCKED
+  ===================== */
+
+  if (loading) {
+    return <p className="text-gray-600">Loading...</p>;
+  }
+
+  if (fleetOwner?.approval_status === "pending") {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <AlertCircle className="text-yellow-600 inline mr-2" />
+        <p className="text-yellow-800 font-semibold">
+          Fleet approval pending
+        </p>
+        <p className="text-sm text-yellow-700 mt-1">
+          You can invite drivers only after admin approval.
+        </p>
+      </div>
+    );
+  }
+
+  /* =====================
+     UI
+  ===================== */
+
   return (
-    <>
-      <div className="space-y-6">
-        {/* Invite Button */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Driver Invites</h1>
-          <button
-            onClick={() => setShowInviteForm(!showInviteForm)}
-            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
-          >
-            <Send size={20} />
-            Invite Driver
-          </button>
-        </div>
+    <div className="space-y-10">
 
-        {/* Invite Form */}
-        {showInviteForm && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              Invite Driver
-            </h2>
-            <p className="text-gray-600 mb-4 text-sm">
-              Invite an existing driver from your tenant to join your fleet
+      {/* =====================
+          ELIGIBLE DRIVERS
+      ===================== */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+          <Users size={22} className="text-purple-600" />
+          Eligible Fleet Drivers
+        </h2>
+
+        {eligibleDrivers.length === 0 ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+            <AlertCircle className="text-amber-600 inline mr-2" />
+            <p className="text-amber-800 font-semibold">
+              No drivers available to invite
             </p>
+            <p className="text-sm text-amber-700 mt-1">
+              Make sure you have at least one approved vehicle and that drivers
+              are not already assigned to another fleet or invited.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {eligibleDrivers.map((driver) => (
+              <div
+                key={driver.driver_id}
+                className="border rounded-lg p-4 flex justify-between items-center"
+              >
+                <div>
+                  <h3 className="font-semibold text-gray-900">
+                    {driver.full_name || "Unnamed Driver"}
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    📞 {driver.phone_e164}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Driver ID: {driver.driver_id}
+                  </p>
+                </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Select Driver *
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter driver ID or name"
-                  value={driverId}
-                  onChange={(e) => setDriverId(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  Driver must belong to the same tenant and be approved
-                </p>
-              </div>
-
-              <div className="flex gap-3">
                 <button
-                  onClick={handleInviteDriver}
-                  disabled={inviting || !driverId}
-                  className="flex-1 bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+                  onClick={() => handleInvite(driver.driver_id)}
+                  disabled={invitingDriverId === driver.driver_id}
+                  className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
                 >
-                  <Send size={18} />
-                  {inviting ? "Sending..." : "Send Invitation"}
-                </button>
-                <button
-                  onClick={() => setShowInviteForm(false)}
-                  className="flex-1 bg-gray-300 text-gray-900 py-2 rounded-lg font-semibold hover:bg-gray-400 transition"
-                >
-                  Cancel
+                  <Send size={16} />
+                  {invitingDriverId === driver.driver_id
+                    ? "Inviting..."
+                    : "Send Invite"}
                 </button>
               </div>
-            </div>
+            ))}
           </div>
         )}
+      </div>
 
-        {/* Invites List */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <Users size={24} className="text-purple-600" />
-            All Invitations ({invites.length})
-          </h2>
+      {/* =====================
+          INVITATIONS
+      ===================== */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-2xl font-bold mb-4">
+          Invitations ({invites.length})
+        </h2>
 
-          {invites.length === 0 ? (
-            <div className="text-center py-12">
-              <Users size={48} className="text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-600">No invitations sent yet</p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {invites.map((invite) => (
-                <div
-                  key={invite.driver_invite_id}
-                  className="border rounded-lg p-4 hover:shadow-md transition"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">
-                        Driver ID: {invite.driver_id}
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Sent:{" "}
-                        {new Date(invite.sent_at_utc).toLocaleDateString()}
-                      </p>
-                      {invite.responded_at_utc && (
-                        <p className="text-sm text-gray-600">
-                          Responded:{" "}
-                          {new Date(
-                            invite.responded_at_utc,
-                          ).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                          invite.invite_status,
-                        )}`}
-                      >
-                        {invite.invite_status?.toUpperCase()}
-                      </span>
-
-                      {invite.invite_status === "sent" && (
-                        <button
-                          onClick={() => cancelInvite(invite.driver_invite_id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      )}
-                    </div>
+        {invites.length === 0 ? (
+          <p className="text-gray-600">No invitations sent yet.</p>
+        ) : (
+          <div className="grid gap-4">
+            {invites.map((invite) => (
+              <div
+                key={invite.driver_invite_id}
+                className="border rounded-lg p-4"
+              >
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold">
+                      Driver ID: {invite.driver_id}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Sent on{" "}
+                      {new Date(invite.sent_at_utc).toLocaleDateString()}
+                    </p>
                   </div>
 
-                  {invite.invite_status === "accepted" && (
-                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-                      ✓ Driver accepted the invitation. You can now assign
-                      vehicles.
-                    </div>
-                  )}
-
-                  {invite.invite_status === "rejected" && (
-                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                      ✗ Driver rejected the invitation
-                    </div>
-                  )}
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
+                      invite.invite_status
+                    )}`}
+                  >
+                    {invite.invite_status}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                {invite.invite_status === "sent" && (
+                  <button
+                    onClick={() => cancelInvite(invite.driver_invite_id)}
+                    className="mt-3 flex items-center gap-1 text-sm text-red-600 hover:underline"
+                  >
+                    <Trash2 size={14} />
+                    Cancel Invite
+                  </button>
+                )}
+
+                {invite.invite_status === "accepted" && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    ✓ Driver accepted the invitation. You can now assign vehicles.
+                  </div>
+                )}
+
+                {invite.invite_status === "rejected" && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                    ✗ Driver rejected the invitation.
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }

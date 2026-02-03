@@ -9,6 +9,8 @@ from app.core.security.roles import require_tenant_admin
 from app.models.core.fleet_owners.fleet_owners import FleetOwner
 from app.models.core.fleet_owners.fleet_owner_documents import FleetOwnerDocument
 from app.models.lookups.fleet_document_type import FleetDocumentType
+from app.models.core.users.user_profiles import UserProfile
+from app.models.core.users.users import User
 
 
 router = APIRouter(
@@ -100,21 +102,36 @@ def approve_fleet_owner(
     }
 
 
-
-@router.get("/{tenant_id}/fleet-owners/pending")
-def list_pending_fleet_owners(
+@router.get("/{tenant_id}/fleet-owners")
+def list_pending(
     tenant_id: int,
     db: Session = Depends(get_db),
     _: dict = Depends(require_tenant_admin),
 ):
-    return (
-        db.query(FleetOwner)
+    results = (
+        db.query(FleetOwner, User, UserProfile)
+        .join(
+            User,
+            User.user_id == FleetOwner.user_id
+        )
+        .outerjoin(
+            UserProfile,
+            UserProfile.user_id == User.user_id
+        )
         .filter(
             FleetOwner.tenant_id == tenant_id,
-            FleetOwner.approval_status != "approved",
         )
         .all()
     )
+
+    return [
+        {
+            "fleet_owner": fleet_owner,
+            "user": user,
+            "user_profile":profile
+        }
+        for fleet_owner,user,profile in results
+    ]
 
 @router.get("/{tenant_id}/fleet-owners/{fleet_owner_id}/documents")
 def list_fleet_owner_documents(
@@ -133,7 +150,7 @@ def list_fleet_owner_documents(
     )
 
 
-@router.put("/fleet-owner-documents/{doc_id}/approve")
+@router.put("/{tenant_id}/fleet-owners/{fleet_owner_id}/documents/{doc_id}/approve")
 def approve_fleet_owner_document(
     doc_id: int,
     db: Session = Depends(get_db),
@@ -151,7 +168,7 @@ def approve_fleet_owner_document(
     db.commit()
     return {"status": "approved"}
 
-@router.put("/fleet-owner-documents/{doc_id}/reject")
+@router.put("/{tenant_id}/fleet-owners/{fleet_owner_id}/documents{doc_id}/reject")
 def reject_fleet_owner_document(
     doc_id: int,
     db: Session = Depends(get_db),

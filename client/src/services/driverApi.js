@@ -52,34 +52,32 @@ export const driverApi = {
      DOCUMENT ENDPOINTS
   =============================== */
 
-uploadDriverDocument: async ({
-  document_type,
-  document_number,
-  expiry_date,
-  file,
-}) => {
+  uploadDriverDocument: async ({
+    document_type,
+    document_number,
+    expiry_date,
+    file,
+  }) => {
+    if (!file) {
+      throw new Error("File is required");
+    }
 
-  if (!file) {
-    throw new Error("File is required");
-  }
+    const formData = new FormData();
+    formData.append("document_type", document_type);
 
-  const formData = new FormData();
-  formData.append("document_type", document_type);
+    if (document_number) {
+      formData.append("document_number", document_number);
+    }
 
-  if (document_number) {
-    formData.append("document_number", document_number);
-  }
+    if (expiry_date) {
+      formData.append("expiry_date", expiry_date);
+    }
 
-  if (expiry_date) {
-    formData.append("expiry_date", expiry_date);
-  }
+    formData.append("file", file);
 
-  formData.append("file", file);
-
-  const res = await apiClient.post("/driver/documents", formData);
-  return res.data;
-},
-
+    const res = await apiClient.post("/driver/documents", formData);
+    return res.data;
+  },
 
   async getDriverDocuments() {
     try {
@@ -243,44 +241,84 @@ uploadDriverDocument: async ({
      DRIVER TRIP ACTIONS
   =============================== */
   getTripRequests: async () => {
-  const res = await apiClient.get("/driver/trip-requests");
-  return res.data;
-},
+    const res = await apiClient.get("/driver/trip-requests");
+    return res.data;
+  },
 
   respondToOffer: async (trip_request_id, batch_id, response) => {
     try {
-      const res = await apiClient.post(`/driver/trips/respond/${trip_request_id}/${batch_id}`, {
-        response,
-      });
+      const res = await apiClient.post(
+        `/driver/trips/respond/${trip_request_id}/${batch_id}`,
+        {
+          response,
+        },
+      );
       return res.data;
     } catch (err) {
-      throw new Error(err.response?.data?.detail || err.response?.data?.message || 'Failed to respond to offer');
+      throw new Error(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to respond to offer",
+      );
     }
   },
 
   startTrip: async (trip_id, otp) => {
     try {
-      const res = await apiClient.post(`/driver/trips/${trip_id}/start`, { otp });
+      const res = await apiClient.post(`/driver/trips/${trip_id}/start`, {
+        otp,
+      });
       return res.data;
     } catch (err) {
-      throw new Error(err.response?.data?.detail || err.response?.data?.message || 'Failed to start trip');
+      throw new Error(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to start trip",
+      );
     }
   },
   getactiveTrip: async () => {
     try {
-      const res = await apiClient.get(`/driver/trip/active`);  
+      const res = await apiClient.get(`/driver/trip/active`);
       return res.data;
     } catch (err) {
-      throw new Error(err.response?.data?.detail || err.response?.data?.message || 'Failed to fetch active trip');
+      throw new Error(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to fetch active trip",
+      );
     }
   },
 
   completeTrip: async (trip_id, payload) => {
     try {
-      const res = await apiClient.post(`/driver/trips/${trip_id}/complete`, payload);
+      const res = await apiClient.post(
+        `/driver/trips/${trip_id}/complete`,
+        payload,
+      );
       return res.data;
     } catch (err) {
-      throw new Error(err.response?.data?.detail || err.response?.data?.message || 'Failed to complete trip');
+      throw new Error(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to complete trip",
+      );
+    }
+  },
+
+  cancelTrip: async (trip_id, payload) => {
+    try {
+      const res = await apiClient.post(
+        `/driver/trips/${trip_id}/cancel`,
+        payload,
+      );
+      return res.data;
+    } catch (err) {
+      throw new Error(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to cancel trip",
+      );
     }
   },
 };

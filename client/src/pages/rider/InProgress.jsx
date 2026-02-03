@@ -33,6 +33,7 @@ export default function InProgress() {
       clearInterval(id);
     };
   }, [tripId, navigate]);
+  console.log("Current Trip Status:", status);
 
   const driverPos = status?.driver_location;
 

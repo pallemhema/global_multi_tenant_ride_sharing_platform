@@ -53,12 +53,15 @@ def driver_respond_to_batch(
     # ===================== ACCEPT =====================
     if payload.response == "accepted":
 
+        # 🔒 ATOMIC CHECK: Trip must still be in "driver_searching" status
+        # Another driver may have already accepted between the lock check and now
         if trip_req.status != "driver_searching":
             raise HTTPException(
                 status_code=409,
-                detail="Trip already assigned"
+                detail="This trip was accepted by another driver",
             )
 
+        # 🔒 ATOMIC UPDATE: Change status to "driver_assigned" and create trip in same transaction
         trip_req.status = "driver_assigned"
 
         trip = TripLifecycle.create_trip_from_request(
@@ -69,9 +72,11 @@ def driver_respond_to_batch(
             now=now,
         )
 
+        # Generate OTP for trip
         otp = generate_trip_otp()
         store_trip_otp(trip.trip_id, otp)
 
+        # Record status transition
         db.add(
             TripStatusHistory(
                 tenant_id=trip.tenant_id,
@@ -83,7 +88,7 @@ def driver_respond_to_batch(
             )
         )
 
-        # Expire other candidates
+        # 🚫 Expire ALL other candidates for this trip request BEFORE committing
         db.query(TripDispatchCandidate).filter(
             TripDispatchCandidate.trip_request_id == trip_request_id,
             TripDispatchCandidate.driver_id != driver.driver_id,
@@ -92,16 +97,21 @@ def driver_respond_to_batch(
             synchronize_session=False,
         )
 
+        # Mark this driver's candidate as accepted
         candidate = db.query(TripDispatchCandidate).filter(
             TripDispatchCandidate.trip_request_id == trip_request_id,
             TripDispatchCandidate.driver_id == driver.driver_id,
         ).first()
 
-        candidate.response_code = "accepted"
-        candidate.response_at_utc = now
+        if candidate:
+            candidate.response_code = "accepted"
+            candidate.response_at_utc = now
 
+        # 🔓 Commit all changes atomically
         db.commit()
-        TripLifecycle.lock_driver(db, driver.driver_id,trip.trip_id)
+        
+        # Lock driver after commit
+        TripLifecycle.lock_driver(db, driver.driver_id, trip.trip_id)
 
         return {
             "response": "accepted",

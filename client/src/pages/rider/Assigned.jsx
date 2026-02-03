@@ -24,9 +24,13 @@ export default function Assigned() {
         }
 
         if (res?.status === "in_progress") {
-          // assume trip_id returned
-          const tripId = res.trip_id || res.id;
-          navigate(`/rider/in-progress/${tripId}`);
+          // Get trip_id from assigned_info (where it's nested)
+          const tripId = res?.assigned_info?.trip_id;
+          if (tripId) {
+            navigate(`/rider/in-progress/${tripId}`);
+          } else {
+            console.error("Trip ID not available in response:", res);
+          }
         }
       } catch (e) {
         console.error("Trip status error:", e);

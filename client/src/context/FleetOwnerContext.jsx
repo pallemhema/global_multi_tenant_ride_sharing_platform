@@ -19,6 +19,7 @@ export const FleetOwnerProvider = ({ children }) => {
   const [documents, setDocuments] = useState([]);
 
   const [invites, setInvites] = useState([]);
+  const [eligibleDrivers, setEligibleDrivers] = useState([])
   const [assignedDrivers, setAssignedDrivers] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
 
@@ -47,6 +48,14 @@ const loadInitialFleetData = async () => {
     try {
       const docs = await fleetOwnerApi.getFleetDocuments();
       setDocuments(docs || []);
+    } catch {
+      setDocuments([]);
+    }
+
+     // 2️⃣ show drivers to sent invite 
+    try {
+      const drivers = await fleetOwnerApi.getAvaialibleDrivers();
+      setEligibleDrivers(drivers || []);
     } catch {
       setDocuments([]);
     }
@@ -88,6 +97,7 @@ const loadInitialFleetData = async () => {
       hasLoadedRef.current = false;
       setDocuments([]);
       setInvites([]);
+      setEligibleDrivers([]);
       setAssignedDrivers([]);
       setDashboardStats(null);
     }
@@ -121,8 +131,6 @@ const loadInitialFleetData = async () => {
     return res;
   };
 
-  
-   
 
   /* -------- Documents -------- */
 
@@ -183,7 +191,7 @@ const loadInitialFleetData = async () => {
     () => ({
       fleetOwner,
       documents,
-  
+      eligibleDrivers,
       invites,
       assignedDrivers,
       dashboardStats,
@@ -203,6 +211,7 @@ const loadInitialFleetData = async () => {
     [
       fleetOwner,
       documents,
+      eligibleDrivers,
       invites,
       assignedDrivers,
       dashboardStats,
