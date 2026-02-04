@@ -93,7 +93,6 @@ def list_available_drivers(
     ]
 
 @router.post("/drivers/invite")
-
 def invite_driver(
     payload: DriverInviteCreate,
     db: Session = Depends(get_db),
@@ -103,9 +102,10 @@ def invite_driver(
     driver = (
         db.query(Driver)
         .filter(
+            Driver.driver_type == 'fleet_driver',
             Driver.driver_id == payload.driver_id,
             Driver.tenant_id == fleet_owner.tenant_id,
-            Driver.is_active.is_(True),
+            Driver.kyc_status == 'approved',
         )
         .first()
     )
@@ -159,15 +159,18 @@ def cancel_driver_invite(
         .first()
     )
 
-    # 1️⃣ Invite must exist & belong to this fleet owner
+    # 1️⃣ Invite must exist
     if not invite:
-        raise HTTPException(404, "Invite not found")
+        raise HTTPException(status_code=404, detail="Invite not found")
 
     # 2️⃣ Already cancelled
     if invite.invite_status == "cancelled":
-        raise HTTPException(400, "Invite already cancelled")
+        raise HTTPException(
+            status_code=400,
+            detail="Invite already cancelled",
+        )
 
-    # 3️⃣ Already accepted (critical rule)
+    # 3️⃣ Already accepted (cannot cancel)
     if invite.invite_status == "accepted":
         raise HTTPException(
             status_code=400,
@@ -188,32 +191,78 @@ def cancel_driver_invite(
             detail=f"Invite cannot be cancelled in '{invite.invite_status}' state",
         )
 
-    # ✅ Cancel invite
+    # ✅ Cancel invite (AUDIT SAFE)
     invite.invite_status = "cancelled"
     invite.cancelled_at_utc = datetime.now(timezone.utc)
     invite.cancelled_by = fleet_owner.user_id
 
     db.commit()
+    db.refresh(invite)
 
     return {
         "status": "cancelled",
         "invite_id": invite.invite_id,
         "driver_id": invite.driver_id,
+        "cancelled_at_utc": invite.cancelled_at_utc,
+        "cancelled_by": invite.cancelled_by,
     }
 
-@router.get("/drivers/invite", response_model=list[DriverListOut])
-def list_drivers_for_fleet_owner(
+@router.get("/drivers/invite")
+def list_invites(
     db: Session = Depends(get_db),
     fleet_owner=Depends(require_fleet_owner),
 ):
-    drivers = (
-        db.query(Driver)
+    invites = (
+        db.query(DriverInvite)
         .filter(
-            Driver.tenant_id == fleet_owner.tenant_id,
-            Driver.is_active.is_(True),
-            Driver.kyc_status == "approved",
+            DriverInvite.fleet_owner_id == fleet_owner.fleet_owner_id,
+            DriverInvite.tenant_id == fleet_owner.tenant_id,        )
+        .all()
+    )
+    print(invites)
+
+
+    return invites
+
+@router.get("/fleet-drivers")
+def list_drivers_for_fleet_owner(
+    db: Session = Depends(get_db),
+    fleet_owner = Depends(require_fleet_owner),
+):
+    results = (
+        db.query(
+            DriverInvite.invite_id,
+            Driver.driver_id,
+            User.phone_e164,
+            UserProfile.full_name,
+            DriverInvite.accepted_at_utc,
         )
+        .join(Driver, Driver.driver_id == DriverInvite.driver_id)
+        .join(User, User.user_id == Driver.user_id)
+        .outerjoin(UserProfile, UserProfile.user_id == User.user_id)
+        .filter(
+            DriverInvite.fleet_owner_id == fleet_owner.fleet_owner_id,
+            DriverInvite.tenant_id == fleet_owner.tenant_id,
+            DriverInvite.invite_status == "accepted",
+            Driver.is_active.is_(True),
+        )
+        .order_by(DriverInvite.accepted_at_utc.desc())
         .all()
     )
 
-    return drivers
+    return [
+        {
+            "invite_id": invite_id,
+            "driver_id": driver_id,
+            "phone_e164": phone_e164,
+            "full_name": full_name,
+            "accepted_at_utc": accepted_at_utc,
+        }
+        for (
+            invite_id,
+            driver_id,
+            phone_e164,
+            full_name,
+            accepted_at_utc,
+        ) in results
+    ]

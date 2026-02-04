@@ -14,7 +14,7 @@ export default function FleetInvites() {
   } = useFleetOwner();
 
   const [invitingDriverId, setInvitingDriverId] = useState(null);
-  console.log(eligibleDrivers)
+  console.log(invites)
 
   /* =====================
      HANDLERS
@@ -30,6 +30,14 @@ export default function FleetInvites() {
       setInvitingDriverId(null);
     }
   };
+
+  const handleCancelInvite = async(driverId) =>{
+    try{
+      await cancelInvite(driverId)
+    }catch (err) {
+      alert(err.message || "Failed to cancel invite");
+    }
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -142,7 +150,7 @@ export default function FleetInvites() {
           <div className="grid gap-4">
             {invites.map((invite) => (
               <div
-                key={invite.driver_invite_id}
+                key={invite.invite_id}
                 className="border rounded-lg p-4"
               >
                 <div className="flex justify-between items-center">
@@ -152,7 +160,8 @@ export default function FleetInvites() {
                     </p>
                     <p className="text-sm text-gray-600">
                       Sent on{" "}
-                      {new Date(invite.sent_at_utc).toLocaleDateString()}
+                      {new Date(invite.invited_at_utc).toLocaleDateString()}
+
                     </p>
                   </div>
 
@@ -167,7 +176,7 @@ export default function FleetInvites() {
 
                 {invite.invite_status === "sent" && (
                   <button
-                    onClick={() => cancelInvite(invite.driver_invite_id)}
+                    onClick={() => handleCancelInvite(invite.invite_id)}
                     className="mt-3 flex items-center gap-1 text-sm text-red-600 hover:underline"
                   >
                     <Trash2 size={14} />
@@ -177,13 +186,16 @@ export default function FleetInvites() {
 
                 {invite.invite_status === "accepted" && (
                   <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                    ✓ Driver accepted the invitation. You can now assign vehicles.
+                     Driver accepted the invitation. You can now assign vehicles.
+                    at      {new Date(invite.accepted_at_utc).toLocaleDateString()}
+
                   </div>
                 )}
 
                 {invite.invite_status === "rejected" && (
                   <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                    ✗ Driver rejected the invitation.
+                     Driver rejected the invitation. at                       {new Date(invite.rejected_at_utc).toLocaleDateString()}
+
                   </div>
                 )}
               </div>

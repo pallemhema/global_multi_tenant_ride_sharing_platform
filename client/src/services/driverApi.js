@@ -321,4 +321,34 @@ export const driverApi = {
       );
     }
   },
+
+  getFleetInvites : async() => {
+    const res = await apiClient.get("/driver/fleet-invites");
+    return res.data;
+  },
+
+   acceptFleetInvite : async(inviteId) => {
+    const res = await apiClient.put(
+      `/driver/fleet-invite/${inviteId}/accept`
+    );
+    return res.data;
+  },
+
+   rejectFleetInvite: async(inviteId) =>{
+    const res = await apiClient.put(
+      `/driver/fleet-invite/${inviteId}/reject`
+    );
+    return res.data;
+  },
+
+  /* =========================
+     ASSIGNED VEHICLES
+  ========================= */
+
+   
+  async getAssignedVehicle() {
+  const res = await apiClient.get("/driver/assigned-vehicle");
+  return res.data;
+}
+
 };

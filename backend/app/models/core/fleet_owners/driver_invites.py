@@ -48,5 +48,24 @@ class DriverInvite(Base,AuditMixin,TimestampMixin):
         nullable=False,
         server_default=func.now(),
     )
+    accepted_at_utc : Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    cancelled_at_utc : Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    cancelled_by : Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id"),
+        nullable=False,
+    )
 
-
+    rejected_at_utc:Mapped[datetime] = mapped_column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=func.now(),
+        )

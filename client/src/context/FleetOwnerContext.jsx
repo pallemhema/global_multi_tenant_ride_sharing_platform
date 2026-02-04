@@ -23,6 +23,9 @@ export const FleetOwnerProvider = ({ children }) => {
   const [assignedDrivers, setAssignedDrivers] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
 
+  const [fleetDrivers, setFleetDrivers] = useState([]);
+
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -67,6 +70,14 @@ const loadInitialFleetData = async () => {
       setInvites(invs || []);
     } catch {
       setInvites([]);
+    }
+
+    // 4️⃣ fleet Drivers
+    try{
+      const fltdrivers = await fleetOwnerApi.getFleetDrivers();
+      setFleetDrivers(fltdrivers || []);
+    } catch (err) {
+      setFleetDrivers([]);
     }
 
     // 5️⃣ Dashboard
@@ -166,6 +177,20 @@ const loadInitialFleetData = async () => {
     setInvites((prev) => [...prev, invite]);
     return invite;
   };
+   const cancelInvite = async (inviteId) => {
+  const updatedInvite = await fleetOwnerApi.cancelInvite(inviteId);
+
+  setInvites((prev) =>
+    prev.map((invite) =>
+      invite.invite_id === updatedInvite.invite_id
+        ? updatedInvite
+        : invite
+    )
+  );
+
+  return updatedInvite;
+};
+
 
   const assignVehicleToDriver = async (inviteId, vehicleId) => {
     const assignment = await fleetOwnerApi.assignVehicleToDriver(
@@ -193,6 +218,7 @@ const loadInitialFleetData = async () => {
       documents,
       eligibleDrivers,
       invites,
+      fleetDrivers,
       assignedDrivers,
       dashboardStats,
       loading,
@@ -205,6 +231,7 @@ const loadInitialFleetData = async () => {
       updateDocument,
       deleteDocument,
       inviteDriver,
+      cancelInvite,
       assignVehicleToDriver,
       unassignVehicle,
     }),
@@ -213,6 +240,7 @@ const loadInitialFleetData = async () => {
       documents,
       eligibleDrivers,
       invites,
+      fleetDrivers,
       assignedDrivers,
       dashboardStats,
       loading,

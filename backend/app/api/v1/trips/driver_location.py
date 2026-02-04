@@ -9,6 +9,7 @@ from app.core.security.roles import require_driver
 from app.schemas.core.drivers.driver_location import DriverLocationUpdate
 from app.models.core.drivers.driver_shifts import DriverShift
 from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
+from app.models.core.vehicles.vehicles import Vehicle
 from app.core.redis import redis_client
 from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 
@@ -38,18 +39,31 @@ def update_driver_location(
     )
     if not shift:
         raise HTTPException(400, "Driver is not online")
-
-    # 2️⃣ Active vehicle required
-    assignment = (
-        db.query(DriverVehicleAssignment)
-        .filter(
-            DriverVehicleAssignment.driver_id == driver.driver_id,
-            DriverVehicleAssignment.is_active.is_(True),
+    
+    if driver.driver_type=='individual':
+        vehicles = (
+            db.query(Vehicle)
+            .filter(
+                Vehicle.driver_owner_id == driver.driver_id,
+                Vehicle.status == 'approved'
+            )
+            .all()
         )
-        .first()
-    )
-    if not assignment:
-        raise HTTPException(400, "No vehicle assigned")
+
+        if not vehicles:
+            raise HTTPException(400, "No vehicles found")
+    else:
+        # 2️⃣ Active vehicle required
+        assignment = (
+            db.query(DriverVehicleAssignment)
+            .filter(
+                DriverVehicleAssignment.driver_id == driver.driver_id,
+                DriverVehicleAssignment.is_active.is_(True),
+            )
+            .first()
+        )
+        if not assignment:
+            raise HTTPException(400, "No vehicle assigned")
 
     tenant_id = driver.tenant_id
     city_id = shift.city_id

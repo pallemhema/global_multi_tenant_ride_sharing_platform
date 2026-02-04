@@ -42,7 +42,8 @@ export const UserLogin = () => {
   // Validate phone number (basic validation)
   const isValidPhone = () => {
     const digitsOnly = phoneNumber.replace(/\D/g, "");
-    return digitsOnly.length >= 10;
+    return digitsOnly.length === 10;
+
   };
 
   // Handle phone submission
@@ -160,8 +161,13 @@ export const UserLogin = () => {
     setCurrentStep("phone");
     setOtp("");
     setError("");
-    setPhoneNumber("");
   };
+  useEffect(() => {
+  if (currentStep === "phone") {
+    document.getElementById("phone-input")?.focus();
+  }
+}, [currentStep]);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex">
@@ -330,13 +336,19 @@ export const UserLogin = () => {
                       size={20}
                     />
                     <input
+                      id="phone-input"
                       type="tel"
                       value={phoneNumber}
-                      onChange={(e) =>
-                        setPhoneNumber(e.target.value.replace(/\D/g, ""))
-                      }
+                      maxLength={10}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, "");
+                        if (digits.length <= 10) {
+                          setPhoneNumber(digits);
+                        }
+                      }}
+
                       placeholder="9876543210"
-                      maxLength="15"
+                     
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>

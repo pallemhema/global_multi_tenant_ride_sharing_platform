@@ -188,15 +188,54 @@ export const fleetOwnerApi = {
       );
     }
   },
+  async getFleetDrivers() {
+    try {
+      const res = await apiClient.get("/fleet-owner/fleet-drivers");
+      return res.data;
+    } catch (err) {
+      throw new Error(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to fetch fleet drivers",
+      );
+    }
+  },
+  
+
+  // async getFleetVehicles() {
+  //   try {
+  //     const res = await apiClient.get("/fleet-owner/vehicles");
+  //     return res.data;
+  //   } catch (err) {
+  //     throw new Error(
+  //       err.response?.data?.detail ||
+  //         err.response?.data?.message ||
+  //         "Failed to fetch fleet vehicles",
+  //     );
+  //   }
+  // },
+  
+  async getFleetAssignments() {
+    try {
+      const res = await apiClient.get("/fleet-owner/assignments");
+      return res.data;
+    } catch (err) {
+      throw new Error(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to fetch fleet assignments",
+      );
+    }
+  },
 
   /* ===============================
      VEHICLE ASSIGNMENTS ENDPOINTS
   =============================== */
 
-  async assignVehicleToDriver(inviteId, vehicleId) {
+  async assignVehicleToDriver(driverId, vehicleId) {
     try {
-      const res = await apiClient.post("/fleet-owner/assignments", {
-        invite_id: inviteId,
+      const res = await apiClient.post("/fleet-owner/vehicle-assignments", {
+        driver_id: driverId,
         vehicle_id: vehicleId,
       });
       return res.data;
@@ -236,6 +275,37 @@ export const fleetOwnerApi = {
       );
     }
   },
+async getVehicleLock(vehicleId) {
+  try {
+    const res = await apiClient.get(
+      `/fleet-owner/vehicle-assignments/vehicle/${vehicleId}/lock-status`
+    );
+    return res.data;
+  } catch (err) {
+    throw new Error(
+      err.response?.data?.detail ||
+      err.response?.data?.message ||
+      "Failed to check vehicle lock"
+    );
+  }
+},
+
+async getDriverLock(driverId) {
+  try {
+    const res = await apiClient.get(
+      `/fleet-owner/vehicle-assignments/driver/${driverId}/lock-status`
+    );
+    return res.data;
+  } catch (err) {
+    throw new Error(
+      err.response?.data?.detail ||
+      err.response?.data?.message ||
+      "Failed to check driver lock"
+    );
+  }
+},
+
+
 
   /* ===============================
      DASHBOARD ENDPOINTS

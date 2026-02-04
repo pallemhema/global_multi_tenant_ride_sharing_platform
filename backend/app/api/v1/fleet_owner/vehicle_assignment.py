@@ -21,100 +21,186 @@ router = APIRouter(
     tags=["Fleet Owner – Vehicle Assignment"],
 )
 
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
-@router.post("/drivers/assign-vehicle")
-def assign_vehicle_to_driver(
-    payload:DriverVehicleAssignmentCreate,
+from app.core.dependencies import get_db
+from app.core.security.roles import require_fleet_owner
+from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
+
+router = APIRouter(
+    tags=["Fleet Owner – Vehicle Assignment"],
+)
+
+# app/schemas/core/fleet_owners/vehicle_assignments.py
+
+from pydantic import BaseModel
+
+class VehicleAssignmentCreate(BaseModel):
+    driver_id: int
+    vehicle_id: int
+
+# @router.post("/vehicle-assignments")
+# def assign_vehicle(
+#     driver_id: int,
+#     vehicle_id: int,
+#     db: Session = Depends(get_db),
+#     fleet_owner=Depends(require_fleet_owner),
+# ):
+#     # 🚫 Rule 1: Vehicle already assigned?
+#     active_vehicle_assignment = (
+#         db.query(DriverVehicleAssignment)
+#         .filter(
+#             DriverVehicleAssignment.vehicle_id == vehicle_id,
+#             DriverVehicleAssignment.end_time_utc.is_(None),
+#         )
+#         .first()
+#     )
+
+#     if active_vehicle_assignment:
+#         raise HTTPException(
+#             status_code=409,
+#             detail="Vehicle is already assigned to another driver",
+#         )
+
+#     # 🚫 Rule 2: Driver already has a vehicle?
+#     active_driver_assignment = (
+#         db.query(DriverVehicleAssignment)
+#         .filter(
+#             DriverVehicleAssignment.driver_id == driver_id,
+#             DriverVehicleAssignment.end_time_utc.is_(None),
+#         )
+#         .first()
+#     )
+
+#     if active_driver_assignment:
+#         raise HTTPException(
+#             status_code=409,
+#             detail="Driver already has an active vehicle assignment",
+#         )
+
+#     # ✅ Assign vehicle
+#     assignment = DriverVehicleAssignment(
+#         tenant_id=fleet_owner.tenant_id,
+#         driver_id=driver_id,
+#         vehicle_id=vehicle_id,
+#         start_time_utc=datetime.now(timezone.utc),
+#         is_active=True,
+#         created_by=fleet_owner.user_id,
+#     )
+
+#     db.add(assignment)
+#     db.commit()
+
+#     return {
+#         "status": "assigned",
+#         "driver_id": driver_id,
+#         "vehicle_id": vehicle_id,
+#         "assigned_at": assignment.start_time_utc,
+#     }
+
+@router.post("/vehicle-assignments")
+def assign_vehicle(
+    payload: VehicleAssignmentCreate,
     db: Session = Depends(get_db),
     fleet_owner=Depends(require_fleet_owner),
 ):
-    # 1️⃣ Driver must have accepted invite
-    invite = (
-        db.query(DriverInvite)
-        .filter(
-            DriverInvite.tenant_id == fleet_owner.tenant_id,
-            DriverInvite.fleet_owner_id == fleet_owner.fleet_owner_id,
-            DriverInvite.driver_id == payload.driver_id,
-            DriverInvite.invite_status == "accepted",
-        )
-        .first()
-    )
-    if not invite:
-        raise HTTPException(400, "Driver not part of fleet")
+    driver_id = payload.driver_id
+    vehicle_id = payload.vehicle_id
 
-    # 2️⃣ Driver must NOT already have an active assignment
-    active_assignment = (
+    # 🚫 Rule 1: Vehicle already assigned?
+    active_vehicle_assignment = (
         db.query(DriverVehicleAssignment)
         .filter(
-            DriverVehicleAssignment.driver_id == payload.driver_id,
-            DriverVehicleAssignment.is_active.is_(True),
+            DriverVehicleAssignment.vehicle_id == vehicle_id,
+            DriverVehicleAssignment.end_time_utc.is_(None),
         )
         .first()
     )
-    if active_assignment:
+
+    if active_vehicle_assignment:
         raise HTTPException(
-            400,
-            "Driver already has a vehicle assigned. Return it before reassigning.",
+            status_code=409,
+            detail="Vehicle is already assigned to another driver",
         )
 
-    # 3️⃣ Vehicle must belong to fleet owner and be active
-    vehicle = (
-        db.query(Vehicle)
+    # 🚫 Rule 2: Driver already has a vehicle?
+    active_driver_assignment = (
+        db.query(DriverVehicleAssignment)
         .filter(
-            Vehicle.vehicle_id == payload.vehicle_id,
-            Vehicle.fleet_owner_id == fleet_owner.fleet_owner_id,
-            Vehicle.status == "active",
+            DriverVehicleAssignment.driver_id == driver_id,
+            DriverVehicleAssignment.end_time_utc.is_(None),
         )
         .first()
     )
-    if not vehicle:
-        raise HTTPException(400, "Invalid or inactive vehicle")
 
-    # 4️⃣ Create assignment
+    if active_driver_assignment:
+        raise HTTPException(
+            status_code=409,
+            detail="Driver already has an active vehicle assignment",
+        )
+
     assignment = DriverVehicleAssignment(
         tenant_id=fleet_owner.tenant_id,
-        driver_id=payload.driver_id,
-        vehicle_id=payload.vehicle_id,
-        start_time_utc=datetime.utcnow(),
+        driver_id=driver_id,
+        vehicle_id=vehicle_id,
+        start_time_utc=datetime.now(timezone.utc),
         is_active=True,
         created_by=fleet_owner.user_id,
     )
 
     db.add(assignment)
     db.commit()
+    db.refresh(assignment)
 
     return {
-        "status": "vehicle assigned",
-        "driver_id": payload.driver_id,
-        "vehicle_id": payload.vehicle_id,
+        "assignment_id": assignment.assignment_id,
+        "driver_id": driver_id,
+        "vehicle_id": vehicle_id,
+        "assigned_at": assignment.start_time_utc,
     }
 
-@router.post("/drivers/{driver_id}/return-vehicle")
-def return_vehicle_from_driver(
-    driver_id: int,
+
+@router.get("/vehicle-assignments/vehicle/{vehicle_id}/lock-status")
+def check_vehicle_lock(
+    vehicle_id: int,
     db: Session = Depends(get_db),
     fleet_owner=Depends(require_fleet_owner),
 ):
-    assignment = (
+    active = (
         db.query(DriverVehicleAssignment)
         .filter(
-            DriverVehicleAssignment.driver_id == driver_id,
-            DriverVehicleAssignment.is_active.is_(True),
+            DriverVehicleAssignment.vehicle_id == vehicle_id,
+            DriverVehicleAssignment.end_time_utc.is_(None),
         )
         .first()
     )
 
-    if not assignment:
-        raise HTTPException(404, "No active vehicle assignment found")
-
-    assignment.is_active = False
-    assignment.end_time_utc = datetime.utcnow()
-    assignment.updated_by = fleet_owner.user_id
-
-    db.commit()
+    return {
+        "vehicle_id": vehicle_id,
+        "is_locked": bool(active),
+        "assigned_driver_id": active.driver_id if active else None,
+        "assigned_at": active.start_time_utc if active else None,
+    }
+@router.get("/vehicle-assignments/driver/{driver_id}/lock-status")
+def check_driver_lock(
+    driver_id: int,
+    db: Session = Depends(get_db),
+    fleet_owner=Depends(require_fleet_owner),
+):
+    active = (
+        db.query(DriverVehicleAssignment)
+        .filter(
+            DriverVehicleAssignment.driver_id == driver_id,
+            DriverVehicleAssignment.end_time_utc.is_(None),
+        )
+        .first()
+    )
 
     return {
-        "status": "vehicle returned",
         "driver_id": driver_id,
-        "vehicle_id": assignment.vehicle_id,
+        "is_busy": bool(active),
+        "vehicle_id": active.vehicle_id if active else None,
+        "assigned_at": active.start_time_utc if active else None,
     }

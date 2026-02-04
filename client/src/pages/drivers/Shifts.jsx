@@ -30,9 +30,12 @@ export default function Shifts() {
   console.log("activeShift:", activeShift);
 
   // 🔁 Send location heartbeat ONLY when shift is online
-  useHeartbeat({
-    enabled: activeShift?.shift_status === "online",
-  });
+
+ useHeartbeat({
+  enabled:
+    Boolean(driver?.driver_id) &&
+    activeShift?.shift_status === "online",
+});
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

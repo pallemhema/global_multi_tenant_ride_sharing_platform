@@ -46,6 +46,8 @@ import DriverDocuments from "../pages/drivers/Documents";
 import DriverProfile from "../pages/drivers/Profile";
 import DriverShifts from "../pages/drivers/Shifts";
 import DriverRegistration from "../pages/drivers/DriverRegistration";
+import DriverInvitesFromFleets from "../pages/drivers/DriverInvitesFromFleets";
+import AssignedVehicles from "../pages/drivers/AssignedVehicles";
 
 /* ===== Vehicles (shared driver + fleet) ===== */
 import Vehicles from "../pages/vehicles/Vehicles";
@@ -58,6 +60,7 @@ import FleetDashboard from "../pages/fleets/FleetDashboard";
 import FleetDocuments from "../pages/fleets/FleetDocuments";
 import FleetInvites from "../pages/fleets/FleetInvites";
 import FleetRegistration from "../pages/fleets/FleetRegistration";
+import VehicleAssignments from "../pages/fleets/VehicleAssignments";
 
 /* ===== Rider ===== */
 import RiderDashboard from "../pages/rider/RiderDashboard";
@@ -149,6 +152,14 @@ const router = createBrowserRouter([
           { path: ":vehicleId/documents", element: <VehicleDocuments /> },
         ],
       },
+      {
+      path: "fleet-invites",
+      element: <DriverInvitesFromFleets />,  
+    },
+    {
+      path: "assigned-vehicles",
+      element: <AssignedVehicles />,
+    },
     ],
   },
 
@@ -164,6 +175,7 @@ const router = createBrowserRouter([
       { path: "dashboard", element: <FleetDashboard /> },
       { path: "documents", element: <FleetDocuments /> },
       { path: "invites", element: <FleetInvites /> },
+      { path: "vehicle-assignments", element: <VehicleAssignments /> },
       {
         path: "vehicles",
         children: [

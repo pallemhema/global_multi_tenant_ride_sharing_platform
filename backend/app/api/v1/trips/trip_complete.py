@@ -197,6 +197,9 @@ def complete_trip(
     ))
     
     db.commit()
+    trip.fare_total = fare_breakdown['total_fare']
+    db.add(trip)
+    db.flush()
     
     return TripCompleteResponse(
         status="trip_completed",
@@ -214,8 +217,4 @@ def complete_trip(
         message=f"Trip {trip_id} completed. Final fare: ₹{fare_breakdown['total_fare']:.2f}"
     )
 
-    # return {
-    #     "trip_status": trip.trip_status,
-    #     "trip_id": trip.trip_id,
-     
-    # }
+

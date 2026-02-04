@@ -9,6 +9,7 @@ import {
   Menu,
   X,
   ChevronDown,
+  Network,
 } from "lucide-react";
 import { Outlet } from "react-router-dom";
 
@@ -53,7 +54,13 @@ function FleetLayout() {
       icon: Users,
       path: "/fleet/invites",
     },
+    {
+      label: "Assign Vehicles",
+      icon: Network,
+      path: "/fleet/vehicle-assignments",
+    },
   ];
+  console.log(menuItems)
 
 
 

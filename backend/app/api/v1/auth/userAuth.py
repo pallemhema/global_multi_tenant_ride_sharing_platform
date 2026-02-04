@@ -9,7 +9,6 @@ from app.core.security.auth_otp import generate_otp, store_otp, verify_otp
 from app.core.utils.phone import normalize_phone
 
 from app.core.security.jwt import create_access_token
-from app.models.core.users.user_roles import UserRole
 from app.models.core.drivers.drivers import Driver
 from app.models.core.tenants.tenant_staff import TenantStaff
 from app.models.core.fleet_owners.fleet_owners import FleetOwner
