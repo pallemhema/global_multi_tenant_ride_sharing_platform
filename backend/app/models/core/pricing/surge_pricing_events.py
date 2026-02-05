@@ -11,6 +11,9 @@ class SurgePricingEvent(Base):
 
     tenant_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("tenants.tenant_id"))
     city_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("cities.city_id"))
+    country_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("countries.country_id"), nullable=False
+    )
     vehicle_category: Mapped[str] = mapped_column(
         ForeignKey("lu_vehicle_category.category_code")
     )

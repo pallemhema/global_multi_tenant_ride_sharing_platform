@@ -43,6 +43,8 @@ from app.api.v1.vehicles.router import router as vehicle_router
 from app.api.v1.drivers.router import router as driver_router
 from app.api.v1.trips.router import router as trip_router
 from app.api.v1.public.tentants import router as public_router
+from app.api.v1.payments.payment_confirmation import router as payment_confirmation_router
+from app.api.v1.payments.payout_settlement import router as payout_settlement_router
 from fastapi import APIRouter
 
 api_router = APIRouter()
@@ -59,4 +61,6 @@ api_router.include_router(fleet_owner_router)
 api_router.include_router(driver_router)
 api_router.include_router(vehicle_router)
 api_router.include_router(trip_router)
+api_router.include_router(payment_confirmation_router)
+api_router.include_router(payout_settlement_router)
 

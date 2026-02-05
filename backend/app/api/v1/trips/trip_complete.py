@@ -22,6 +22,7 @@ from app.models.core.drivers.drivers import Driver
 from app.models.core.vehicles.vehicles import Vehicle
 from app.core.ledger.ledger_service import LedgerService
 from app.core.trips.trip_lifecycle import TripLifecycle
+from app.models.core.payments.payments import Payment
 
 router = APIRouter(
     prefix="/driver/trips",
@@ -91,7 +92,7 @@ def complete_trip(
     # ------------------------------------------------
     # 1️⃣ Fetch trip (strict validation)
     # ------------------------------------------------
-
+    from app.models.core.trips.trip_request import TripRequest
 
     trip = db.query(Trip).filter(
         Trip.trip_id == trip_id,
@@ -108,10 +109,28 @@ def complete_trip(
         )
     
     # ------------------------------------------------
+    # DEBUG: Get estimated values from TripRequest for prefill validation
+    # ------------------------------------------------
+    trip_request = None
+    if trip.trip_request_id:
+        trip_request = db.query(TripRequest).filter(
+            TripRequest.trip_request_id == trip.trip_request_id
+        ).first()
+    
+    # ------------------------------------------------
     # 2️⃣ Persist actual distance & duration
     # ------------------------------------------------
+    # Store driver-entered values
     trip.distance_km = payload.distance_km
     trip.duration_minutes = payload.duration_minutes
+    
+    # DEBUG: Prefill actual with estimated if not provided
+    # This helps verify that estimated fare = actual fare when inputs match
+    if not trip.distance_km and trip_request:
+        trip.distance_km = trip_request.estimated_distance_km
+    if not trip.duration_minutes and trip_request:
+        trip.duration_minutes = trip_request.estimated_duration_minutes
+    
     db.add(trip)
     db.flush()
     
@@ -167,6 +186,32 @@ def complete_trip(
     
     db.add(trip_fare)
     db.flush()
+
+    # ------------------------------------------------
+    # Create Payment Intent (status=initiated)
+    # ------------------------------------------------
+    payment_intent = Payment(
+        trip_id=trip.trip_id,
+        tenant_id=trip.tenant_id,
+        payer_user_id=None,
+        amount=Decimal(str(fare_breakdown["total_fare"])),
+        currency_code=None,  # to be set at confirmation (gateway provides)
+        settlement_amount=None,
+        settlement_currency=None,
+        exchange_rate=None,
+        platform_fee=None,
+        tenant_amount=None,
+        owner_amount=None,
+        payment_status="initiated",
+        payment_method=None,
+        gateway_reference=None,
+        confirmed_by_user_id=None,
+        paid_at_utc=None,
+        created_at_utc=now,
+    )
+    db.add(payment_intent)
+    db.flush()
+    print(f"[PAYMENT_INTENT_CREATED] payment_id={payment_intent.payment_id} trip_id={trip.trip_id}")
 
 
     TripLifecycle.release_driver(

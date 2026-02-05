@@ -14,7 +14,7 @@ class OwnerWalletTransaction(Base):
 
     fleet_owner_wallet_id: Mapped[int] = mapped_column(
         BigInteger,
-        ForeignKey("owner_wallet.fleet_owner_wallet_id"),
+        ForeignKey("owner_wallet.owner_wallet_id"),
         nullable=False
     )
 

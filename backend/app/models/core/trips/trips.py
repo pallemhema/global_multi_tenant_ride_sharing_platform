@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Numeric, Text, Integer, String
+from sqlalchemy import Text,BigInteger, DateTime, ForeignKey, Numeric, Text, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 from typing import Optional
 from app.core.database import Base
@@ -54,7 +54,7 @@ class Trip(Base,AuditMixin,TimestampMixin):
 
     # Final fare/payment fields (populated after driver accepts / trip completes)
     fare_currency: Mapped[str | None] = mapped_column(
-        String(3),
+        Text,
         nullable=True,
     )
 
@@ -62,23 +62,13 @@ class Trip(Base,AuditMixin,TimestampMixin):
         Numeric(10, 2),
     )
 
-    payment_status: Mapped[str | None] = mapped_column(
-        String(50),
-        nullable=True,
-    )
-
-    payment_id: Mapped[Optional[int]] = mapped_column(
-        BigInteger,
-    )
-
-    # Optional OTP for trip start verification
-    otp_code: Mapped[str | None] = mapped_column(
-        String(16),
-        nullable=True,
-    )
 
     # Vehicle category selected for this trip (e.g., Bike/Auto/Sedan/SUV)
     selected_vehicle_category: Mapped[str | None] = mapped_column(
-        String(30),
+        Text,
+        ForeignKey
+        (
+            "lu_vehicle_category.category_code"
+        ),
         nullable=True,
     )

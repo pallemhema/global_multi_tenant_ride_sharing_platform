@@ -15,7 +15,7 @@ from app.models.core.coupons.tenant_coupon_availbility import TenantCouponApplic
 class PricingEngine:
 
     @staticmethod
-    def calculate_final_fare(
+    def calculate_base_fare_components(
         db: Session,
         tenant_id: int,
         city_id: int,
@@ -23,12 +23,35 @@ class PricingEngine:
         distance_km: float,
         duration_minutes: int,
     ) -> dict:
-
+        """
+        Calculate fare WITHOUT coupon discount (used for both estimated and actual).
+        
+        This is the shared logic that ensures estimated and actual fares are derived
+        from the same formula:
+        
+        1. Base fare
+        2. Distance charge (per_km × distance)
+        3. Time charge (per_minute × duration)
+        4. Subtotal (base + distance + time)
+        5. Surge multiplier applied to subtotal
+        6. Tax applied after surge
+        
+        Coupons are NOT applied here (they're applied only at trip completion).
+        
+        Args:
+            db: Database session
+            tenant_id: Tenant ID
+            city_id: City ID
+            vehicle_category: Vehicle category code
+            distance_km: Distance in kilometers
+            duration_minutes: Duration in minutes
+            
+        Returns:
+            dict with fare breakdown (without coupons)
+        """
         now = datetime.now(timezone.utc)
 
-        # ------------------------------------------------
-        # 1️⃣ Base pricing
-        # ------------------------------------------------
+        # Fetch pricing rules
         base = db.query(TenantBaseFare).filter(
             TenantBaseFare.tenant_id == tenant_id,
             TenantBaseFare.city_id == city_id,
@@ -56,15 +79,14 @@ class PricingEngine:
         if not (base and dist and time):
             raise ValueError("Pricing configuration missing")
 
-        base_fare = Decimal(base.base_fare)
-        distance_charge = Decimal(dist.rate_per_km) * Decimal(distance_km)
-        time_charge = Decimal(time.rate_per_minute) * Decimal(duration_minutes)
-
+        # Calculate base components without rounding yet
+        base_fare = Decimal(str(base.base_fare))
+        distance_charge = Decimal(str(dist.rate_per_km)) * Decimal(str(distance_km))
+        time_charge = Decimal(str(time.rate_per_minute)) * Decimal(str(duration_minutes))
+        
         subtotal = base_fare + distance_charge + time_charge
 
-        # ------------------------------------------------
-        # 2️⃣ Surge
-        # ------------------------------------------------
+        # Apply surge multiplier
         surge = db.query(SurgePricingEvent).filter(
             SurgePricingEvent.tenant_id == tenant_id,
             SurgePricingEvent.city_id == city_id,
@@ -73,12 +95,10 @@ class PricingEngine:
             or_(SurgePricingEvent.ended_at_utc.is_(None), SurgePricingEvent.ended_at_utc > now)
         ).first()
 
-        surge_multiplier = Decimal(surge.surge_multiplier) if surge else Decimal("1.0")
+        surge_multiplier = Decimal(str(surge.surge_multiplier)) if surge else Decimal("1.0")
         surged_subtotal = subtotal * surge_multiplier
 
-        # ------------------------------------------------
-        # 3️⃣ Tax
-        # ------------------------------------------------
+        # Apply tax
         tax = db.query(TenantTaxRule).filter(
             TenantTaxRule.tenant_id == tenant_id,
             TenantTaxRule.city_id == city_id,
@@ -86,14 +106,53 @@ class PricingEngine:
             or_(TenantTaxRule.effective_to.is_(None), TenantTaxRule.effective_to > now)
         ).first()
 
-        tax_percent = Decimal(tax.tax_percentage) if tax else Decimal("0")
+        tax_percent = Decimal(str(tax.tax_percentage)) if tax else Decimal("0")
         tax_amount = (surged_subtotal * tax_percent) / Decimal("100")
 
         total_before_coupon = surged_subtotal + tax_amount
 
+        return {
+            "base_fare": base_fare,
+            "distance_charge": distance_charge,
+            "time_charge": time_charge,
+            "subtotal": subtotal,
+            "surge_multiplier": surge_multiplier,
+            "surged_subtotal": surged_subtotal,
+            "tax_percent": tax_percent,
+            "tax_amount": tax_amount,
+            "total_before_coupon": total_before_coupon,
+        }
+
+    @staticmethod
+    def calculate_final_fare(
+        db: Session,
+        tenant_id: int,
+        city_id: int,
+        vehicle_category: str,
+        distance_km: float,
+        duration_minutes: int,
+    ) -> dict:
+        """
+        Calculate final fare WITH auto-applied best coupon (for actual trip completion).
+        
+        Uses shared base_fare_components logic to ensure consistency with estimated fares.
+        """
+        # Get base components (shared logic with estimated fare)
+        components = PricingEngine.calculate_base_fare_components(
+            db=db,
+            tenant_id=tenant_id,
+            city_id=city_id,
+            vehicle_category=vehicle_category,
+            distance_km=distance_km,
+            duration_minutes=duration_minutes,
+        )
+
+        total_before_coupon = components["total_before_coupon"]
+
         # ------------------------------------------------
-        # 4️⃣ AUTO-APPLY BEST COUPON
+        # AUTO-APPLY BEST COUPON (only at trip completion)
         # ------------------------------------------------
+        now = datetime.now(timezone.utc)
         best_discount = Decimal("0")
         applied_coupon_code = None
 
@@ -116,33 +175,33 @@ class PricingEngine:
                 continue
 
             if coupon.coupon_type == "FLAT":
-                discount = Decimal(coupon.discount_value)
+                discount = Decimal(str(coupon.discount_value))
 
             elif coupon.coupon_type == "PERCENTAGE":
-                discount = (total_before_coupon * Decimal(coupon.discount_value)) / Decimal("100")
+                discount = (total_before_coupon * Decimal(str(coupon.discount_value))) / Decimal("100")
 
             else:
                 continue
 
             if coupon.max_discount:
-                discount = min(discount, Decimal(coupon.max_discount))
+                discount = min(discount, Decimal(str(coupon.max_discount)))
 
             if discount > best_discount:
                 best_discount = discount
                 applied_coupon_code = coupon.coupon_code
 
         # ------------------------------------------------
-        # 5️⃣ Final fare
+        # Final fare
         # ------------------------------------------------
         final_fare = max(total_before_coupon - best_discount, Decimal("0"))
 
         return {
-            "base_fare": float(base_fare),
-            "distance_charge": float(distance_charge),
-            "time_charge": float(time_charge),
-            "surge_multiplier": float(surge_multiplier),
-            "subtotal": float(subtotal),
-            "tax_amount": float(tax_amount),
+            "base_fare": float(components["base_fare"]),
+            "distance_charge": float(components["distance_charge"]),
+            "time_charge": float(components["time_charge"]),
+            "surge_multiplier": float(components["surge_multiplier"]),
+            "subtotal": float(components["subtotal"]),
+            "tax_amount": float(components["tax_amount"]),
             "coupon_discount": float(best_discount),
             "applied_coupon": applied_coupon_code,
             "total_fare": float(final_fare),
