@@ -4,7 +4,7 @@ from datetime import datetime
 from app.core.database import Base
 from ...mixins import TimestampMixin
 
-class TenantWallet(Base, TimestampMixin):
+class TenantWallet(Base):
     __tablename__ = "tenant_wallet"
 
     tenant_wallet_id: Mapped[int] = mapped_column(

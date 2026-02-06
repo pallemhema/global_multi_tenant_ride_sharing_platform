@@ -206,11 +206,11 @@ export const driverApi = {
     return res.data;
   },
 
-  /* send full location update (updates GEO for rider discovery) */
-  sendLocation: async (payload) => {
-    const res = await apiClient.post("/driver/location", payload);
-    return res.data;
-  },
+  // /* send full location update (updates GEO for rider discovery) */
+  // sendLocation: async (payload) => {
+  //   const res = await apiClient.post("/driver/location", payload);
+  //   return res.data;
+  // },
 
   async getRuntimeStatus() {
     try {
@@ -309,7 +309,7 @@ export const driverApi = {
   cancelTrip: async (trip_id, payload) => {
     try {
       const res = await apiClient.post(
-        `/driver/trips/${trip_id}/cancel`,
+        `/trips/driver/${trip_id}/cancel`,
         payload,
       );
       return res.data;
@@ -322,22 +322,18 @@ export const driverApi = {
     }
   },
 
-  getFleetInvites : async() => {
+  getFleetInvites: async () => {
     const res = await apiClient.get("/driver/fleet-invites");
     return res.data;
   },
 
-   acceptFleetInvite : async(inviteId) => {
-    const res = await apiClient.put(
-      `/driver/fleet-invite/${inviteId}/accept`
-    );
+  acceptFleetInvite: async (inviteId) => {
+    const res = await apiClient.put(`/driver/fleet-invite/${inviteId}/accept`);
     return res.data;
   },
 
-   rejectFleetInvite: async(inviteId) =>{
-    const res = await apiClient.put(
-      `/driver/fleet-invite/${inviteId}/reject`
-    );
+  rejectFleetInvite: async (inviteId) => {
+    const res = await apiClient.put(`/driver/fleet-invite/${inviteId}/reject`);
     return res.data;
   },
 
@@ -345,10 +341,56 @@ export const driverApi = {
      ASSIGNED VEHICLES
   ========================= */
 
-   
   async getAssignedVehicle() {
-  const res = await apiClient.get("/driver/assigned-vehicle");
-  return res.data;
-}
+    const res = await apiClient.get("/driver/assigned-vehicle");
+    return res.data;
+  },
 
+  /* =========================
+     FINANCES - WALLET
+  ========================= */
+
+  async getWallet() {
+    try {
+      const res = await apiClient.get("/driver/wallet");
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.detail || "Failed to fetch wallet");
+    }
+  },
+
+
+
+
+
+  async getPastTrips() {
+    try {
+      const res = await apiClient.get('/driver/past-trips');
+      console
+.log("Fetched past trips:", res.data.trips);
+      return res.data.trips;
+    } catch (err) {
+      throw new Error(
+        err.response?.data?.detail || "Failed to fetch past trips",
+      );
+    }
+  },
+
+  /* =========================
+     PAYMENT CONFIRMATION
+  ========================= */
+
+  async confirmPayment(tripId, paymentMethod) {
+    try {
+      const res = await apiClient.post("/driver/payments/confirm", {
+        trip_id: tripId,
+        payment_method: paymentMethod,
+      });
+      return res.data;
+    } catch (err) {
+      throw new Error(
+        err.response?.data?.detail || "Failed to confirm payment",
+      );
+    }
+  },
 };

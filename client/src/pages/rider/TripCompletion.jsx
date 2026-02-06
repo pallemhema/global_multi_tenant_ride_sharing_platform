@@ -61,24 +61,7 @@ export default function TripCompletion() {
       {receipt && (
         <div className="space-y-4">
           {/* OTP SECTION - VISIBLE FOR PAYMENT VERIFICATION */}
-          {receipt.otp && (
-            <div className="p-4 bg-amber-50 rounded shadow border border-amber-200">
-              <div className="flex items-start gap-3">
-                <Lock size={18} className="text-amber-600 flex-shrink-0 mt-1" />
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-amber-900">
-                    Payment Verification OTP
-                  </p>
-                  <p className="text-2xl font-mono font-bold text-amber-700 mt-1">
-                    {receipt.otp}
-                  </p>
-                  <p className="text-xs text-amber-700 mt-1">
-                    Keep this OTP for payment reference (Valid for 30 minutes)
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+         
 
           {/* TRIP DETAILS */}
           <div className="p-4 bg-slate-50 rounded space-y-3">
@@ -180,13 +163,13 @@ export default function TripCompletion() {
             </div>
           </div>
 
-          {/* PAYMENT STATUS */}
+          {/* PAYMENT STATUS
           <div className="p-4 bg-green-50 rounded border border-green-200">
             <p className="text-sm text-green-800">
               ✓ Payment marked complete. Your receipt has been sent to
               registered email.
             </p>
-          </div>
+          </div> */}
 
           {/* ACTION BUTTON */}
           <button

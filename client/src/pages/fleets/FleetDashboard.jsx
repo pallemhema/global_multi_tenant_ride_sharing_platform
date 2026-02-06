@@ -1,14 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { TrendingUp, Users, Truck, FileCheck, AlertCircle } from "lucide-react";
+import {
+  TrendingUp,
+  Users,
+  Truck,
+  FileCheck,
+  AlertCircle,
+  Wallet,
+} from "lucide-react";
 import { useFleetOwner } from "../../context/FleetOwnerContext";
+import StatCard from "../../components/common/StatCard";
 
 function FleetDashboard() {
   const navigate = useNavigate();
-  const { fleetOwner, dashboardStats, loading } = useFleetOwner();
+  const { fleetOwner, dashboardStats, loading, wallet } = useFleetOwner();
   console.log("  FleetDashboard - fleetOwner:", fleetOwner);
 
-  if (fleetOwner?.approval_status==="pending") {
+  if (fleetOwner?.approval_status === "pending") {
     return (
       <>
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
@@ -33,9 +41,7 @@ function FleetDashboard() {
       <div className="space-y-6">
         {/* Welcome Section */}
         <div className="bg-gradient-to-r from-purple-600 to-purple-800 text-white rounded-lg p-8 shadow-lg">
-          <h1 className="text-3xl font-bold mb-2">
-            {fleetOwner?.business_name}
-          </h1>
+          <h1 className="text-3xl font-bold mb-2">{fleetOwner?.fleet_name}</h1>
           <p className="text-purple-100 text-sm">
             Welcome to your fleet management dashboard
           </p>
@@ -44,56 +50,47 @@ function FleetDashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Vehicles */}
-          <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
-            <div className="flex items-center justify-between mb-4">
-              <Truck className="text-blue-600" size={24} />
-              <span className="text-3xl font-bold text-gray-900">
-                {dashboardStats?.total_vehicles || 0}
-              </span>
-            </div>
-            <p className="text-gray-600 text-sm">Total Vehicles</p>
-            <p className="text-xs text-gray-500 mt-2">
-              {dashboardStats?.active_vehicles || 0} active
-            </p>
-          </div>
+          <StatCard
+            title="Total Vehicles"
+            count={dashboardStats?.total_vehicles || 0}
+            icon={Truck}
+            color="text-blue-600"
+          />
 
-          {/* Active Drivers */}
-          <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
-            <div className="flex items-center justify-between mb-4">
-              <Users className="text-green-600" size={24} />
-              <span className="text-3xl font-bold text-gray-900">
-                {dashboardStats?.total_drivers || 0}
-              </span>
-            </div>
-            <p className="text-gray-600 text-sm">Assigned Drivers</p>
-            <p className="text-xs text-gray-500 mt-2">
-              {dashboardStats?.pending_invites || 0} pending invites
-            </p>
-          </div>
+          <StatCard
+            title="Total Drivers"
+            count={dashboardStats?.total_drivers || 0}
+            icon={Users}
+            color="text-green-600"
+          />
 
-          {/* Trips Completed */}
-          <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
-            <div className="flex items-center justify-between mb-4">
-              <FileCheck className="text-purple-600" size={24} />
-              <span className="text-3xl font-bold text-gray-900">
-                {dashboardStats?.trips_completed || 0}
-              </span>
-            </div>
-            <p className="text-gray-600 text-sm">Trips Completed</p>
-            <p className="text-xs text-gray-500 mt-2">This month</p>
-          </div>
+          <StatCard
+            title="Pending Invites"
+            count={dashboardStats?.pending_invites || 0}
+            icon={AlertCircle}
+            color="text-yellow-600"
+          />
 
-          {/* Earnings */}
-          <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
-            <div className="flex items-center justify-between mb-4">
-              <TrendingUp className="text-orange-600" size={24} />
-              <span className="text-3xl font-bold text-gray-900">
-                ₹{dashboardStats?.total_earnings || 0}
-              </span>
-            </div>
-            <p className="text-gray-600 text-sm">Total Earnings</p>
-            <p className="text-xs text-gray-500 mt-2">All time</p>
-          </div>
+          <StatCard
+            title="Active Drivers"
+            count={dashboardStats?.active_drivers || 0}
+            icon={Users}
+            color="text-purple-600"
+          />
+
+          <StatCard
+            title="Trips Completed"
+            count={dashboardStats?.trips_completed || 0}
+            icon={FileCheck}
+            color="text-purple-600"
+          />
+
+          <StatCard
+            title="Wallet Balance"
+            count={wallet?.balance ?? 0}
+            icon={Wallet}
+            color="text-teal-600"
+          />
         </div>
 
         {/* Quick Actions */}
@@ -130,13 +127,13 @@ function FleetDashboard() {
             <div className="border rounded-lg p-4">
               <p className="text-gray-600 text-sm mb-1">Business Name</p>
               <p className="font-semibold text-gray-900">
-                {fleetOwner?.business_name}
+                {fleetOwner?.fleet_name}
               </p>
             </div>
             <div className="border rounded-lg p-4">
               <p className="text-gray-600 text-sm mb-1">Contact Email</p>
               <p className="font-semibold text-gray-900">
-                {fleetOwner?.contact_email || "Not provided"}
+                {fleetOwner?.contact_mail || "Not provided"}
               </p>
             </div>
             <div className="border rounded-lg p-4">
@@ -160,4 +157,4 @@ function FleetDashboard() {
   );
 }
 
-export default FleetDashboard;  
+export default FleetDashboard;

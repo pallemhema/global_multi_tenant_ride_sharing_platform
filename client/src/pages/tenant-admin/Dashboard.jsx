@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Car, Truck, Users, AlertCircle } from "lucide-react";
+import { FileText, Car, Truck, Users, AlertCircle, Wallet } from "lucide-react";
 import { useTenant } from "../../context/TenantContext";
-import StatCard from "../../components/tenant-admin/StatCard";
+import StatCard from "../../components/common/StatCard";
 import Loader from "../../components/common/Loader";
 
 export default function Dashboard() {
-  const { dashboardStats, loading, error, loadDashboardStats } = useTenant();
+  const { dashboardStats, loading, error, loadDashboardStats, wallet } =
+    useTenant();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,6 +24,8 @@ export default function Dashboard() {
   if (loading) {
     return <Loader />;
   }
+  console.log("Dashboard stats:", stats);
+  console.log("Wallet info:", wallet);
 
   return (
     <div className="space-y-8">
@@ -74,6 +77,12 @@ export default function Dashboard() {
           icon={Users}
           color="rose"
           onClick={() => navigate("/tenant-admin/drivers")}
+        />
+        <StatCard
+          title="Wallet Balance"
+          count={`${wallet?.currency_code} ${wallet?.balance ?? 0}`}
+          icon={Wallet}
+          color="teal"
         />
       </div>
 

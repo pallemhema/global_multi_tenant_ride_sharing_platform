@@ -27,6 +27,7 @@ def get_fleet(
     return {
         "fleet_owner_id": fleet.fleet_owner_id,
         "fleet_name": fleet.business_name,
+        "contact_mail": fleet.contact_email,
         "approval_status": fleet.approval_status,
         "onboarding_status": fleet.onboarding_status,
     }

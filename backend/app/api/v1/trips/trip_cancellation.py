@@ -20,6 +20,7 @@ from app.core.dependencies import get_db
 from app.core.security.roles import require_rider, require_driver
 from app.models.core.drivers.drivers import Driver
 from app.models.core.trips.trips import Trip
+from app.models.core.users.users import User
 from app.models.core.trips.trip_status_history import TripStatusHistory
 from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 from app.core.ledger.ledger_service import LedgerService

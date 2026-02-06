@@ -30,10 +30,10 @@ class OwnerWallet(Base, TimestampMixin):
     )
 
     fleet_owner_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("fleet_owners.fleet_owner_id"), nullable=False, index=True
+        BigInteger, ForeignKey("fleet_owners.fleet_owner_id"), nullable=True, index=True
     )
     driver_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("drivers.driver_id"), nullable=False, index=True
+        BigInteger, ForeignKey("drivers.driver_id"), nullable=True, index=True
     )
     tenant_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("tenants.tenant_id"), nullable=False

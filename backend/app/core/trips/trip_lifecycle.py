@@ -144,13 +144,18 @@ class TripLifecycle:
         assignment = q2.first()
 
         if assignment:
-            vehicle = assignment.vehicle
-            return {
-                "vehicle_id": vehicle.vehicle_id,
-                "category": vehicle.category_code,
-                "license_plate": vehicle.license_plate,
-                "ownership": "fleet",
-            }
+            # Query the vehicle using the vehicle_id from assignment
+            vehicle = db.query(Vehicle).filter(
+                Vehicle.vehicle_id == assignment.vehicle_id
+            ).first()
+            
+            if vehicle:
+                return {
+                    "vehicle_id": vehicle.vehicle_id,
+                    "category": vehicle.category_code,
+                    "license_plate": vehicle.license_plate,
+                    "ownership": "fleet",
+                }
 
         return None
 

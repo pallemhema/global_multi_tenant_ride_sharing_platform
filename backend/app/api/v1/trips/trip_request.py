@@ -631,6 +631,23 @@ def get_trip_request_status(
         "otp": None,
     }
 
+    # Check if trip was cancelled (even if trip_req.status is back to driver_searching)
+    # This happens when driver cancels after accepting. Only report cancelled
+    # if the cancellation happened after the trip_request was last updated —
+    # this allows a subsequent `start-driver-search` (which updates trip_req)
+    # to clear the cancelled flag for the rider.
+    cancelled_trip = db.query(Trip).filter(
+        Trip.trip_request_id == trip_request_id,
+        Trip.trip_status == "cancelled",
+    ).order_by(Trip.trip_id.desc()).first()
+
+    if cancelled_trip:
+        cancelled_at = getattr(cancelled_trip, "cancelled_at_utc", None)
+        last_req_update = getattr(trip_req, "updated_at_utc", None) or getattr(trip_req, "created_at_utc", None)
+        if cancelled_at and last_req_update and cancelled_at > last_req_update:
+            out_dict["status"] = "cancelled"
+            return TripStatusOut(**out_dict)
+
     # If driver assigned or trip in progress, enrich with trip/driver info
     if trip_req.status in ("driver_assigned", "in_progress"):
         print(f"[TRIP_STATUS_START] Querying for trip_request_id={trip_request_id}, status={trip_req.status}")

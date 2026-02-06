@@ -32,6 +32,10 @@ export default function Assigned() {
             console.error("Trip ID not available in response:", res);
           }
         }
+        // If driver cancelled after assignment, send rider back to searching
+        else if (res?.status === "cancelled") {
+          navigate(`/rider/searching/${tripRequestId}`);
+        }
       } catch (e) {
         console.error("Trip status error:", e);
       }

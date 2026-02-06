@@ -1,471 +1,487 @@
-"""
-Payment Confirmation Service - 7-Phase Payment Flow
-
-GOLDEN RULES:
-- Ledger is truth (source of single financial truth)
-- Wallet is settlement state (who owes whom)
-- Tax is liability, not revenue
-- Platform has no wallet
-- Offline payment creates debt (negative balance)
-- Everything is atomic (single DB transaction)
-- Never recompute past trips
-
-PHASES:
-0. Pre-conditions (trip completed, fare finalized)
-1. Resolve context (trip, currency, owner, rules)
-2. Calculate amounts (using commission rules, no DB writes)
-3. Create payment record
-4. Ledger entries (owner, tenant, platform, tax - immutable)
-5. Wallet updates (online vs offline logic)
-6. Atomicity (single transaction)
-7. Post-processing (async)
-"""
-
 from decimal import Decimal
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+import logging
+import traceback
 
+from app.models.lookups.city import City
 from app.models.core.payments.payments import Payment
 from app.models.core.trips.trips import Trip
 from app.models.core.trips.trip_fare import TripFare
 from app.models.core.trips.trip_request import TripRequest
 from app.models.core.vehicles.vehicles import Vehicle
-from app.models.core.tenants.tenant_countries import TenantCountry
 from app.models.core.accounting.ledger import FinancialLedger
-from app.models.core.wallets.tenant_wallet import TenantWallet
 from app.models.core.wallets.owner_wallet import OwnerWallet
-from app.models.core.wallets.owner_wallet_transactions import OwnerWalletTransaction
-from app.models.core.wallets.tenant_wallet_transactions import TenantWalletTransaction
+from app.models.core.wallets.tenant_wallet import TenantWallet
 from app.models.core.commissions.owner_commision_rules import OwnerCommissionRule
 from app.models.core.commissions.tenant_commmision_rules import TenantCommissionRule
 
+logger = logging.getLogger(__name__)
+
 
 class PaymentConfirmationService:
-    """
-    Single atomic service for payment confirmation.
-    
-    Ensures DATA INTEGRITY:
-    - Ledger entries immutable
-    - Wallets consistent with ledger
-    - Transactions always complete or rollback
-    """
 
     @staticmethod
     def confirm_payment_atomic(
         db: Session,
-        payment_id: int,
-        payment_method: str,  # 'online' or 'offline'
-        confirmed_by_user_id: int = None,
+        trip_id: int,
+        payment_method: str,   # "online" | "offline"
+        confirmed_by_user_id: int,
     ) -> dict:
-        """
-        Confirm a payment in a single atomic transaction.
-        
-        Flow (all in one ACID transaction):
-        1️⃣ PHASE 1: Resolve context (trip, vehicle, owner, currency)
-        2️⃣ PHASE 2: Calculate amounts (commission rules, splits)
-        3️⃣ PHASE 3: Create/update payment record
-        4️⃣ PHASE 4: Create ledger entries (immutable)
-        5️⃣ PHASE 5: Update wallets (online vs offline)
-        6️⃣ Commit (all or nothing)
-        
-        Args:
-            db: Database session
-            payment_id: Payment ID to confirm
-            payment_method: 'online' or 'offline'
-            confirmed_by_user_id: Who confirmed (driver/dispatcher)
-            
-        Returns:
-            dict with confirmation details, ledger, and wallet snapshots
-            
-        Raises:
-            ValueError: If validation fails (payment, trip, rules missing)
-            Exception: DB errors trigger automatic rollback
-        """
-        
+
         try:
             now = datetime.now(timezone.utc)
-            
-            # =========================================================
-            # 1️⃣ PHASE 1: RESOLVE CONTEXT (READ-ONLY)
-            # =========================================================
-            
-            # Fetch payment (locked for update)
-            payment = db.query(Payment).filter(
-                Payment.payment_id == payment_id
-            ).with_for_update().first()
-            
+
+            # =====================================================
+            # 1️⃣ FETCH + LOCK PAYMENT
+            # =====================================================
+            payment = (
+                db.query(Payment)
+                .filter(Payment.trip_id == trip_id)
+                .with_for_update()
+                .first()
+            )
+
             if not payment:
-                raise ValueError(f"Payment {payment_id} not found")
-            
-            if payment.payment_status != "initiated":
-                raise ValueError(
-                    f"Payment status is '{payment.payment_status}', must be 'initiated'"
+                raise ValueError("Payment not found for trip")
+
+            if payment.payment_status == "successful":
+                # Idempotent response: Fetch latest wallets and return complete response
+                trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
+                trip_fare = db.query(TripFare).filter(TripFare.trip_id == trip_id).first()
+                
+                owner_wallet = (
+                    db.query(OwnerWallet)
+                    .filter(
+                        OwnerWallet.tenant_id == trip.tenant_id,
+                    )
+                    .first()
                 )
-            
-            # Fetch trip
-            trip = db.query(Trip).filter(
-                Trip.trip_id == payment.trip_id
-            ).first()
-            
-            if not trip:
-                raise ValueError(f"Trip {payment.trip_id} not found")
-            
-            if trip.trip_status != "completed":
-                raise ValueError(f"Trip status is '{trip.trip_status}', must be 'completed'")
-            
-            # Fetch trip fare (frozen final amount)
+                
+                tenant_wallet = (
+                    db.query(TenantWallet)
+                    .filter(
+                        TenantWallet.tenant_id == trip.tenant_id,
+                    )
+                    .first()
+                )
+                
+                return {
+                    "payment_id": payment.payment_id,
+                    "trip_id": trip_id,
+                    "payment_status": "successful",
+                    "payment_method": payment.payment_method or "online",
+                    "paid_at_utc": payment.paid_at_utc.isoformat() if payment.paid_at_utc else None,
+                    "settlement_currency": payment.currency_code,
+                    "settlement_amount": float(payment.amount or 0),
+                    "breakdown": {
+                        "owner_amount": 0.0,
+                        "tenant_amount": 0.0,
+                        "platform_fee": 0.0,
+                        "tax_amount": 0.0,
+                        "subtotal": float(trip_fare.subtotal) if trip_fare else 0.0,
+                        "final_fare": float(trip_fare.final_fare) if trip_fare else 0.0,
+                    },
+                    "owner_wallet_balance": float(owner_wallet.balance) if owner_wallet else 0.0,
+                    "tenant_wallet_balance": float(tenant_wallet.balance) if tenant_wallet else 0.0,
+                    "ledger_entries_count": 4,
+                    "message": "Payment already confirmed (idempotent)",
+                }
+
+            if payment.payment_status != "initiated":
+                raise ValueError("Payment not in initiated state")
+
+            # =====================================================
+            # 2️⃣ FETCH TRIP + FARE
+            # =====================================================
+            trip = db.query(Trip).filter(Trip.trip_id == trip_id).first()
+            if not trip or trip.trip_status != "completed":
+                raise ValueError("Trip not completed")
+
             trip_fare = db.query(TripFare).filter(
-                TripFare.trip_id == trip.trip_id
+                TripFare.trip_id == trip_id
             ).first()
-            
+
             if not trip_fare:
-                raise ValueError(f"Trip fare not found for trip {trip.trip_id}")
-            
-            # Fetch vehicle and determine owner
+                raise ValueError("Trip fare missing")
+
+            final_fare = Decimal(str(trip_fare.final_fare))
+            subtotal = Decimal(str(trip_fare.subtotal))
+            tax_amount = Decimal(str(trip_fare.tax_amount))
+
+            # =====================================================
+            # 3️⃣ COUNTRY (FOR LEDGER)
+            # =====================================================
+            city = db.query(City).filter(
+                City.city_id == trip.city_id
+            ).first()
+
+            if not city:
+                raise ValueError("City not found")
+
+            country_id = city.country_id
+
+            # =====================================================
+            # 4️⃣ VEHICLE + OWNER
+            # =====================================================
             vehicle = db.query(Vehicle).filter(
                 Vehicle.vehicle_id == trip.vehicle_id
             ).first()
-            
+
             if not vehicle:
-                raise ValueError(f"Vehicle {trip.vehicle_id} not found")
-            
-            owner_type = vehicle.owner_type  # 'driver' or 'fleet_owner'
-            owner_id = vehicle.owner_id
-            
-            if not owner_id or not owner_type:
-                raise ValueError(
-                    f"Vehicle {vehicle.vehicle_id} has no owner configured"
-                )
-            
-            # Fetch tenant country for currency (settlement currency)
-            tenant_country = db.query(TenantCountry).filter(
-                TenantCountry.tenant_id == trip.tenant_id
-            ).first()
-            
-            settlement_currency = (
-                tenant_country.default_currency 
-                if tenant_country else "USD"
+                raise ValueError("Vehicle not found")
+
+            owner_type = vehicle.owner_type
+            owner_id = (
+                vehicle.driver_owner_id
+                if owner_type == "driver"
+                else vehicle.fleet_owner_id
             )
-            
-            # Fetch trip request for distance (for slab-based rules)
+         
+
+            # =====================================================
+            # 5️⃣ DISTANCE
+            # =====================================================
             trip_request = None
             if trip.trip_request_id:
                 trip_request = db.query(TripRequest).filter(
                     TripRequest.trip_request_id == trip.trip_request_id
                 ).first()
-            
-            distance_km = float(trip.distance_km or trip_request.estimated_distance_km if trip_request else 0)
-            
-            print(f"[PHASE 1 COMPLETE] trip={trip.trip_id} owner={owner_type}:{owner_id} currency={settlement_currency}")
-            
-            # =========================================================
-            # 2️⃣ PHASE 2: CALCULATE AMOUNTS (NO DB WRITES)
-            # =========================================================
-            
-            # Frozen amounts from fare
-            subtotal = Decimal(str(trip_fare.subtotal))
-            tax_amount = Decimal(str(trip_fare.tax_amount))
-            final_fare = Decimal(str(trip_fare.final_fare))
-            
-            # Resolve owner commission rule
-            owner_rule = db.query(OwnerCommissionRule).filter(
-                OwnerCommissionRule.tenant_id == trip.tenant_id,
-                OwnerCommissionRule.vehicle_category == vehicle.category_code,
-                OwnerCommissionRule.owner_type == owner_type,
-                OwnerCommissionRule.distance_min_km <= distance_km,
-                OwnerCommissionRule.effective_from <= now,
-                or_(
-                    OwnerCommissionRule.effective_to.is_(None),
-                    OwnerCommissionRule.effective_to > now
-                ),
-            ).first()
-            
-            if not owner_rule:
-                # Fallback: 45% to owner
-                print(f"[WARNING] No owner commission rule found, using default 45%")
-                owner_amount = (subtotal * Decimal("0.45")).quantize(Decimal("0.01"))
-            else:
-                # Calculate owner commission
-                if owner_rule.commission_type == "flat":
-                    owner_amount = Decimal(str(owner_rule.commission_value))
-                else:  # percentage
-                    owner_amount = (
-                        subtotal * Decimal(str(owner_rule.commission_value)) / Decimal("100")
-                    )
-                    if owner_rule.commission_cap:
-                        owner_amount = min(
-                            owner_amount,
-                            Decimal(str(owner_rule.commission_cap))
-                        )
-            
-            # Resolve tenant commission rule
-            tenant_rule = db.query(TenantCommissionRule).filter(
-                TenantCommissionRule.tenant_id == trip.tenant_id,
-                TenantCommissionRule.vehicle_category == vehicle.category_code,
-                TenantCommissionRule.distance_min_km <= distance_km,
-                TenantCommissionRule.effective_from <= now,
-                or_(
-                    TenantCommissionRule.effective_to.is_(None),
-                    TenantCommissionRule.effective_to > now
-                ),
-            ).first()
-            
-            if not tenant_rule:
-                # Fallback: 45% to tenant
-                print(f"[WARNING] No tenant commission rule found, using default 45%")
-                tenant_amount = (subtotal * Decimal("0.45")).quantize(Decimal("0.01"))
-            else:
-                # Calculate tenant commission
-                if tenant_rule.commission_type == "flat":
-                    tenant_amount = Decimal(str(tenant_rule.commission_value))
-                else:  # percentage
-                    tenant_amount = (
-                        subtotal * Decimal(str(tenant_rule.commission_value)) / Decimal("100")
-                    )
-                    if tenant_rule.commission_cap:
-                        tenant_amount = min(
-                            tenant_amount,
-                            Decimal(str(tenant_rule.commission_cap))
-                        )
-            
-            # Platform fee = everything left from subtotal
-            platform_fee = subtotal - owner_amount - tenant_amount
-            
-            # INVARIANT CHECK
-            if abs((owner_amount + tenant_amount + platform_fee) - subtotal) > Decimal("0.01"):
-                raise ValueError(
-                    f"INVARIANT VIOLATION: owner({owner_amount}) + tenant({tenant_amount}) "
-                    f"+ platform({platform_fee}) != subtotal({subtotal})"
-                )
-            
-            print(
-                f"[PHASE 2 COMPLETE] owner={owner_amount} tenant={tenant_amount} "
-                f"platform={platform_fee} tax={tax_amount} final={final_fare}"
+
+            distance_km = float(
+                trip.distance_km
+                if trip.distance_km is not None
+                else (trip_request.estimated_distance_km if trip_request else 0)
             )
+
+            # =====================================================
+            # 6️⃣ PLATFORM COMMISSION (FIRST)
+            # =====================================================
+            tenant_rule = (
+                db.query(TenantCommissionRule)
+                .filter(
+                    TenantCommissionRule.tenant_id == trip.tenant_id,
+                    TenantCommissionRule.vehicle_category == vehicle.category_code,
+                    TenantCommissionRule.min_distance_km <= distance_km,
+                    or_(
+                        TenantCommissionRule.max_distance_km.is_(None),
+                        TenantCommissionRule.max_distance_km > distance_km,
+                    ),
+                    TenantCommissionRule.effective_from <= now,
+                    or_(
+                        TenantCommissionRule.effective_to.is_(None),
+                        TenantCommissionRule.effective_to > now,
+                    ),
+                )
+                .order_by(TenantCommissionRule.min_distance_km.desc())
+                .first()
+            )
+
+            if not tenant_rule:
+                raise ValueError("Tenant commission rule missing")
+
+            # Log tenant rule
+            logger.info(f"[PaymentConfirm] Tenant Rule: type={tenant_rule.tenant_fee_type}, value={tenant_rule.tenant_fee_value}")
+
+            if tenant_rule.tenant_fee_type == "percentage":
+                platform_gross = (
+                    final_fare
+                    * Decimal(str(tenant_rule.tenant_fee_value))
+                    / Decimal("100")
+                )
+            else:
+                platform_gross = Decimal(str(tenant_rule.tenant_fee_value))
+
+            platform_gross = platform_gross.quantize(Decimal("0.01"))
             
-            # =========================================================
-            # 3️⃣ PHASE 3: CREATE/UPDATE PAYMENT RECORD
-            # =========================================================
+            # Validate platform commission doesn't exceed final fare (max 80%)
+            max_platform = final_fare * Decimal("0.80")
+            if platform_gross > max_platform:
+                logger.warning(
+                    f"[PaymentConfirm] Platform commission {platform_gross} exceeds 80% cap of {max_platform}. "
+                    f"Capping to {max_platform}"
+                )
+                platform_gross = max_platform
+
+            # =====================================================
+            # 7️⃣ TAX (ONLY ON PLATFORM)
+            # =====================================================
+            platform_tax = tax_amount
+            platform_net = platform_gross - platform_tax
+
+            # =====================================================
+            # 8️⃣ DISTRIBUTABLE POOL
+            # =====================================================
+            distributable_amount = final_fare - platform_gross
+            if distributable_amount < 0:
+                raise ValueError("Platform commission exceeds fare")
             
+            logger.info(
+                f"[PaymentConfirm] Amounts: final_fare={final_fare}, platform_gross={platform_gross}, "
+                f"distributable_amount={distributable_amount}"
+            )
+
+            # =====================================================
+            # 9️⃣ OWNER SHARE
+            # =====================================================
+            owner_rule = (
+                db.query(OwnerCommissionRule)
+                .filter(
+                    OwnerCommissionRule.tenant_id == trip.tenant_id,
+                    OwnerCommissionRule.vehicle_category == vehicle.category_code,
+                    OwnerCommissionRule.owner_type == owner_type,
+                    OwnerCommissionRule.min_distance_km <= distance_km,
+                    or_(
+                        OwnerCommissionRule.max_distance_km.is_(None),
+                        OwnerCommissionRule.max_distance_km > distance_km,
+                    ),
+                    OwnerCommissionRule.effective_from <= now,
+                    or_(
+                        OwnerCommissionRule.effective_to.is_(None),
+                        OwnerCommissionRule.effective_to > now,
+                    ),
+                )
+                .order_by(OwnerCommissionRule.min_distance_km.desc())
+                .first()
+            )
+
+            if not owner_rule:
+                raise ValueError("Owner commission rule missing")
+
+            # Log owner rule
+            logger.info(
+                f"[PaymentConfirm] Owner Rule: type={owner_rule.owner_fee_type}, "
+                f"value={owner_rule.owner_fee_value}, cap={owner_rule.owner_fee_cap}"
+            )
+
+            if owner_rule.owner_fee_type == "percentage":
+                owner_amount = (
+                    distributable_amount
+                    * Decimal(str(owner_rule.owner_fee_value))
+                    / Decimal("100")
+                )
+            else:
+                owner_amount = Decimal(str(owner_rule.owner_fee_value))
+                # For flat-rate: cap at 80% of distributable (safety check for oversized flat fees)
+                max_flat = distributable_amount * Decimal("0.80")
+                if owner_amount > max_flat:
+                    logger.warning(
+                        f"[PaymentConfirm] Flat owner fee {owner_amount} exceeds 80% cap of {max_flat}. "
+                        f"Capping to {max_flat}. Fix: Delete invalid flat-rate rules (IDs: 12,10,7,5,3,1)"
+                    )
+                    owner_amount = max_flat
+
+            # Validate percentage is not > 100%
+            if owner_rule.owner_fee_type == "percentage" and owner_rule.owner_fee_value > 100:
+                logger.warning(
+                    f"[PaymentConfirm] Owner fee percentage {owner_rule.owner_fee_value}% exceeds 100%. "
+                    f"Capping to 100%"
+                )
+                owner_amount = distributable_amount
+            
+            # Cap to not exceed distributable amount
+            owner_amount = min(owner_amount, distributable_amount)
+
+            if owner_rule.owner_fee_cap:
+                owner_amount = min(
+                    owner_amount,
+                    Decimal(str(owner_rule.owner_fee_cap))
+                )
+
+            owner_amount = owner_amount.quantize(Decimal("0.01"))
+            
+            logger.info(f"[PaymentConfirm] Owner amount calculated: {owner_amount}")
+
+            # =====================================================
+            # 🔟 TENANT SHARE (REMAINDER)
+            # =====================================================
+            tenant_amount = distributable_amount - owner_amount
+            if tenant_amount < 0:
+                raise ValueError("Owner share exceeds distributable amount")
+
+            tenant_amount = tenant_amount.quantize(Decimal("0.01"))
+            
+            logger.info(
+                f"[PaymentConfirm] Final amounts: owner={owner_amount}, tenant={tenant_amount}, "
+                f"platform={platform_gross}, sum={owner_amount + tenant_amount + platform_gross}"
+            )
+
+            # =====================================================
+            # 11️⃣ UPDATE PAYMENT
+            # =====================================================
             payment.payment_status = "successful"
             payment.payment_method = payment_method
             payment.paid_at_utc = now
             payment.confirmed_by_user_id = confirmed_by_user_id
-            payment.currency_code = settlement_currency
-            payment.amount = float(final_fare)
-            
+            payment.amount = final_fare
+
             db.add(payment)
             db.flush()
-            
-            print(f"[PHASE 3 COMPLETE] payment_status=successful")
-            
-            # =========================================================
-            # 4️⃣ PHASE 4: CREATE LEDGER ENTRIES (IMMUTABLE)
-            # =========================================================
-            
-            ledger_entries = []
-            
-            # Owner earning
-            ledger_entries.append(FinancialLedger(
-                tenant_id=trip.tenant_id,
-                trip_id=trip.trip_id,
-                entity_type="owner",
-                entity_id=owner_id,
-                transaction_type="owner_earning",
-                amount=float(owner_amount),
-                currency_code=settlement_currency,
-                created_at_utc=now,
-            ))
-            
-            # Tenant share
-            ledger_entries.append(FinancialLedger(
-                tenant_id=trip.tenant_id,
-                trip_id=trip.trip_id,
-                entity_type="tenant",
-                entity_id=trip.tenant_id,
-                transaction_type="tenant_share",
-                amount=float(tenant_amount),
-                currency_code=settlement_currency,
-                created_at_utc=now,
-            ))
-            
-            # Platform fee
-            ledger_entries.append(FinancialLedger(
-                tenant_id=trip.tenant_id,
-                trip_id=trip.trip_id,
-                entity_type="platform",
-                entity_id=None,
-                transaction_type="platform_fee",
-                amount=float(platform_fee),
-                currency_code=settlement_currency,
-                created_at_utc=now,
-            ))
-            
-            # Tax (as liability)
-            ledger_entries.append(FinancialLedger(
-                tenant_id=trip.tenant_id,
-                trip_id=trip.trip_id,
-                entity_type="tax",
-                entity_id=None,
-                transaction_type="tax",
-                amount=float(tax_amount),
-                currency_code=settlement_currency,
-                created_at_utc=now,
-            ))
-            
-            db.add_all(ledger_entries)
-            db.flush()
-            
-            print(f"[PHASE 4 COMPLETE] {len(ledger_entries)} ledger entries created")
-            
-            # =========================================================
-            # 5️⃣ PHASE 5: WALLET UPDATES
-            # =========================================================
-            
-            # Get or create owner wallet
-            owner_wallet = db.query(OwnerWallet).filter(
-                OwnerWallet.owner_id == owner_id,
-                OwnerWallet.owner_type == owner_type,
-                OwnerWallet.tenant_id == trip.tenant_id,
-                OwnerWallet.currency_code == settlement_currency,
-            ).with_for_update().first()
-            
-            if not owner_wallet:
-                owner_wallet = OwnerWallet(
-                    owner_id=owner_id,
-                    owner_type=owner_type,
+
+            # =====================================================
+            # 12️⃣ LEDGER (ALL POSITIVE)
+            # =====================================================
+            ledgers = [
+                FinancialLedger(
+                    payment_id=payment.payment_id,
+                    trip_id=trip.trip_id,
                     tenant_id=trip.tenant_id,
-                    currency_code=settlement_currency,
-                    balance=Decimal("0"),
-                )
-                db.add(owner_wallet)
-                db.flush()
-            
-            old_owner_balance = Decimal(str(owner_wallet.balance))
-            
-            # Apply payment method logic
-            if payment_method == "online":
-                # Platform collected money → platform owes owner
-                owner_wallet.balance = (
-                    Decimal(str(owner_wallet.balance)) + owner_amount
-                )
-            elif payment_method == "offline":
-                # Owner collected entire fare → owner owes platform & tenant
-                # Negative balance = owner owes platform
-                owner_wallet.balance = (
-                    Decimal(str(owner_wallet.balance)) - (tenant_amount + platform_fee)
+                    country_id=country_id,
+                    entity_type="platform",
+                    entity_id=None,
+                    transaction_type="platform_fee",
+                    amount=float(platform_net),
+                    currency_code=payment.currency_code,
+                    created_at_utc=now,
+                ),
+                FinancialLedger(
+                    payment_id=payment.payment_id,
+                    trip_id=trip.trip_id,
+                    tenant_id=trip.tenant_id,
+                    country_id=country_id,
+                    entity_type="platform",
+                    entity_id=None,
+                    transaction_type="tax",
+                    amount=float(platform_tax),
+                    currency_code=payment.currency_code,
+                    created_at_utc=now,
+                ),
+                FinancialLedger(
+                    payment_id=payment.payment_id,
+                    trip_id=trip.trip_id,
+                    tenant_id=trip.tenant_id,
+                    country_id=country_id,
+                    entity_type="owner",
+                    entity_id=owner_id,
+                    transaction_type="driver_earning",
+                    amount=float(owner_amount),
+                    currency_code=payment.currency_code,
+                    created_at_utc=now,
+                ),
+                FinancialLedger(
+                    payment_id=payment.payment_id,
+                    trip_id=trip.trip_id,
+                    tenant_id=trip.tenant_id,
+                    country_id=country_id,
+                    entity_type="tenant",
+                    entity_id=trip.tenant_id,
+                    transaction_type="tenant_share",
+                    amount=float(tenant_amount),
+                    currency_code=payment.currency_code,
+                    created_at_utc=now,
+                ),
+            ]
+
+            db.add_all(ledgers)
+            db.flush()
+
+            # =====================================================
+            # 13️⃣ WALLETS
+            # =====================================================
+            # Build filter based on owner_type
+            if owner_type == "driver":
+                owner_wallet = (
+                    db.query(OwnerWallet)
+                    .filter(
+                        OwnerWallet.driver_id == owner_id,
+                        OwnerWallet.owner_type == owner_type,
+                        OwnerWallet.tenant_id == trip.tenant_id,
+                        OwnerWallet.currency_code == payment.currency_code,
+                    )
+                    .with_for_update()
+                    .first()
                 )
             else:
-                raise ValueError(f"Invalid payment_method: {payment_method}")
-            
-            owner_wallet.last_updated_utc = now
-            db.add(owner_wallet)
-            db.flush()
-            
-            # Record owner wallet transaction (audit trail)
-            owner_wallet_txn = OwnerWalletTransaction(
-                fleet_owner_wallet_id=owner_wallet.owner_wallet_id,
-                trip_id=trip.trip_id,
-                transaction_type="payment_" + payment_method,
-                amount=float(
-                    owner_wallet.balance - old_owner_balance
-                ),
-                created_at_utc=now,
+                owner_wallet = (
+                    db.query(OwnerWallet)
+                    .filter(
+                        OwnerWallet.fleet_owner_id == owner_id,
+                        OwnerWallet.owner_type == owner_type,
+                        OwnerWallet.tenant_id == trip.tenant_id,
+                        OwnerWallet.currency_code == payment.currency_code,
+                    )
+                    .with_for_update()
+                    .first()
+                )
+
+            if not owner_wallet:
+                # Create wallet with correct fields based on owner_type
+                # Check constraint chk_owner_exclusive: only one of driver_id or fleet_owner_id should be non-null
+                if owner_type == "driver":
+                    owner_wallet = OwnerWallet(
+                        owner_type=owner_type,
+                        driver_id=owner_id,
+                        fleet_owner_id=None,
+                        tenant_id=trip.tenant_id,
+                        currency_code=payment.currency_code,
+                        balance=Decimal("0"),
+                    )
+                else:
+                    owner_wallet = OwnerWallet(
+                        owner_type=owner_type,
+                        fleet_owner_id=owner_id,
+                        driver_id=None,
+                        tenant_id=trip.tenant_id,
+                        currency_code=payment.currency_code,
+                        balance=Decimal("0"),
+                    )
+                
+                db.add(owner_wallet)
+                db.flush()
+
+            if payment_method == "online":
+                owner_wallet.balance += owner_amount
+            else:
+                owner_wallet.balance -= (platform_gross + tenant_amount)
+
+            tenant_wallet = (
+                db.query(TenantWallet)
+                .filter(
+                    TenantWallet.tenant_id == trip.tenant_id,
+                    TenantWallet.currency_code == payment.currency_code,
+                )
+                .with_for_update()
+                .first()
             )
-            db.add(owner_wallet_txn)
-            db.flush()
-            
-            # Get or create tenant wallet
-            tenant_wallet = db.query(TenantWallet).filter(
-                TenantWallet.tenant_id == trip.tenant_id,
-                TenantWallet.currency_code == settlement_currency,
-            ).with_for_update().first()
-            
+
             if not tenant_wallet:
                 tenant_wallet = TenantWallet(
                     tenant_id=trip.tenant_id,
-                    currency_code=settlement_currency,
+                    currency_code=payment.currency_code,
                     balance=Decimal("0"),
                 )
                 db.add(tenant_wallet)
                 db.flush()
-            
-            old_tenant_balance = Decimal(str(tenant_wallet.balance))
-            
-            # Tenant wallet logic (same for online & offline)
-            tenant_wallet.balance = (
-                Decimal(str(tenant_wallet.balance)) + tenant_amount
-            )
-            tenant_wallet.last_updated_utc = now
-            db.add(tenant_wallet)
-            db.flush()
-            
-            # Record tenant wallet transaction (audit trail)
-            tenant_wallet_txn = TenantWalletTransaction(
-                tenant_wallet_id=tenant_wallet.tenant_wallet_id,
-                trip_id=trip.trip_id,
-                transaction_type="payment_" + payment_method,
-                amount=float(
-                    tenant_wallet.balance - old_tenant_balance
-                ),
-                created_at_utc=now,
-            )
-            db.add(tenant_wallet_txn)
-            db.flush()
-            
-            print(
-                f"[PHASE 5 COMPLETE] owner_balance: {old_owner_balance} → {owner_wallet.balance}, "
-                f"tenant_balance: {old_tenant_balance} → {tenant_wallet.balance}"
-            )
-            
-            # =========================================================
-            # 6️⃣ COMMIT TRANSACTION (ALL OR NOTHING)
-            # =========================================================
-            
+
+            tenant_wallet.balance += tenant_amount
+
             db.commit()
-            
-            print(f"[PHASE 6 COMPLETE] Transaction committed")
-            
-            # =========================================================
-            # Return confirmation receipt
-            # =========================================================
-            
+
             return {
                 "payment_id": payment.payment_id,
                 "trip_id": trip.trip_id,
                 "payment_status": "successful",
                 "payment_method": payment_method,
-                "paid_at_utc": payment.paid_at_utc.isoformat() if payment.paid_at_utc else None,
-                "settlement_currency": settlement_currency,
+                "paid_at_utc": payment.paid_at_utc.isoformat(),
+                "settlement_currency": payment.currency_code,
                 "settlement_amount": float(final_fare),
                 "breakdown": {
                     "owner_amount": float(owner_amount),
                     "tenant_amount": float(tenant_amount),
-                    "platform_fee": float(platform_fee),
-                    "tax_amount": float(tax_amount),
+                    "platform_fee": float(platform_net),
+                    "tax_amount": float(platform_tax),
                     "subtotal": float(subtotal),
                     "final_fare": float(final_fare),
                 },
-                "owner_wallet": {
-                    "owner_id": owner_id,
-                    "owner_type": owner_type,
-                    "old_balance": float(old_owner_balance),
-                    "new_balance": float(owner_wallet.balance),
-                    "status": "owes_platform" if owner_wallet.balance < 0 else (
-                        "settled" if owner_wallet.balance == 0 else "platform_owes"
-                    ),
-                },
-                "tenant_wallet": {
-                    "tenant_id": trip.tenant_id,
-                    "old_balance": float(old_tenant_balance),
-                    "new_balance": float(tenant_wallet.balance),
-                },
-                "ledger_entries": len(ledger_entries),
+                "owner_wallet_balance": float(owner_wallet.balance),
+                "tenant_wallet_balance": float(tenant_wallet.balance),
+                "ledger_entries_count": 4,
+                "message": "Payment confirmed successfully",
             }
-        
+
         except Exception as e:
-            # Automatic rollback on any error
+            logger.error(f"[PaymentConfirm] {str(e)}")
+            logger.error(traceback.format_exc())
             db.rollback()
-            print(f"[PAYMENT_CONFIRM_ERROR] {str(e)}")
             raise

@@ -7,14 +7,17 @@ import {
   CheckCircle,
   Clock3,
   Users,
+  Wallet,
+  Route,
 } from "lucide-react";
 
 import { useDriver } from "../../context/DriverContext";
-import StatCard from "../../components/tenant-admin/StatCard";
+import StatCard from "../../components/common/StatCard";
 import Loader from "../../components/common/Loader";
 import TripRequestsList from "../../components/drivers/TripRequestsList";
 import DriverTripControls from "../../components/drivers/DriverTripControls";
-import DriverLocationTracker from "../../components/drivers/DriverLocationTracker";
+// import DriverLocationTracker from "../../components/drivers/DriverLocationTracker";
+import DriverPastTripsTable from "../../components/drivers/DriverPastTrips";
 
 export default function DriverDashboard() {
   const navigate = useNavigate();
@@ -26,6 +29,8 @@ export default function DriverDashboard() {
     activeShift,
     invites,
     loading,
+    pastTrips,
+    wallet,
     error,
   } = useDriver();
   // console.log(" vehicleSummary:",vehicleSummary);
@@ -106,11 +111,6 @@ export default function DriverDashboard() {
             <b>Verification:</b> {verificationBadge(driver.kyc_status)}
           </p>
 
-          {/* REAL-TIME OFFERS */}
-          {/* <div className="mt-4">
-            <DriverOffers />
-          </div> */}
-
           {/* TRIP REQUESTS LIST (DB-based) */}
           <div className="mt-4">
             <TripRequestsList />
@@ -122,9 +122,9 @@ export default function DriverDashboard() {
           </div>
 
           {/* LOCATION TRACKING */}
-          <div className="mt-4">
+          {/* <div className="mt-4">
             <DriverLocationTracker />
-          </div>
+          </div> */}
         </div>
       )}
 
@@ -180,6 +180,29 @@ export default function DriverDashboard() {
           icon={Clock}
           color="purple"
           onClick={() => navigate("/driver/shifts")}
+        />
+        {driver.driver_type == "individual" && (
+          <StatCard
+            title="Wallet Balance"
+            count={wallet?.balance ?? 0}
+            icon={Wallet}
+            color="teal"
+          />
+        )}
+        <StatCard
+          title="Total Trips"
+          count={pastTrips?.length ?? 0}
+          icon={Route}
+          color="emerald"
+        />
+      </div>
+      <div className="mt-6">
+        <h2 className="text-lg font-semibold mb-3">Past Trips</h2>
+
+        <DriverPastTripsTable
+          trips={pastTrips}
+          loading={loading}
+          driver={driver}
         />
       </div>
     </div>

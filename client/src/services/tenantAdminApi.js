@@ -17,14 +17,18 @@ export const tenantAdminAPI = {
 
   uploadDocument: (tenantId, formData) => {
     return apiClient.post(`/tenant-admin/${tenantId}/documents`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { "Content-Type": "multipart/form-data" },
     });
   },
 
   updateDocument: (tenantId, docId, formData) => {
-    return apiClient.put(`/tenant-admin/${tenantId}/documents/${docId}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return apiClient.put(
+      `/tenant-admin/${tenantId}/documents/${docId}`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
   },
 
   deleteDocument: (tenantId, docId) => {
@@ -44,20 +48,23 @@ export const tenantAdminAPI = {
     return apiClient.put(`/tenant-admin/${tenantId}/regions/${regionId}`, data);
   },
 
-  enableRegionCity : (tenantId, cityId) =>{
-  return apiClient.patch(`/tenant-admin/${tenantId}/regions/${cityId}/enable`);
+  enableRegionCity: (tenantId, cityId) => {
+    return apiClient.patch(
+      `/tenant-admin/${tenantId}/regions/${cityId}/enable`,
+    );
   },
 
-  disableRegionCity : (tenantId, cityId) =>{
-  return apiClient.patch(`/tenant-admin/${tenantId}/regions/${cityId}/disable`);
+  disableRegionCity: (tenantId, cityId) => {
+    return apiClient.patch(
+      `/tenant-admin/${tenantId}/regions/${cityId}/disable`,
+    );
   },
 
-  getAvailableCities:(tenantId, countryId)=>{
+  getAvailableCities: (tenantId, countryId) => {
     return apiClient.get(`/tenant-admin/${tenantId}/regions/available-cities`, {
-    params: { country_id: countryId },
-  })
+      params: { country_id: countryId },
+    });
   },
-
 
   getVehicles: (tenantId) => {
     return apiClient.get(`/tenant-admin/${tenantId}/vehicles`);
@@ -65,26 +72,27 @@ export const tenantAdminAPI = {
 
   getVehicleDocuments: (tenantId, vehicleId) => {
     return apiClient.get(
-      `/tenant-admin/${tenantId}/vehicles/${vehicleId}/documents`
+      `/tenant-admin/${tenantId}/vehicles/${vehicleId}/documents`,
     );
   },
 
-
   approveVehicleDocument: (tenantId, vehicleId, docId) => {
-  return apiClient.put(
-    `/tenant-admin/${tenantId}/vehicles/${vehicleId}/documents/${docId}/approve`
-  );
-},
+    return apiClient.put(
+      `/tenant-admin/${tenantId}/vehicles/${vehicleId}/documents/${docId}/approve`,
+    );
+  },
 
   rejectVehicleDocument: (tenantId, vehicleId, docId, reason) => {
     return apiClient.put(
       `/tenant-admin/${tenantId}/vehicles/${vehicleId}/documents/${docId}/reject`,
-      { reason }
+      { reason },
     );
   },
 
   approveVehicle: (tenantId, vehicleId) => {
-    return apiClient.post(`/tenant-admin/${tenantId}/vehicles/${vehicleId}/approve`);
+    return apiClient.post(
+      `/tenant-admin/${tenantId}/vehicles/${vehicleId}/approve`,
+    );
   },
 
   // Fleet Owners
@@ -98,61 +106,80 @@ export const tenantAdminAPI = {
 
   getFleetOwnerDocuments: (tenantId, fleetOwnerId) => {
     return apiClient.get(
-      `/tenant-admin/${tenantId}/fleet-owners/${fleetOwnerId}/documents`
+      `/tenant-admin/${tenantId}/fleet-owners/${fleetOwnerId}/documents`,
     );
   },
 
   approveFleetOwnerDocument: (tenantId, fleetOwnerId, docId) => {
     return apiClient.put(
-      `/tenant-admin/${tenantId}/fleet-owners/${fleetOwnerId}/documents/${docId}/approve`
+      `/tenant-admin/${tenantId}/fleet-owners/${fleetOwnerId}/documents/${docId}/approve`,
     );
   },
 
   rejectFleetOwnerDocument: (tenantId, fleetOwnerId, docId, reason) => {
     return apiClient.put(
       `/tenant-admin/${tenantId}/fleet-owners/${fleetOwnerId}/documents/${docId}/reject`,
-      { reason }
+      { reason },
     );
   },
 
   approveFleetOwner: (tenantId, fleetOwnerId) => {
     return apiClient.post(
-      `/tenant-admin/${tenantId}/fleet-owners/${fleetOwnerId}/approve`
+      `/tenant-admin/${tenantId}/fleet-owners/${fleetOwnerId}/approve`,
     );
   },
 
   // Drivers
- 
 
   getDrivers: (tenantId) => {
     return apiClient.get(`/tenant-admin/${tenantId}/drivers`);
   },
 
   getDriverDocuments: (tenantId, driverId) => {
-    return apiClient.get(`/tenant-admin/${tenantId}/drivers/${driverId}/documents`);
+    return apiClient.get(
+      `/tenant-admin/${tenantId}/drivers/${driverId}/documents`,
+    );
   },
 
   approveDriverDocument: (tenantId, driverId, docId) => {
     return apiClient.put(
-      `/tenant-admin/${tenantId}/drivers/${driverId}/documents/${docId}/approve`
+      `/tenant-admin/${tenantId}/drivers/${driverId}/documents/${docId}/approve`,
     );
   },
 
   rejectDriverDocument: (tenantId, driverId, docId, reason) => {
     return apiClient.put(
       `/tenant-admin/${tenantId}/drivers/${driverId}/documents/${docId}/reject`,
-      { reason }
+      { reason },
     );
   },
 
   approveDriver: (tenantId, driverId) => {
-    return apiClient.put(`/tenant-admin/${tenantId}/drivers/${driverId}/approve`);
+    return apiClient.put(
+      `/tenant-admin/${tenantId}/drivers/${driverId}/approve`,
+    );
   },
 
   // Profile
   getTenantProfile: (tenantId) => {
     return apiClient.get(`/tenant-admin/${tenantId}`);
   },
-};
 
-export default apiClient;
+  // ===============================
+  // FINANCES - WALLET
+  // ===============================
+
+  getWallet: async () => {
+    try {
+      const res = await apiClient.get("/tenant-admin/wallet");
+      console.log("Tenant Admin Wallet Response:", res.data);
+      return res;
+    } catch (err) {
+      throw new Error(err.response?.data?.detail || "Failed to fetch wallet");
+    }
+  },
+
+
+
+ 
+}

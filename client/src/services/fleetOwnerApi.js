@@ -70,9 +70,9 @@ export const fleetOwnerApi = {
 
   async getFleetDocuments() {
     try {
-      console.log("Fetching fleet documents..."); 
+      console.log("Fetching fleet documents...");
       const res = await apiClient.get("/fleet-owner/documents");
-      console.log(res.data)
+      console.log(res.data);
       return res.data;
     } catch (err) {
       throw new Error(
@@ -178,7 +178,9 @@ export const fleetOwnerApi = {
 
   async cancelInvite(inviteId) {
     try {
-      const res = await apiClient.put(`/fleet-owner/drivers/invites/${inviteId}/cancel`);
+      const res = await apiClient.put(
+        `/fleet-owner/drivers/invites/${inviteId}/cancel`,
+      );
       return res.data;
     } catch (err) {
       throw new Error(
@@ -200,7 +202,6 @@ export const fleetOwnerApi = {
       );
     }
   },
-  
 
   // async getFleetVehicles() {
   //   try {
@@ -214,7 +215,7 @@ export const fleetOwnerApi = {
   //     );
   //   }
   // },
-  
+
   async getFleetAssignments() {
     try {
       const res = await apiClient.get("/fleet-owner/assignments");
@@ -275,37 +276,35 @@ export const fleetOwnerApi = {
       );
     }
   },
-async getVehicleLock(vehicleId) {
-  try {
-    const res = await apiClient.get(
-      `/fleet-owner/vehicle-assignments/vehicle/${vehicleId}/lock-status`
-    );
-    return res.data;
-  } catch (err) {
-    throw new Error(
-      err.response?.data?.detail ||
-      err.response?.data?.message ||
-      "Failed to check vehicle lock"
-    );
-  }
-},
+  async getVehicleLock(vehicleId) {
+    try {
+      const res = await apiClient.get(
+        `/fleet-owner/vehicle-assignments/vehicle/${vehicleId}/lock-status`,
+      );
+      return res.data;
+    } catch (err) {
+      throw new Error(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to check vehicle lock",
+      );
+    }
+  },
 
-async getDriverLock(driverId) {
-  try {
-    const res = await apiClient.get(
-      `/fleet-owner/vehicle-assignments/driver/${driverId}/lock-status`
-    );
-    return res.data;
-  } catch (err) {
-    throw new Error(
-      err.response?.data?.detail ||
-      err.response?.data?.message ||
-      "Failed to check driver lock"
-    );
-  }
-},
-
-
+  async getDriverLock(driverId) {
+    try {
+      const res = await apiClient.get(
+        `/fleet-owner/vehicle-assignments/driver/${driverId}/lock-status`,
+      );
+      return res.data;
+    } catch (err) {
+      throw new Error(
+        err.response?.data?.detail ||
+          err.response?.data?.message ||
+          "Failed to check driver lock",
+      );
+    }
+  },
 
   /* ===============================
      DASHBOARD ENDPOINTS
@@ -313,7 +312,7 @@ async getDriverLock(driverId) {
 
   async getDashboardStats() {
     try {
-      const res = await apiClient.get("/fleet/dashboard/stats");
+      const res = await apiClient.get("/fleet-owner/dashboard/stats");
       return res.data;
     } catch (err) {
       throw new Error(
@@ -334,6 +333,19 @@ async getDriverLock(driverId) {
           err.response?.data?.detail ||
           "Failed to fetch fleet profile",
       );
+    }
+  },
+
+  /* ===============================
+     FINANCES - WALLET
+  =============================== */
+
+  async getWallet() {
+    try {
+      const res = await apiClient.get("/fleet-owner/wallet");
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.detail || "Failed to fetch wallet");
     }
   },
 };

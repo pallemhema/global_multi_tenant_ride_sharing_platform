@@ -1,15 +1,15 @@
-import { X } from 'lucide-react';
-import Button from '../common/Button';
+import { X } from "lucide-react";
+import Button from "./Button";
 
 export default function ConfirmModal({
   isOpen,
   onClose,
   title,
   description,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText = "Confirm",
+  cancelText = "Cancel",
   onConfirm,
-  variant = 'danger',
+  variant = "danger",
   loading = false,
 }) {
   if (!isOpen) return null;
@@ -32,19 +32,11 @@ export default function ConfirmModal({
         </div>
 
         <div className="flex gap-3 p-6 border-t border-slate-200 justify-end">
-          <Button
-            variant="secondary"
-            onClick={onClose}
-            disabled={loading}
-          >
+          <Button variant="secondary" onClick={onClose} disabled={loading}>
             {cancelText}
           </Button>
-          <Button
-            variant={variant}
-            onClick={onConfirm}
-            disabled={loading}
-          >
-            {loading ? 'Processing...' : confirmText}
+          <Button variant={variant} onClick={onConfirm} disabled={loading}>
+            {loading ? "Processing..." : confirmText}
           </Button>
         </div>
       </div>

@@ -23,6 +23,8 @@ from app.models.core.vehicles.vehicles import Vehicle
 from app.core.ledger.ledger_service import LedgerService
 from app.core.trips.trip_lifecycle import TripLifecycle
 from app.models.core.payments.payments import Payment
+from app.models.lookups.city import City
+from app.models.lookups.country import Country
 
 router = APIRouter(
     prefix="/driver/trips",
@@ -116,6 +118,32 @@ def complete_trip(
         trip_request = db.query(TripRequest).filter(
             TripRequest.trip_request_id == trip.trip_request_id
         ).first()
+
+    # ------------------------------------------------
+    # Resolve currency via city -> country
+    # ------------------------------------------------
+    city = db.query(City).filter(
+        City.city_id == trip.city_id
+    ).first()
+
+    if not city:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="City not found for trip"
+        )
+
+    country = db.query(Country).filter(
+        Country.country_id == city.country_id
+    ).first()
+
+    if not country or not country.default_currency:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Country or default currency not configured"
+        )
+
+    currencyCode = country.default_currency
+
     
     # ------------------------------------------------
     # 2️⃣ Persist actual distance & duration
@@ -133,6 +161,8 @@ def complete_trip(
     
     db.add(trip)
     db.flush()
+    payerUserId = trip_request.user_id
+
     
     # ------------------------------------------------
     # 3️⃣ Resolve vehicle category from database
@@ -172,6 +202,7 @@ def complete_trip(
             detail="Fare already calculated for this trip"
         )
     
+    
     trip_fare = TripFare(
         trip_id=trip_id,
         base_fare=Decimal(str(fare_breakdown["base_fare"])),
@@ -193,15 +224,9 @@ def complete_trip(
     payment_intent = Payment(
         trip_id=trip.trip_id,
         tenant_id=trip.tenant_id,
-        payer_user_id=None,
+        payer_user_id=payerUserId,
         amount=Decimal(str(fare_breakdown["total_fare"])),
-        currency_code=None,  # to be set at confirmation (gateway provides)
-        settlement_amount=None,
-        settlement_currency=None,
-        exchange_rate=None,
-        platform_fee=None,
-        tenant_amount=None,
-        owner_amount=None,
+        currency_code=currencyCode,  # to be set at confirmation (gateway provides)
         payment_status="initiated",
         payment_method=None,
         gateway_reference=None,
@@ -213,17 +238,12 @@ def complete_trip(
     db.flush()
     print(f"[PAYMENT_INTENT_CREATED] payment_id={payment_intent.payment_id} trip_id={trip.trip_id}")
 
-
     TripLifecycle.release_driver(
         db=db,
         driver_id=trip.driver_id
     )
     
-    # ------------------------------------------------
-    # 7️⃣ Create settlement ledger entries
-    # ------------------------------------------------
-    
-    
+   
     # ------------------------------------------------
     # 8️⃣ Move trip to payment_pending status
     # ------------------------------------------------

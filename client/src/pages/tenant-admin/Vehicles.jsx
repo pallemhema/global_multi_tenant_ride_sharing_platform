@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useTenant } from "../../context/TenantContext";
-import DataTable from "../../components/tenant-admin/DataTable";
-import EmptyState from "../../components/tenant-admin/EmptyState";
-import ConfirmModal from "../../components/tenant-admin/ConfirmModal";
+import DataTable from "../../components/common/DataTable";
+import EmptyState from "../../components/common/EmptyState";
+import ConfirmModal from "../../components/common/ConfirmModal";
 import Loader from "../../components/common/Loader";
 import StatusBadge from "../../components/common/StatusBadge";
 import Button from "../../components/common/Button";

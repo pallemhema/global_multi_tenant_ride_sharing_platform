@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTenant } from "../../context/TenantContext";
-import DataTable from "../../components/tenant-admin/DataTable";
-import EmptyState from "../../components/tenant-admin/EmptyState";
-import ConfirmModal from "../../components/tenant-admin/ConfirmModal";
+import DataTable from "../../components/common/DataTable";
+import EmptyState from "../../components/common/EmptyState";
+import ConfirmModal from "../../components/common/ConfirmModal";
 import Loader from "../../components/common/Loader";
 import StatusBadge from "../../components/common/StatusBadge";
 import Button from "../../components/common/Button";
@@ -40,9 +40,9 @@ export default function FleetOwners() {
     try {
       setDocLoading(true);
       setError("");
-        const fleetOwnerId = fleetOwner.fleet_owner?.fleet_owner_id ;
+      const fleetOwnerId = fleetOwner.fleet_owner?.fleet_owner_id;
       const response = await getFleetOwnerDocuments(fleetOwnerId);
-      
+
       const normalizedDocs = response.map((doc) => ({
         id: doc.document_id,
         documentType: doc.document_type,
@@ -52,7 +52,7 @@ export default function FleetOwners() {
         expiryDate: doc.expiry_date,
       }));
 
-     setSelectedFleetOwner(fleetOwner);
+      setSelectedFleetOwner(fleetOwner);
       setFleetOwnerDocuments(normalizedDocs);
       setShowDocumentsModal(true);
     } catch (err) {
@@ -67,7 +67,7 @@ export default function FleetOwners() {
     try {
       setApproving(true);
       setError("");
-      const fleetOwnerId = selectedFleetOwner.fleet_owner?.fleet_owner_id ;
+      const fleetOwnerId = selectedFleetOwner.fleet_owner?.fleet_owner_id;
 
       await approveFleetOwner(fleetOwnerId);
       setShowApproveModal(false);
@@ -84,7 +84,7 @@ export default function FleetOwners() {
     try {
       setDocLoading(true);
       setError("");
-       const fleetOwnerId = selectedFleetOwner.fleet_owner?.fleet_owner_id ;
+      const fleetOwnerId = selectedFleetOwner.fleet_owner?.fleet_owner_id;
 
       await approveFleetOwnerDocument(fleetOwnerId, docId);
       setFleetOwnerDocuments((prev) =>
@@ -94,7 +94,6 @@ export default function FleetOwners() {
             : doc,
         ),
       );
-    
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to approve document");
     } finally {
@@ -109,10 +108,10 @@ export default function FleetOwners() {
     try {
       setDocLoading(true);
       setError("");
-             const fleetOwnerId = selectedFleetOwner.fleet_owner?.fleet_owner_id ;
+      const fleetOwnerId = selectedFleetOwner.fleet_owner?.fleet_owner_id;
 
       await rejectFleetOwnerDocument(fleetOwnerId, docId, reason);
-     setFleetOwnerDocuments((prev) =>
+      setFleetOwnerDocuments((prev) =>
         prev.map((doc) =>
           doc.id === docId
             ? { ...doc, status: "rejected" } // UI update
@@ -139,22 +138,21 @@ export default function FleetOwners() {
     {
       key: "fleet_name",
       label: "FleetName",
-            sortable: true,
+      sortable: true,
 
       render: (_, row) => row.fleet_owner?.business_name || "—",
-
     },
     {
       key: "phone",
       label: "Phone",
-            sortable: false,
+      sortable: false,
 
       render: (_, row) => row.user?.phone_e164 || "—",
     },
     {
       key: "email",
       label: "Contact Email",
-            sortable: false,
+      sortable: false,
 
       render: (_, row) => row.fleet_owner?.contact_email || "—",
     },
@@ -162,15 +160,15 @@ export default function FleetOwners() {
       key: "status",
       label: "Status",
       sortable: true,
-render: (_, row) => (
+      render: (_, row) => (
         <StatusBadge status={row.fleet_owner.approval_status} type="approval" />
-      ),      
+      ),
     },
     {
       key: "id",
       label: "Actions",
       sortable: false,
-       render: (_, row) => (
+      render: (_, row) => (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -215,7 +213,6 @@ render: (_, row) => (
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <DataTable columns={columns} data={fleetOwners} />
-          
         </div>
       )}
 
@@ -225,7 +222,7 @@ render: (_, row) => (
           <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
             <div className="p-6 border-b border-slate-200 sticky top-0 bg-white">
               <h2 className="text-xl font-bold text-slate-900">
-                Fleet  Documents - {selectedFleetOwner?.fleet_name}
+                Fleet Documents - {selectedFleetOwner?.fleet_name}
               </h2>
             </div>
 

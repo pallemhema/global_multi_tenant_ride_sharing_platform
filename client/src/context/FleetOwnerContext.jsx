@@ -25,12 +25,30 @@ export const FleetOwnerProvider = ({ children }) => {
 
   const [fleetDrivers, setFleetDrivers] = useState([]);
 
+  const [wallet, setWallet] = useState(null);
+
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // 🔒 Prevent multiple initial loads
   const hasLoadedRef = useRef(false);
+
+   useEffect(() => {
+  // 🔥 HARD RESET on auth change
+  setFleetOwner(null);
+  setDocuments([]);
+  setInvites([]);
+  setAssignedDrivers([]);
+   setEligibleDrivers([])
+
+  setFleetDrivers([]);
+  setWallet(null)
+
+  setLoading(true);
+  setError(null)
+ 
+}, [isAuthenticated]);
 
   /* ================= INITIAL LOAD ================= */
 const loadInitialFleetData = async () => {
@@ -86,6 +104,12 @@ const loadInitialFleetData = async () => {
       setDashboardStats(stats || null);
     } catch {
       setDashboardStats(null);
+    }
+      try {
+      const wlt = await fleetOwnerApi.getWallet();
+      setWallet(wlt || null);
+    } catch {
+      setWallet(null);
     }
 
   } finally {
@@ -223,6 +247,7 @@ const loadInitialFleetData = async () => {
       dashboardStats,
       loading,
       error,
+      wallet,
 
       registerFleetOwner,
       selectTenant,
@@ -245,6 +270,7 @@ const loadInitialFleetData = async () => {
       dashboardStats,
       loading,
       error,
+      wallet,
     ]
   );
 

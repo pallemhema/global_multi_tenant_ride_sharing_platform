@@ -38,10 +38,13 @@ import TenantRegions from "../pages/tenant-admin/Regions";
 import TenantVehicles from "../pages/tenant-admin/Vehicles";
 import TenantFleetOwners from "../pages/tenant-admin/FleetOwners";
 import TenantDrivers from "../pages/tenant-admin/Drivers";
+// import PayoutDashboard from "../components/tenant-admin/PayoutDashboard";
 
 /* ===== Driver ===== */
 import DriverLayout from "../layouts/DriverLayout";
-import DriverDashboard from "../pages/drivers/Dashboard";
+import DriverPageDashboard from "../pages/drivers/Dashboard";
+// import DriverDashboard from "../components/drivers/DriverDashboard";
+import DriverDashboard from "../pages/drivers/Dashboard"
 import DriverDocuments from "../pages/drivers/Documents";
 import DriverProfile from "../pages/drivers/Profile";
 import DriverShifts from "../pages/drivers/Shifts";
@@ -58,6 +61,7 @@ import VehicleForm from "../pages/vehicles/VehicleForm";
 import FleetLayout from "../layouts/FleetLayout";
 import FleetDashboard from "../pages/fleets/FleetDashboard";
 import FleetDocuments from "../pages/fleets/FleetDocuments";
+// import FleetOwnerDashboard from "../components/fleet-owner/FleetOwnerDashboard";
 import FleetInvites from "../pages/fleets/FleetInvites";
 import FleetRegistration from "../pages/fleets/FleetRegistration";
 import VehicleAssignments from "../pages/fleets/VehicleAssignments";
@@ -125,6 +129,7 @@ const router = createBrowserRouter([
       { path: "vehicles", element: <TenantVehicles /> },
       { path: "fleet-owners", element: <TenantFleetOwners /> },
       { path: "drivers", element: <TenantDrivers /> },
+      // { path: "payouts", element: <PayoutDashboard /> },
       { path: "profile", element: <TenantProfile /> },
     ],
   },
@@ -153,13 +158,13 @@ const router = createBrowserRouter([
         ],
       },
       {
-      path: "fleet-invites",
-      element: <DriverInvitesFromFleets />,  
-    },
-    {
-      path: "assigned-vehicles",
-      element: <AssignedVehicles />,
-    },
+        path: "fleet-invites",
+        element: <DriverInvitesFromFleets />,
+      },
+      {
+        path: "assigned-vehicles",
+        element: <AssignedVehicles />,
+      },
     ],
   },
 
@@ -173,6 +178,7 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: "dashboard", element: <FleetDashboard /> },
+      // { path: "finances", element: <FleetOwnerDashboard /> },
       { path: "documents", element: <FleetDocuments /> },
       { path: "invites", element: <FleetInvites /> },
       { path: "vehicle-assignments", element: <VehicleAssignments /> },

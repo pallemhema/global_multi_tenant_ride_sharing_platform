@@ -105,7 +105,7 @@ def get_vehicle_documents_type(db: Session = Depends(get_db)):
 )
 def get_fleet_owner_document_types(db: Session = Depends(get_db)):
     return (
-        db.query(FleetDocumentType)
+        db.query(TenantFleetDocumentType)
         .all()
     )
 

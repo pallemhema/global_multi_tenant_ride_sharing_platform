@@ -28,6 +28,9 @@ export const DriverProvider = ({ children }) => {
   const [invites, setInvites] = useState([]);
   const [assignedVehicle, setAssignedVehicle] = useState();
 
+  const [wallet, setWallet] = useState(null);
+
+  const [pastTrips, setPastTrips] = useState([]);
   /* ================= RESET ON DRIVER CHANGE ================= */
 
  useEffect(() => {
@@ -43,6 +46,8 @@ export const DriverProvider = ({ children }) => {
   setAssignedVehicle(null);
   setError(null);
   setLoading(true);
+  setWallet(null)
+  setPastTrips([])
 }, [isAuthenticated]);
 
   /* ================= HELPERS ================= */
@@ -110,6 +115,7 @@ const loadAssignedVehicle = async () => {
 };
 
 
+
   /* ================= INITIAL DRIVER LOAD ================= */
 
   const loadDriverData = async () => {
@@ -123,17 +129,22 @@ const loadAssignedVehicle = async () => {
 
       if (!nextDriver?.driver_id) return;
 
-      const [docs, shift, runtime, vehicle] = await Promise.all([
+      const [docs, shift, runtime, vehicle, walt, trips] = await Promise.all([
         driverApi.getDriverDocuments(),
         driverApi.getShiftStatus(),
         driverApi.getRuntimeStatus(),
         driverApi.getVehicleSummary(),
+        driverApi.getWallet(),
+        driverApi.getPastTrips()
       ]);
 
       setDocuments(docs || []);
       setActiveShift(shift || null);
       setRuntimeStatus(runtime || null);
       setVehicleSummary(vehicle || null);
+      setWallet(walt || null);
+      setPastTrips(trips || []);
+
     } catch (err) {
       console.error(err);
       setError("Failed to load driver data");
@@ -325,8 +336,13 @@ const can_start_shift = useMemo(() => {
     return res;
   };
 
+  const paymentconfirmation = async (tripId, paymentMethod) => {
+    const res = await driverApi.confirmPayment(tripId, paymentMethod);
+    return res;
+  };
 
-  console.log(invites)
+
+  console.log("past trips:",pastTrips)
   /* ================= CONTEXT VALUE ================= */
 
   const value = useMemo(
@@ -347,6 +363,8 @@ const can_start_shift = useMemo(() => {
 
       tripRequests,
       tripRequestsLoading,
+      wallet,
+      pastTrips,
 
       startShift,
       endShift,
@@ -359,6 +377,7 @@ const can_start_shift = useMemo(() => {
       cancelTrip,
       acceptInvite,
       rejectInvite,
+      paymentconfirmation
     }),
     [
       driver,
@@ -374,6 +393,9 @@ const can_start_shift = useMemo(() => {
       tripRequestsLoading,
       invites,
       assignedVehicle,
+      wallet,
+      pastTrips,
+      can_start_shift,
     ]
   );
 

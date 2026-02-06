@@ -47,8 +47,23 @@ export const TenantProvider = ({ children }) => {
   // Drivers
   const [drivers, setDrivers] = useState([]);
 
+  const [wallet,setWallet] = useState(null);
+
   // Get tenant ID from user context
   const tenantId = user?.tenant_id;
+
+  useEffect(() => {
+    setTenant(null);
+    setDashboardStats(null);
+    setDocuments([]);
+    setDocumentTypes([]);
+    setRegions([]);
+    setAvailableCities([]);
+    setVehicles([]);
+    setFleetOwners([]);
+    setDrivers([]);
+    setWallet(null);
+  }, [user]);
 
   // ========================================
   // LOAD TENANT DATA
@@ -417,6 +432,19 @@ export const TenantProvider = ({ children }) => {
     [tenantId, loadDrivers],
   );
 
+  const loadWallet = useCallback(async () => {
+    if (!tenantId) return;
+    try {
+      const res = await tenantAdminAPI.getWallet();
+      console.log("Wallet data fetched:", res);
+      setWallet(res.data);
+    } catch (err) {
+      console.error("Failed to load wallet:", err);
+    }
+  }, [tenantId]);
+
+  console.log("wallet in context:", wallet);
+
   // ========================================
   // INITIAL LOAD
   // ========================================
@@ -430,6 +458,7 @@ export const TenantProvider = ({ children }) => {
       loadVehicles();
       loadFleetOwners();
       loadDrivers();
+      loadWallet();
     }
   }, [
     tenantId,
@@ -441,6 +470,7 @@ export const TenantProvider = ({ children }) => {
     loadVehicles,
     loadFleetOwners,
     loadDrivers,
+    loadWallet,
   ]);
 
   // ========================================
@@ -469,6 +499,7 @@ export const TenantProvider = ({ children }) => {
       // Regions
       regions,
       availableCities,
+      wallet,
       loadRegions,
       loadAvailableCities,
       addRegion,
@@ -515,6 +546,7 @@ export const TenantProvider = ({ children }) => {
       deleteDocument,
       regions,
       availableCities,
+      wallet,
       loadRegions,
       loadAvailableCities,
       addRegion,
