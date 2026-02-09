@@ -68,7 +68,8 @@ const loadInitialFleetData = async () => {
     // 2️⃣ Documents (ALWAYS allowed)
     try {
       const docs = await fleetOwnerApi.getFleetDocuments();
-      setDocuments(docs || []);
+      console.log("docuemnts:",docs);
+      setDocuments(docs);
     } catch {
       setDocuments([]);
     }
@@ -78,7 +79,7 @@ const loadInitialFleetData = async () => {
       const drivers = await fleetOwnerApi.getAvaialibleDrivers();
       setEligibleDrivers(drivers || []);
     } catch {
-      setDocuments([]);
+      setEligibleDrivers([]);
     }
 
 
@@ -135,6 +136,7 @@ const loadInitialFleetData = async () => {
       setEligibleDrivers([]);
       setAssignedDrivers([]);
       setDashboardStats(null);
+      setWallet(null)
     }
   }, [authLoading, isAuthenticated,fleetOwnerId]);
 
@@ -232,7 +234,7 @@ const loadInitialFleetData = async () => {
     );
   };
 
-  console.log("fleet data from context:", fleetOwner);
+  console.log("fleet data from documents:", documents);
   /* ================= CONTEXT VALUE ================= */
 
 

@@ -31,6 +31,10 @@ export const DriverProvider = ({ children }) => {
   const [wallet, setWallet] = useState(null);
 
   const [pastTrips, setPastTrips] = useState([]);
+
+  // const [paymentId, setPaymentId] = useState(null);
+const [pendingPayments, setPendingPayments] = useState([]);
+
   /* ================= RESET ON DRIVER CHANGE ================= */
 
  useEffect(() => {
@@ -48,6 +52,7 @@ export const DriverProvider = ({ children }) => {
   setLoading(true);
   setWallet(null)
   setPastTrips([])
+  setPendingPayments([])
 }, [isAuthenticated]);
 
   /* ================= HELPERS ================= */
@@ -113,8 +118,35 @@ const loadAssignedVehicle = async () => {
     setAssignedVehicle(null);
   }
 };
+const refreshWallet = async () => {
+  try {
+    const res = await driverApi.getWallet();
+    setWallet(res || null);
+    return res;
+  } catch (err) {
+    console.error("Failed to refresh wallet", err);
+  }
+};
+
+const refreshPastTrips = async () => {
+  try {
+    const res = await driverApi.getPastTrips();
+    setPastTrips(res || []);
+    return res;
+  } catch (err) {
+    console.error("Failed to refresh past trips", err);
+  }
+};
 
 
+  const loadPendingPayment = async () => {
+  try {
+    const res = await driverApi.getPendingPayment();
+    setPendingPayments(res || []);
+  } catch (err) {
+    console.error("Failed to load pending payment", err);
+  }
+};
 
   /* ================= INITIAL DRIVER LOAD ================= */
 
@@ -129,21 +161,21 @@ const loadAssignedVehicle = async () => {
 
       if (!nextDriver?.driver_id) return;
 
-      const [docs, shift, runtime, vehicle, walt, trips] = await Promise.all([
+      const [docs, shift, runtime, vehicle] = await Promise.all([
         driverApi.getDriverDocuments(),
         driverApi.getShiftStatus(),
         driverApi.getRuntimeStatus(),
         driverApi.getVehicleSummary(),
-        driverApi.getWallet(),
-        driverApi.getPastTrips()
+     
       ]);
 
       setDocuments(docs || []);
       setActiveShift(shift || null);
       setRuntimeStatus(runtime || null);
       setVehicleSummary(vehicle || null);
-      setWallet(walt || null);
-      setPastTrips(trips || []);
+    
+      await refreshPastTrips();
+      await refreshWallet();
 
     } catch (err) {
       console.error(err);
@@ -166,16 +198,8 @@ const loadAssignedVehicle = async () => {
     return () => clearInterval(interval);
   }, [runtimeStatus?.runtime_status]);
 
-  // Active trip → ONLY when accepted
-  useEffect(() => {
-    if (runtimeStatus?.runtime_status !== "trip_accepted") return;
 
-    const interval = setInterval(() => {
-      refreshActiveTrip();
-    }, 5000);
 
-    return () => clearInterval(interval);
-  }, [runtimeStatus?.runtime_status]);
 
   /* ================= ACTIVE TRIP SYNC ================= */
 
@@ -195,6 +219,7 @@ const loadAssignedVehicle = async () => {
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
       loadDriverData();
+      loadPendingPayment(); 
     } else if (!authLoading && !isAuthenticated) {
       setDriver(null);
       setLoading(false);
@@ -235,6 +260,8 @@ const can_start_shift = useMemo(() => {
     (vehicleSummary?.active_vehicles ?? 0) > 0
   );
 }, [driver, activeShift, assignedVehicle, vehicleSummary]);
+
+
 
 
   /* ================= SHIFT ================= */
@@ -288,6 +315,7 @@ const can_start_shift = useMemo(() => {
   const startTrip = async ({ trip_id, otp }) => {
     const res = await driverApi.startTrip(trip_id, otp);
     await refreshRuntime(); // → on_trip
+    await loadTripRequests();
     return res;
   };
 
@@ -296,14 +324,18 @@ const can_start_shift = useMemo(() => {
       distance_km,
       duration_minutes,
     });
+    await loadPendingPayment();
     await refreshRuntime(); // → available
+    await refreshWallet();
+    await refreshPastTrips();
+
     return res;
   };
 
   const cancelTrip = async ({ trip_id, reason }) => {
     const res = await driverApi.cancelTrip(trip_id, { reason });
-    await refreshRuntime(); // → available
-    return res;
+    await refreshRuntime(); 
+      await refreshPastTrips();
   };
 
 
@@ -336,10 +368,25 @@ const can_start_shift = useMemo(() => {
     return res;
   };
 
-  const paymentconfirmation = async (tripId, paymentMethod) => {
-    const res = await driverApi.confirmPayment(tripId, paymentMethod);
-    return res;
-  };
+const paymentconfirmation = async (tripId, paymentMethod) => {
+  const res = await driverApi.confirmPayment(tripId, paymentMethod);
+
+  // Refresh balances & history
+  await refreshWallet();
+  await refreshPastTrips();
+
+  // ✅ Remove ONLY this payment
+  setPendingPayments(prev =>
+    prev.filter(p => p.trip_id !== tripId)
+  );
+
+  return res;
+};
+
+console.log("pending payment:",pendingPayments)
+
+
+
 
 
   console.log("past trips:",pastTrips)
@@ -365,6 +412,7 @@ const can_start_shift = useMemo(() => {
       tripRequestsLoading,
       wallet,
       pastTrips,
+      pendingPayments,
 
       startShift,
       endShift,
@@ -396,6 +444,7 @@ const can_start_shift = useMemo(() => {
       wallet,
       pastTrips,
       can_start_shift,
+      pendingPayments,
     ]
   );
 

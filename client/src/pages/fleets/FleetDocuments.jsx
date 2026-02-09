@@ -16,8 +16,7 @@ export default function FleetDocuments() {
   } = useFleetOwner();
 
   const [docTypes, setDocTypes] = useState([]);
-  console.log("fleet data from documents:",fleetOwner)
-
+console.log(" Fleet documents:", documents)
   useEffect(() => {
     const load = async () => {
       const res = await lookupsAPI.getFleetOwnerDocumentTypes();
@@ -57,6 +56,7 @@ export default function FleetDocuments() {
 
       {!loading && fleetOwner?.fleet_owner_id && (
         <div className="grid gap-4">
+         
           {docTypes.map((dt) => {
             const uploadedDoc = documents.find(
               (d) => d.document_type === dt.document_code,

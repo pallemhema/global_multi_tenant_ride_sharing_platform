@@ -60,7 +60,6 @@ function FleetLayout() {
       path: "/fleet/vehicle-assignments",
     },
   ];
-  console.log(menuItems)
 
 
 

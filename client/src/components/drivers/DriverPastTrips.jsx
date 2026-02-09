@@ -48,13 +48,13 @@ export default function DriverPastTrips({driver, trips, loading }) {
                 {t.drop_address || "-"}
               </td>
 
-              <td className="p-3">
-                ₹{t.payment_details?.total_fare ?? 0}
-              </td>
+            <td className="p-3">
+              ₹{Number(t.payment_details?.total_fare ?? 0).toFixed(2)}
+            </td>
 
-              <td className="p-3 text-green-600">
-                ₹{t.payment_details?.driver_earning ?? 0}
-              </td>
+            <td className="p-3 text-green-600">
+              ₹{Number(t.payment_details?.driver_earning ?? 0).toFixed(2)}
+            </td>
 
               <td className="p-3 capitalize">
                 {t.payment_details?.payment_method ?? "pending"}

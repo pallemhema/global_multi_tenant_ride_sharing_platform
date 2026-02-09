@@ -14,9 +14,7 @@ export default function RiderProfile() {
   const otherRoles = availableRoles.filter((r) => r.toLowerCase() !== "rider");
 
 
-
-
-
+  console.log(user);
   const handleLogout = async () => {
     setLoggingOut(true);
     try {

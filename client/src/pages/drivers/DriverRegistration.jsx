@@ -1,32 +1,41 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader } from "lucide-react";
+import { toast } from "react-toastify";
 
 import { useDriver } from "../../context/DriverContext";
 import { lookupsAPI } from "../../services/lookups";
+import { driverApi } from "../../services/driverApi";
 import DocumentUploadField from "./DocumentUploadField";
 
 export default function DriverRegistration() {
   const navigate = useNavigate();
 
-  const { driver, documents, loading, selectTenant, submitDocuments,selectDiverType } =
-    useDriver();
+  const { documents, loading: driverLoading } = useDriver();
 
   /* ---------------- STATE ---------------- */
   const [currentStep, setCurrentStep] = useState("tenant-selection");
   const [tenants, setTenants] = useState([]);
   const [documentTypes, setDocumentTypes] = useState([]);
+  const [selectedTenant, setSelectedTenant] = useState(null);
+  const [selectedDriverType, setSelectedDriverType] = useState(null);
+  const [loading, setLoading] = useState(false);
  
   /* ---------------- LOOKUPS ---------------- */
   useEffect(() => {
     const load = async () => {
-      const [t, d] = await Promise.all([
-        lookupsAPI.getActiveTenants(),
-        lookupsAPI.getDriverDocumentTypes(),
-      ]);
+      try {
+        const [t, d] = await Promise.all([
+          lookupsAPI.getActiveTenants(),
+          lookupsAPI.getDriverDocumentTypes(),
+        ]);
 
-      setTenants(t || []);
-      setDocumentTypes(d.filter((doc) => doc.is_mandatory));
+        setTenants(t || []);
+        setDocumentTypes(d.filter((doc) => doc.is_mandatory));
+      } catch (err) {
+        toast.error("Failed to load data. Please refresh.");
+        console.error(err);
+      }
     };
 
     load();
@@ -35,17 +44,36 @@ export default function DriverRegistration() {
   /* ---------------- HANDLERS ---------------- */
 
   const handleSelectTenant = async (tenantId) => {
-    await selectTenant(tenantId);
-    setCurrentStep("driver-type");
+    try {
+      setLoading(true);
+      // Call backend API to select tenant
+      await driverApi.selectTenantForDriver(tenantId);
+      setSelectedTenant(tenantId);
+      setCurrentStep("driver-type");
+      toast.success("Tenant selected");
+    } catch (err) {
+      toast.error(err.message || "Failed to select tenant");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSelectDriverType = async (type) => {
-    const driver_type = await selectDiverType(type);
- 
-    setCurrentStep("document-upload");
-    console.log(driver_type)
+    try {
+      setLoading(true);
+      // Call backend API to update driver type
+      await driverApi.updateDriverType(type);
+      setSelectedDriverType(type);
+      setCurrentStep("document-upload");
+      toast.success("Driver type selected");
+    } catch (err) {
+      toast.error(err.message || "Failed to select driver type");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
-
 
   const handleSubmit = async () => {
     const mandatoryDocsUploaded = documentTypes.every((doc) =>
@@ -53,16 +81,21 @@ export default function DriverRegistration() {
     );
 
     if (!mandatoryDocsUploaded) {
-      alert("Please upload all mandatory documents");
+      toast.error("Please upload all mandatory documents");
       return;
     }
 
     try {
-      await submitDocuments();
-      alert("Driver registration completed! Waiting for admin approval.");
+      setLoading(true);
+      // Call backend API to submit documents and complete registration
+      await driverApi.submitDocuments();
+      toast.success("Driver registration completed! Waiting for admin approval.");
       navigate("/driver/dashboard");
     } catch (err) {
-      alert(err.message || "Failed to complete registration");
+      toast.error(err.message || "Failed to complete registration");
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -85,7 +118,7 @@ export default function DriverRegistration() {
             <h1 className="text-3xl font-bold mb-2">Register as Driver</h1>
             <p className="text-gray-600 mb-8">Step 1 of 3: Select Tenant</p>
 
-            {loading ? (
+            {tenants.length === 0 ? (
               <div className="flex justify-center py-12">
                 <Loader className="animate-spin" size={40} />
               </div>
@@ -95,7 +128,8 @@ export default function DriverRegistration() {
                   <button
                     key={t.tenant_id}
                     onClick={() => handleSelectTenant(t.tenant_id)}
-                    className="w-full p-4 border rounded-lg text-left hover:bg-green-50"
+                    disabled={loading}
+                    className="w-full p-4 border rounded-lg text-left hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <h3 className="font-bold">{t.tenant_name}</h3>
                     <p className="text-sm text-gray-600">{t.legal_name}</p>
@@ -134,7 +168,8 @@ export default function DriverRegistration() {
               {/* Individual Driver */}
               <button
                 onClick={() => handleSelectDriverType("individual")}
-                className="w-full p-6 border rounded-lg text-left hover:bg-green-50"
+                disabled={loading}
+                className="w-full p-6 border rounded-lg text-left hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <h3 className="font-bold text-lg">Individual Driver</h3>
                 <p className="text-sm text-gray-600">
@@ -145,7 +180,8 @@ export default function DriverRegistration() {
               {/* Fleet Driver */}
               <button
                 onClick={() => handleSelectDriverType("fleet_driver")}
-                className="w-full p-6 border rounded-lg text-left hover:bg-green-50"
+                disabled={loading}
+                className="w-full p-6 border rounded-lg text-left hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <h3 className="font-bold text-lg">Fleet Driver</h3>
                 <p className="text-sm text-gray-600">
@@ -190,17 +226,19 @@ export default function DriverRegistration() {
 
           <div className="mt-8 flex gap-4 pt-6 border-t">
             <button
-              onClick={() => navigate("/rider/dashboard")}
+            
               className="px-6 py-3 border rounded-lg"
+              disabled={loading}
             >
               Cancel
             </button>
 
             <button
               onClick={handleSubmit}
-              className="flex-1 px-6 py-3 bg-green-500 text-white rounded-lg"
+              disabled={loading}
+              className="flex-1 px-6 py-3 bg-green-500 text-white rounded-lg disabled:bg-gray-400"
             >
-              Complete Registration
+              {loading ? "Submitting..." : "Complete Registration"}
             </button>
           </div>
         </div>

@@ -42,8 +42,6 @@ import TenantDrivers from "../pages/tenant-admin/Drivers";
 
 /* ===== Driver ===== */
 import DriverLayout from "../layouts/DriverLayout";
-import DriverPageDashboard from "../pages/drivers/Dashboard";
-// import DriverDashboard from "../components/drivers/DriverDashboard";
 import DriverDashboard from "../pages/drivers/Dashboard"
 import DriverDocuments from "../pages/drivers/Documents";
 import DriverProfile from "../pages/drivers/Profile";
@@ -61,14 +59,13 @@ import VehicleForm from "../pages/vehicles/VehicleForm";
 import FleetLayout from "../layouts/FleetLayout";
 import FleetDashboard from "../pages/fleets/FleetDashboard";
 import FleetDocuments from "../pages/fleets/FleetDocuments";
-// import FleetOwnerDashboard from "../components/fleet-owner/FleetOwnerDashboard";
 import FleetInvites from "../pages/fleets/FleetInvites";
 import FleetRegistration from "../pages/fleets/FleetRegistration";
 import VehicleAssignments from "../pages/fleets/VehicleAssignments";
 
 /* ===== Rider ===== */
 import RiderDashboard from "../pages/rider/RiderDashboard";
-import RiderLayout from "../pages/rider/RiderLayout";
+import RiderLayout from "../layouts/RiderLayout";
 import PickupDrop from "../pages/rider/PickupDrop";
 import ChooseOption from "../pages/rider/ChooseOption";
 import Searching from "../pages/rider/Searching";
@@ -204,7 +201,6 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: "dashboard", element: <RiderDashboard /> },
-      { path: "/rider/pickup", element: <PickupDrop /> },
       { path: "pickup", element: <PickupDrop /> },
       { path: "options/:tripRequestId", element: <ChooseOption /> },
       { path: "searching/:tripRequestId", element: <Searching /> },

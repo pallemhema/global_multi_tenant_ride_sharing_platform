@@ -182,6 +182,7 @@ export const TenantProvider = ({ children }) => {
   );
 
   const addRegion = useCallback(
+    
     async (data) => {
       if (!tenantId) throw new Error("Tenant ID not found");
       const res = await tenantAdminAPI.addRegion(tenantId, data);

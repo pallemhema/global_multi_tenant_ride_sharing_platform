@@ -1,0 +1,2068 @@
+
+--- LOOKUP TABLES (FOUNDATION)
+
+create table lu_user_types(
+role_code TEXT PRIMARY KEY,  
+  description TEXT NOT NULL
+);
+
+
+INSERT INTO lu_user_roles (role_code, description) VALUES
+('rider', 'User who books trips (default rider)'),
+('app-admin', 'Platform administrator');
+
+-- 1.lu_account_status
+create table lu_account_status (
+  status_code TEXT PRIMARY KEY,   -- active, inactive, suspended
+  description TEXT NOT NULL
+
+);
+ALTER TABLE lu_account_status
+DROP COLUMN IF EXISTS created_by,
+DROP COLUMN IF EXISTS updated_by,
+DROP COLUMN IF EXISTS created_at_utc,
+DROP COLUMN IF EXISTS updated_at_utc;
+
+-- 2️.lu_approval_status
+CREATE TABLE lu_approval_status (
+  status_code TEXT PRIMARY KEY,   -- pending, approved, rejected
+  description TEXT NOT NULL
+
+);
+
+-- 3️lu_tenant_roles
+CREATE TABLE lu_tenant_roles (
+  role_code TEXT PRIMARY KEY,     -- admin, dispatcher
+  role_name TEXT NOT NULL
+
+);
+
+
+--  4.lu_document_type
+CREATE TABLE lu_document_type (
+  document_code TEXT PRIMARY KEY,   -- GST, INC_CERT, TRADE_LICENSE, PAN
+  description   TEXT NOT NULL,
+  is_mandatory  BOOLEAN DEFAULT true
+
+);
+CREATE TABLE lu_vehicle_document_type ( document_code TEXT PRIMARY KEY,   -- GST, INC_CERT, TRADE_LICENSE, PAN
+  description   TEXT NOT NULL,
+  is_mandatory  BOOLEAN DEFAULT true );
+
+-- 5.countries
+CREATE TABLE countries (
+  country_id       BIGSERIAL PRIMARY KEY,
+  country_code     CHAR(2) UNIQUE NOT NULL,   -- ISO (IN, US, AE)
+  country_name     TEXT NOT NULL,
+  phone_code       TEXT NOT NULL,              -- +91, +1
+  default_currency CHAR(3) NOT NULL,
+  timezone         TEXT NOT NULL
+);
+
+-- 6.cities
+CREATE TABLE cities (
+  city_id          BIGSERIAL PRIMARY KEY,
+  country_id       BIGINT REFERENCES countries(country_id),
+
+  city_name        TEXT NOT NULL,
+  timezone         TEXT NOT NULL,
+
+  latitude         NUMERIC(9,6),   -- optional, for geo calculations
+  longitude        NUMERIC(9,6),   -- optional
+
+  is_active        BOOLEAN DEFAULT true
+
+);
+
+--7.gender
+CREATE TABLE lu_gender(
+ gender_code TEXT PRIMARY KEY,   -- active, inactive, suspended
+  description TEXT NOT NULL
+  );
+
+--8.Driver type
+CREATE TABLE lu_driver_type (
+  driver_type_code TEXT PRIMARY KEY, --individual, fleet_driver
+  description      TEXT NOT NULL
+
+);
+
+--9.lu_vehicle_owner_type
+CREATE TABLE lu_vehicle_owner_type (
+  owner_type_code TEXT PRIMARY KEY,   -- driver, fleet_owner
+  description     TEXT NOT NULL
+);
+
+--10.lu_vehicle_category
+CREATE TABLE lu_vehicle_category (
+  category_code  TEXT PRIMARY KEY,   -- bike, auto, sedan, suv, luxury
+  description    TEXT NOT NULL
+);
+
+
+--11.vehicle status
+CREATE TABLE lu_vehicle_status (
+  status_code    TEXT PRIMARY KEY,   -- active, inactive, blocked
+  description    TEXT NOT NULL
+);
+
+--12,driver shifts
+CREATE TABLE lu_driver_shift_status (
+  status_code TEXT PRIMARY KEY,   -- online, offline
+  description TEXT NOT NULL
+);
+
+--13.drive runtime status
+CREATE TABLE lu_driver_runtime_status (
+  status_code TEXT PRIMARY KEY,   -- available, on_trip, unavailable
+  description TEXT NOT NULL
+);
+
+
+--14. trip status
+CREATE TABLE lu_trip_status (
+  status_code TEXT PRIMARY KEY,   -- requested, assigned, picked_up, completed, cancelled
+  description TEXT NOT NULL
+);
+
+
+--15.trip cancel reason
+CREATE TABLE lu_trip_cancel_reason (
+  reason_code TEXT PRIMARY KEY,   -- rider_cancel, driver_cancel, no_show, system_cancel
+  description TEXT NOT NULL
+);
+--16 dispath response
+CREATE TABLE lu_dispatch_response (
+  response_code TEXT PRIMARY KEY,   -- accepted, rejected, timeout
+  description   TEXT NOT NULL
+);
+
+
+--17. coupon tpes
+CREATE TABLE lu_coupon_type (
+  coupon_type_code TEXT PRIMARY KEY,  -- flat, percentage
+  description      TEXT NOT NULL
+);
+
+--18.payment status
+CREATE TABLE lu_payment_status (
+  status_code TEXT PRIMARY KEY,   -- initiated, successful, failed, refunded
+  description TEXT NOT NULL
+);
+
+--19.payout status
+CREATE TABLE lu_payout_status (
+  status_code TEXT PRIMARY KEY,   -- pending, processed, failed
+  description TEXT NOT NULL
+);
+
+--20. transaction type
+
+CREATE TABLE lu_transaction_type (
+  transaction_type_code TEXT PRIMARY KEY,
+  -- trip_fare, platform_fee, tenant_share, driver_earning, refund, tax
+  description TEXT NOT NULL
+);
+
+--21. support tickets
+CREATE TABLE lu_support_ticket_type (
+  ticket_type_code TEXT PRIMARY KEY,
+  -- sos, lost_item, complaint
+  description      TEXT NOT NULL
+);
+
+--22.ticket status
+CREATE TABLE lu_support_ticket_status (
+  status_code TEXT PRIMARY KEY,
+  -- open, in_progress, resolved, closed, escalated
+  description TEXT NOT NULL
+);
+
+--23.sla priority
+CREATE TABLE lu_sla_priority (
+  priority_code TEXT PRIMARY KEY,
+  -- critical, high, medium, low
+  description   TEXT NOT NULL,
+  sla_minutes   INT NOT NULL
+);
+
+--24. invite status
+CREATE TABLE lu_driver_invite_status (
+  status_code TEXT PRIMARY KEY,
+  description TEXT NOT NULL
+);
+
+
+--MAIN TABLES
+--1.users
+CREATE TABLE users (
+  user_id        BIGSERIAL PRIMARY KEY,
+
+  phone_e164     TEXT UNIQUE NOT NULL,   -- global unique identity
+  email          TEXT UNIQUE,
+
+  phone_verified BOOLEAN DEFAULT false,
+  email_verified BOOLEAN DEFAULT false,
+
+  is_active      BOOLEAN DEFAULT true,
+  last_login_utc TIMESTAMPTZ,
+
+  created_at_utc TIMESTAMPTZ DEFAULT now(),
+  updated_at_utc TIMESTAMPTZ
+);
+ALter table users add column user_role TEXT REFERENCES lu_user_roles(role_code) default 'rider';
+Alter table users drop column user_role;
+--2.user_profiles
+CREATE TABLE user_profiles (
+  profile_id      BIGSERIAL PRIMARY KEY,
+  user_id         BIGINT REFERENCES users(user_id),
+
+  full_name       TEXT NOT NULL,
+  gender          TEXT REFERENCES lu_gender(gender_code),
+  date_of_birth   DATE,
+
+  preferred_language TEXT,
+created_at_utc TIMESTAMPTZ DEFAULT now(),
+created_by     BIGINT REFERENCES users(user_id),
+updated_at_utc TIMESTAMPTZ,
+updated_by     BIGINT REFERENCES users(user_id)
+
+);
+--3. tenants
+CREATE TABLE tenants (
+  tenant_id        BIGSERIAL PRIMARY KEY,
+
+  tenant_name      TEXT NOT NULL,
+  legal_name       TEXT NOT NULL,   -- required for contracts
+  business_email   TEXT NOT NULL,
+
+  approval_status  TEXT REFERENCES lu_approval_status(status_code)
+                   DEFAULT 'pending',
+
+  status           TEXT REFERENCES lu_account_status(status_code)
+                   DEFAULT 'inactive',
+
+  onboarded_at_utc TIMESTAMPTZ,
+  approved_at_utc  TIMESTAMPTZ,
+
+created_at_utc TIMESTAMPTZ DEFAULT now(),
+created_by     BIGINT REFERENCES users(user_id),
+updated_at_utc TIMESTAMPTZ,
+updated_by     BIGINT REFERENCES users(user_id)
+
+);
+--4. tenant_countries
+CREATE TABLE tenant_countries (
+  tenant_id        BIGINT REFERENCES tenants(tenant_id),
+  country_id       BIGINT REFERENCES countries(country_id),
+
+  default_currency CHAR(3) NOT NULL,
+  timezone         TEXT NOT NULL,
+  tax_percentage   NUMERIC(5,2),
+
+  is_active        BOOLEAN DEFAULT true,
+
+
+  PRIMARY KEY (tenant_id, country_id),
+created_at_utc TIMESTAMPTZ DEFAULT now(),
+created_by     BIGINT REFERENCES users(user_id),
+updated_at_utc TIMESTAMPTZ,
+updated_by     BIGINT REFERENCES users(user_id)
+
+);
+--5. tenant CITIES
+CREATE TABLE tenant_cities (
+  tenant_id        BIGINT REFERENCES tenants(tenant_id),
+  city_id          BIGINT REFERENCES cities(city_id),
+
+  is_active        BOOLEAN DEFAULT true,
+
+  service_start_utc TIMESTAMPTZ,
+  service_end_utc   TIMESTAMPTZ,
+
+ 
+  PRIMARY KEY (tenant_id, city_id),
+created_at_utc TIMESTAMPTZ DEFAULT now(),
+created_by     BIGINT REFERENCES users(user_id),
+updated_at_utc TIMESTAMPTZ,
+updated_by     BIGINT REFERENCES users(user_id)
+
+);
+
+-- 6.tenant_documents
+CREATE TABLE tenant_documents (
+  tenant_document_id BIGSERIAL PRIMARY KEY,
+
+  tenant_id          BIGINT REFERENCES tenants(tenant_id),
+  document_type      TEXT REFERENCES lu_document_type(document_code),
+
+  document_number    TEXT,
+  document_url       TEXT NOT NULL,   -- stored in S3 / GCS
+
+  verification_status TEXT REFERENCES lu_approval_status(status_code)
+                      DEFAULT 'pending',
+
+  verified_by        BIGINT,
+  verified_at_utc   TIMESTAMPTZ,
+
+  created_at_utc TIMESTAMPTZ DEFAULT now(),
+created_by     BIGINT REFERENCES users(user_id),
+updated_at_utc TIMESTAMPTZ,
+updated_by     BIGINT REFERENCES users(user_id)
+
+);
+
+--7. tenant_staff
+CREATE TABLE tenant_staff (
+  tenant_id      BIGINT REFERENCES tenants(tenant_id),
+  user_id        BIGINT REFERENCES users(user_id),
+
+  role_code      TEXT REFERENCES lu_tenant_roles(role_code),
+  status         TEXT REFERENCES lu_account_status(status_code)
+                 DEFAULT 'active',
+
+  joined_at_utc  TIMESTAMPTZ DEFAULT now(),
+
+  PRIMARY KEY (tenant_id, user_id, role_code),
+created_at_utc TIMESTAMPTZ DEFAULT now(),
+created_by     BIGINT REFERENCES users(user_id),
+updated_at_utc TIMESTAMPTZ,
+updated_by     BIGINT REFERENCES users(user_id)
+
+);
+
+CREATE TABLE riders (
+  rider_id         BIGSERIAL PRIMARY KEY,
+
+  tenant_id        BIGINT REFERENCES tenants(tenant_id),
+  user_id          BIGINT REFERENCES users(user_id),
+
+  default_city_id  BIGINT REFERENCES cities(city_id),
+
+  rating_avg       NUMERIC(3,2) DEFAULT 5.00,
+  rating_count     INT DEFAULT 0,
+
+  is_active        BOOLEAN DEFAULT true,
+
+  created_at_utc   TIMESTAMPTZ DEFAULT now(),
+  created_by       BIGINT REFERENCES users(user_id),
+  updated_at_utc   TIMESTAMPTZ,
+  updated_by       BIGINT REFERENCES users(user_id)
+);
+
+
+CREATE TABLE drivers (
+  driver_id        BIGSERIAL PRIMARY KEY,
+
+  tenant_id        BIGINT REFERENCES tenants(tenant_id),
+  user_id          BIGINT REFERENCES users(user_id),
+
+  home_city_id     BIGINT REFERENCES cities(city_id),
+
+  driver_type      TEXT REFERENCES lu_driver_type(driver_type_code),
+
+  kyc_status       TEXT REFERENCES lu_approval_status(status_code)
+                   DEFAULT 'pending',
+
+  rating_avg       NUMERIC(3,2) DEFAULT 5.00,
+  rating_count     INT DEFAULT 0,
+
+  total_
+  
+  trips      INT DEFAULT 0,
+
+  is_active        BOOLEAN DEFAULT false,
+  approved_at_utc  TIMESTAMPTZ,
+
+  created_at_utc   TIMESTAMPTZ DEFAULT now(),
+  created_by       BIGINT REFERENCES users(user_id),
+  updated_at_utc   TIMESTAMPTZ,
+  updated_by       BIGINT REFERENCES users(user_id)
+);
+
+CREATE TABLE fleet_owners (
+  fleet_owner_id   BIGSERIAL PRIMARY KEY,
+
+  tenant_id        BIGINT REFERENCES tenants(tenant_id),
+  user_id          BIGINT REFERENCES users(user_id),
+
+  business_name    TEXT NOT NULL,
+  contact_email    TEXT,
+
+  approval_status  TEXT REFERENCES lu_approval_status(status_code)
+                   DEFAULT 'pending',
+
+  is_active        BOOLEAN DEFAULT false,
+  approved_at_utc  TIMESTAMPTZ,
+
+  created_at_utc   TIMESTAMPTZ DEFAULT now(),
+  created_by       BIGINT REFERENCES users(user_id),
+  updated_at_utc   TIMESTAMPTZ,
+  updated_by       BIGINT REFERENCES users(user_id)
+);
+
+ALTER TABLE riders
+ADD CONSTRAINT uq_rider_per_tenant_user
+UNIQUE (tenant_id, user_id);
+
+ALTER TABLE drivers
+ADD CONSTRAINT uq_driver_per_tenant_user
+UNIQUE (tenant_id, user_id);
+
+ALTER TABLE fleet_owners
+ADD CONSTRAINT uq_fleet_owner_per_tenant_user
+UNIQUE (tenant_id, user_id);
+CREATE TABLE lu_driver_document_type (
+  document_code   TEXT PRIMARY KEY,
+  description     TEXT NOT NULL,
+  is_mandatory    BOOLEAN DEFAULT true
+);
+INSERT INTO lu_driver_document_type (document_code, description, is_mandatory) VALUES
+-- 🔴 Mandatory KYC
+('DRIVING_LICENSE', 'Valid Driving License', true),
+('PROFILE_PHOTO', 'Driver Profile Photograph', true),
+('ID_PROOF', 'Government Issued ID Proof (Aadhaar / Passport)', true),
+
+-- 🟡 Region / compliance based
+('ADDRESS_PROOF', 'Residential Address Proof', false),
+('POLICE_VERIFICATION', 'Police Verification Certificate', false),
+('BACKGROUND_CHECK', 'Background Verification Report', false),
+
+-- 🟢 Platform specific
+('MEDICAL_CERT', 'Medical Fitness Certificate', false),
+('DRIVER_BADGE', 'Platform Issued Driver Badge', false);
+
+CREATE TABLE driver_documents (
+  document_id        BIGSERIAL PRIMARY KEY,
+
+  tenant_id          BIGINT REFERENCES tenants(tenant_id),
+  driver_id            BIGINT REFERENCES drivers(driver_id),
+
+  document_type      TEXT REFERENCES lu_driver_document_type(document_code),
+
+  document_number    TEXT,
+  document_url       TEXT NOT NULL,
+
+  expiry_date        DATE,
+
+  verification_status TEXT REFERENCES lu_approval_status(status_code)
+                      DEFAULT 'pending',
+
+  verified_by        BIGINT REFERENCES users(user_id),
+  verified_at_utc   TIMESTAMPTZ,
+  UNIQUE (tenant_id, driver_id, document_type),
+
+
+  created_at_utc    TIMESTAMPTZ DEFAULT now(),
+  created_by        BIGINT REFERENCES users(user_id),
+  updated_at_utc    TIMESTAMPTZ,
+  updated_by        BIGINT REFERENCES users(user_id)
+);
+
+
+CREATE TABLE vehicles (
+  vehicle_id         BIGSERIAL PRIMARY KEY,
+
+  tenant_id          BIGINT NOT NULL REFERENCES tenants(tenant_id),
+  country_id         BIGINT NOT NULL REFERENCES countries(country_id),
+
+  owner_type         TEXT NOT NULL REFERENCES lu_vehicle_owner_type(owner_type_code),
+
+  fleet_owner_id     BIGINT REFERENCES fleet_owners(fleet_owner_id),
+  driver_owner_id    BIGINT REFERENCES drivers(driver_id),
+
+  category_code      TEXT REFERENCES lu_vehicle_category(category_code),
+
+  license_plate      TEXT NOT NULL,
+  model              TEXT,
+  manufacture_year   INT,
+
+  status             TEXT REFERENCES lu_vehicle_status(status_code)
+                      DEFAULT 'active',
+
+  created_at_utc     TIMESTAMPTZ DEFAULT now(),
+  created_by         BIGINT REFERENCES users(user_id),
+  updated_at_utc     TIMESTAMPTZ,
+  updated_by         BIGINT REFERENCES users(user_id),
+
+  UNIQUE (country_id, license_plate)
+);
+ALTER TABLE vehicles
+ADD CONSTRAINT chk_vehicle_owner_consistency
+CHECK (
+  (owner_type = 'driver' AND driver_owner_id IS NOT NULL AND fleet_owner_id IS NULL)
+  OR
+  (owner_type = 'fleet_owner' AND fleet_owner_id IS NOT NULL AND driver_owner_id IS NULL)
+);
+
+CREATE TABLE vehicle_documents (
+  document_id        BIGSERIAL PRIMARY KEY,
+
+  vehicle_id         BIGINT NOT NULL REFERENCES vehicles(vehicle_id),
+  fleet_owner_id          BIGINT NOT NULL REFERENCES tenants(fleet_owner_id),
+
+  document_type      TEXT REFERENCES lu_document_type(document_code), -- RC, INSURANCE
+  document_number    TEXT,
+  document_url       TEXT NOT NULL,
+
+  expiry_date        DATE,
+
+  verification_status TEXT REFERENCES lu_approval_status(status_code)
+                      DEFAULT 'pending',
+
+  verified_by        BIGINT REFERENCES users(user_id),
+  verified_at_utc    TIMESTAMPTZ,
+
+  created_at_utc     TIMESTAMPTZ DEFAULT now(),
+  created_by         BIGINT REFERENCES users(user_id),
+  updated_at_utc     TIMESTAMPTZ,
+  updated_by         BIGINT REFERENCES users(user_id),
+
+  UNIQUE (vehicle_id, document_type)
+);
+CREATE TABLE driver_invites (
+  invite_id        BIGSERIAL PRIMARY KEY,
+  tenant_id         BIGINT NOT NULL REFERENCES tenants(tenant_id),
+  
+  fleet_owner_id    BIGINT NOT NULL REFERENCES fleet_owners(fleet_owner_id),
+  driver_id         BIGINT NOT NULL REFERENCES drivers(driver_id),
+
+
+ invite_status      TEX NOT NULL REFERENCES lu_driver_invite_status(status_code),
+
+ invited_at_utc  TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  created_at_utc     TIMESTAMPTZ DEFAULT now(),
+  created_by         BIGINT REFERENCES users(user_id),
+  updated_at_utc     TIMESTAMPTZ,
+  updated_by         BIGINT REFERENCES users(user_id)
+);
+-- drop table driver_vehicle_requests;
+
+CREATE TABLE driver_vehicle_assignments (
+  assignment_id      BIGSERIAL PRIMARY KEY,
+
+  tenant_id          BIGINT NOT NULL REFERENCES tenants(tenant_id),
+  driver_id          BIGINT NOT NULL REFERENCES drivers(driver_id),
+  vehicle_id         BIGINT NOT NULL REFERENCES vehicles(vehicle_id),
+
+  start_time_utc     TIMESTAMPTZ NOT NULL,
+  end_time_utc       TIMESTAMPTZ,
+
+  is_active          BOOLEAN DEFAULT true,
+
+  created_at_utc     TIMESTAMPTZ DEFAULT now(),
+  created_by         BIGINT REFERENCES users(user_id),
+  updated_at_utc     TIMESTAMPTZ,
+  updated_by         BIGINT REFERENCES users(user_id)
+);
+
+CREATE TABLE driver_shifts (
+  shift_id            BIGSERIAL PRIMARY KEY,
+
+  tenant_id           BIGINT NOT NULL REFERENCES tenants(tenant_id),
+  driver_id           BIGINT NOT NULL REFERENCES drivers(driver_id),
+  city_id             BIGINT REFERENCES cities(city_id),
+
+  shift_status        TEXT REFERENCES lu_driver_shift_status(status_code),
+
+  shift_start_utc     TIMESTAMPTZ NOT NULL,
+  shift_end_utc       TIMESTAMPTZ,
+
+  total_online_minutes INT,
+
+  created_at_utc      TIMESTAMPTZ DEFAULT now(),
+  created_by          BIGINT REFERENCES users(user_id),
+  updated_at_utc      TIMESTAMPTZ,
+  updated_by          BIGINT REFERENCES users(user_id)
+);
+CREATE TABLE driver_current_status (
+  tenant_id        BIGINT NOT NULL REFERENCES tenants(tenant_id),
+  driver_id        BIGINT NOT NULL REFERENCES drivers(driver_id),
+  city_id          BIGINT REFERENCES cities(city_id),
+
+  runtime_status   TEXT NOT NULL
+                   REFERENCES lu_driver_runtime_status(status_code),
+
+  last_updated_utc TIMESTAMPTZ NOT NULL,
+
+  PRIMARY KEY (tenant_id, driver_id)
+);
+
+CREATE TABLE owner_wallet (
+  fleet_owner_wallet_id BIGSERIAL PRIMARY KEY,
+
+  tenant_id             BIGINT NOT NULL REFERENCES tenants(tenant_id),
+  fleet_owner_id        BIGINT NOT NULL REFERENCES fleet_owners(fleet_owner_id),
+
+  currency_code         CHAR(3) NOT NULL,
+
+  balance               NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+  -- +ve → platform owes fleet owner
+  -- -ve → fleet owner owes platform
+
+  last_updated_utc      TIMESTAMPTZ DEFAULT now(),
+
+  UNIQUE (tenant_id, fleet_owner_id, currency_code)
+);
+
+CREATE TABLE owner_wallet_transactions (
+  transaction_id        BIGSERIAL PRIMARY KEY,
+
+  fleet_owner_wallet_id BIGINT NOT NULL REFERENCES fleet_owner_wallet(fleet_owner_wallet_id),
+  trip_id               BIGINT REFERENCES trips(trip_id),
+
+  transaction_type      TEXT REFERENCES lu_transaction_type(transaction_type_code),
+  -- fleet_owner_earning, platform_fee, adjustment
+
+  amount                NUMERIC(10,2) NOT NULL,
+
+  created_at_utc        TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE tenant_wallet (
+  tenant_wallet_id BIGSERIAL PRIMARY KEY,
+
+  tenant_id        BIGINT NOT NULL REFERENCES tenants(tenant_id),
+  currency_code    CHAR(3) NOT NULL,
+
+  balance          NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+  -- +ve → platform owes tenant
+  -- -ve → tenant owes platform (rare)
+
+  last_updated_utc TIMESTAMPTZ DEFAULT now(),
+
+  UNIQUE (tenant_id, currency_code)
+);
+
+CREATE TABLE tenant_wallet_transactions (
+  transaction_id    BIGSERIAL PRIMARY KEY,
+
+  tenant_wallet_id  BIGINT REFERENCES tenant_wallet(tenant_wallet_id),
+  trip_id           BIGINT REFERENCES trips(trip_id),
+
+  transaction_type  TEXT REFERENCES lu_transaction_type(transaction_type_code),
+  -- tenant_share, adjustment
+
+  amount            NUMERIC(10,2) NOT NULL,
+
+  created_at_utc    TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE trips (
+  trip_id           BIGSERIAL PRIMARY KEY,
+
+  tenant_id         BIGINT REFERENCES tenants(tenant_id),
+  rider_id          BIGINT REFERENCES riders(rider_id),
+  driver_id         BIGINT REFERENCES drivers(driver_id),
+  vehicle_id        BIGINT REFERENCES vehicles(vehicle_id),
+  city_id           BIGINT REFERENCES cities(city_id),
+
+  trip_status       TEXT REFERENCES lu_trip_status(status_code),
+
+  pickup_latitude   NUMERIC(9,6),
+  pickup_longitude  NUMERIC(9,6),
+  drop_latitude     NUMERIC(9,6),
+  drop_longitude    NUMERIC(9,6),
+
+  requested_at_utc  TIMESTAMPTZ NOT NULL,
+  assigned_at_utc   TIMESTAMPTZ,
+  picked_up_at_utc  TIMESTAMPTZ,
+  completed_at_utc  TIMESTAMPTZ,
+  cancelled_at_utc  TIMESTAMPTZ,
+
+  created_at_utc    TIMESTAMPTZ DEFAULT now(),
+  created_by        BIGINT REFERENCES users(user_id),
+  updated_at_utc    TIMESTAMPTZ,
+  updated_by        BIGINT REFERENCES users(user_id)
+);
+
+
+CREATE TABLE trip_status_history (
+  status_event_id BIGSERIAL PRIMARY KEY,
+
+  tenant_id       BIGINT REFERENCES tenants(tenant_id),
+  trip_id         BIGINT REFERENCES trips(trip_id),
+
+  from_status     TEXT REFERENCES lu_trip_status(status_code),
+  to_status       TEXT REFERENCES lu_trip_status(status_code),
+
+  changed_at_utc  TIMESTAMPTZ NOT NULL,
+  changed_by      BIGINT REFERENCES users(user_id),
+
+  created_at_utc  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE trip_cancellations (
+  cancellation_id BIGSERIAL PRIMARY KEY,
+
+  tenant_id       BIGINT REFERENCES tenants(tenant_id),
+  trip_id         BIGINT REFERENCES trips(trip_id),
+
+  cancelled_by_user_id BIGINT REFERENCES users(user_id),
+  cancel_reason_code   TEXT REFERENCES lu_trip_cancel_reason(reason_code),
+
+  cancelled_at_utc TIMESTAMPTZ NOT NULL,
+
+  created_at_utc   TIMESTAMPTZ DEFAULT now(),
+  created_by       BIGINT REFERENCES users(user_id)
+);
+
+CREATE TABLE trip_driver_assignment (
+  assignment_id   BIGSERIAL PRIMARY KEY,
+
+  tenant_id       BIGINT REFERENCES tenants(tenant_id),
+  trip_id         BIGINT REFERENCES trips(trip_id),
+  driver_id       BIGINT REFERENCES drivers(driver_id),
+  vehicle_id      BIGINT REFERENCES vehicles(vehicle_id),
+
+  assigned_at_utc TIMESTAMPTZ NOT NULL,
+
+  created_at_utc  TIMESTAMPTZ DEFAULT now(),
+  created_by      BIGINT REFERENCES users(user_id)
+);
+
+
+CREATE TABLE trip_dispatch_rounds (
+  round_id        BIGSERIAL PRIMARY KEY,
+
+  tenant_id       BIGINT REFERENCES tenants(tenant_id),
+  trip_id         BIGINT REFERENCES trips(trip_id),
+
+  search_radius_km NUMERIC(5,2),
+  max_eta_seconds  INT,
+
+  round_no         INT NOT NULL,
+  started_at_utc   TIMESTAMPTZ NOT NULL,
+  ended_at_utc     TIMESTAMPTZ,
+
+  created_at_utc   TIMESTAMPTZ DEFAULT now(),
+  created_by       BIGINT REFERENCES users(user_id),
+  updated_at_utc   TIMESTAMPTZ,
+  updated_by       BIGINT REFERENCES users(user_id)
+);
+
+CREATE TABLE trip_dispatch_candidates (
+  candidate_id     BIGSERIAL PRIMARY KEY,
+
+  tenant_id        BIGINT REFERENCES tenants(tenant_id),
+  trip_id          BIGINT REFERENCES trips(trip_id),
+  round_id         BIGINT REFERENCES trip_dispatch_rounds(round_id),
+
+  driver_id        BIGINT REFERENCES drivers(driver_id),
+
+  distance_km      NUMERIC(6,2),
+  eta_seconds      INT,
+
+  response_code    TEXT REFERENCES lu_dispatch_response(response_code),
+
+  request_sent_at_utc TIMESTAMPTZ NOT NULL,
+  response_at_utc     TIMESTAMPTZ,
+
+  created_at_utc   TIMESTAMPTZ DEFAULT now(),
+  created_by       BIGINT REFERENCES users(user_id),
+  updated_at_utc   TIMESTAMPTZ,
+  updated_by       BIGINT REFERENCES users(user_id)
+);
+
+CREATE TABLE tenant_base_fare (
+  base_fare_id    BIGSERIAL PRIMARY KEY,
+
+  tenant_id       BIGINT REFERENCES tenants(tenant_id),
+  city_id         BIGINT REFERENCES cities(city_id),
+  vehicle_category TEXT REFERENCES lu_vehicle_category(category_code),
+
+  base_fare       NUMERIC(8,2) NOT NULL,
+
+  effective_from  TIMESTAMPTZ NOT NULL,
+  effective_to    TIMESTAMPTZ,
+
+  created_at_utc  TIMESTAMPTZ DEFAULT now(),
+  created_by      BIGINT REFERENCES users(user_id)
+);
+
+CREATE TABLE tenant_distance_rate (
+  distance_rate_id BIGSERIAL PRIMARY KEY,
+
+  tenant_id        BIGINT REFERENCES tenants(tenant_id),
+  city_id          BIGINT REFERENCES cities(city_id),
+  vehicle_category TEXT REFERENCES lu_vehicle_category(category_code),
+
+  rate_per_km      NUMERIC(8,2) NOT NULL,
+
+  effective_from   TIMESTAMPTZ NOT NULL,
+  effective_to     TIMESTAMPTZ,
+
+  created_at_utc   TIMESTAMPTZ DEFAULT now(),
+  created_by       BIGINT REFERENCES users(user_id)
+);
+CREATE TABLE tenant_time_rate (
+  time_rate_id    BIGSERIAL PRIMARY KEY,
+
+  tenant_id       BIGINT REFERENCES tenants(tenant_id),
+  city_id         BIGINT REFERENCES cities(city_id),
+  vehicle_category TEXT REFERENCES lu_vehicle_category(category_code),
+
+  rate_per_minute NUMERIC(8,2) NOT NULL,
+
+  effective_from  TIMESTAMPTZ NOT NULL,
+  effective_to    TIMESTAMPTZ,
+
+  created_at_utc  TIMESTAMPTZ DEFAULT now(),
+  created_by      BIGINT REFERENCES users(user_id)
+);
+
+
+CREATE TABLE tenant_minimum_fare (
+  min_fare_id     BIGSERIAL PRIMARY KEY,
+
+  tenant_id       BIGINT REFERENCES tenants(tenant_id),
+  city_id         BIGINT REFERENCES cities(city_id),
+  vehicle_category TEXT REFERENCES lu_vehicle_category(category_code),
+
+  minimum_fare    NUMERIC(8,2) NOT NULL,
+
+  effective_from  TIMESTAMPTZ NOT NULL,
+  effective_to    TIMESTAMPTZ,
+
+  created_at_utc  TIMESTAMPTZ DEFAULT now(),
+  created_by      BIGINT REFERENCES users(user_id)
+);
+
+CREATE TABLE surge_pricing_events (
+  surge_id        BIGSERIAL PRIMARY KEY,
+
+  tenant_id       BIGINT REFERENCES tenants(tenant_id),
+  city_id         BIGINT REFERENCES cities(city_id),
+  vehicle_category TEXT REFERENCES lu_vehicle_category(category_code),
+
+  surge_multiplier NUMERIC(4,2) NOT NULL, -- 1.0, 1.5, 2.0
+
+  started_at_utc  TIMESTAMPTZ NOT NULL,
+  ended_at_utc    TIMESTAMPTZ,
+
+  reason          TEXT, -- high_demand, rain, peak_hours
+
+  created_at_utc  TIMESTAMPTZ DEFAULT now(),
+  created_by      BIGINT REFERENCES users(user_id)
+);
+
+CREATE TABLE tenant_tax_rules (
+  tax_rule_id     BIGSERIAL PRIMARY KEY,
+
+  tenant_id       BIGINT REFERENCES tenants(tenant_id),
+  country_id      BIGINT REFERENCES countries(country_id),
+  city_id         BIGINT REFERENCES cities(city_id),
+
+  tax_type        TEXT,          -- GST, VAT
+  tax_percentage  NUMERIC(5,2) NOT NULL,
+
+  effective_from  TIMESTAMPTZ NOT NULL,
+  effective_to    TIMESTAMPTZ,
+
+  created_at_utc  TIMESTAMPTZ DEFAULT now(),
+  created_by      BIGINT REFERENCES users(user_id)
+);
+
+CREATE TABLE tenant_coupons (
+  coupon_id        BIGSERIAL PRIMARY KEY,
+
+  tenant_id        BIGINT REFERENCES tenants(tenant_id),
+
+  coupon_code      TEXT NOT NULL,   -- SAVE50, FIRST10
+  coupon_type      TEXT REFERENCES lu_coupon_type(coupon_type_code),
+
+  discount_value   NUMERIC(8,2) NOT NULL, -- 50 or 10 (based on type)
+  max_discount     NUMERIC(8,2),          -- cap for percentage coupons
+  min_trip_fare    NUMERIC(8,2),          -- eligibility
+
+  valid_from_utc   TIMESTAMPTZ NOT NULL,
+  valid_to_utc     TIMESTAMPTZ NOT NULL,
+
+  total_usage_limit INT,    -- overall usage
+  per_user_limit    INT,    -- per rider
+
+  is_active        BOOLEAN DEFAULT true,
+
+  created_at_utc   TIMESTAMPTZ DEFAULT now(),
+  created_by       BIGINT REFERENCES users(user_id),
+  updated_at_utc   TIMESTAMPTZ,
+  updated_by       BIGINT REFERENCES users(user_id),
+
+  UNIQUE (tenant_id, coupon_code)
+);
+
+CREATE TABLE tenant_coupon_applicability (
+  coupon_id        BIGINT REFERENCES tenant_coupons(coupon_id),
+  city_id          BIGINT REFERENCES cities(city_id),
+  vehicle_category TEXT REFERENCES lu_vehicle_category(category_code),
+
+  PRIMARY KEY (coupon_id, city_id, vehicle_category)
+);
+
+CREATE TABLE coupon_redemptions (
+  redemption_id   BIGSERIAL PRIMARY KEY,
+
+  tenant_id       BIGINT REFERENCES tenants(tenant_id),
+  coupon_id       BIGINT REFERENCES tenant_coupons(coupon_id),
+
+  rider_id        BIGINT REFERENCES riders(rider_id),
+  trip_id         BIGINT REFERENCES trips(trip_id),
+
+  discount_amount NUMERIC(8,2) NOT NULL,
+
+  redeemed_at_utc TIMESTAMPTZ NOT NULL,
+
+  created_at_utc  TIMESTAMPTZ DEFAULT now(),
+  created_by      BIGINT REFERENCES users(user_id)
+);
+
+-- payments
+
+--Money collected from riders (per trip)
+
+CREATE TABLE payments (
+  payment_id        BIGSERIAL PRIMARY KEY,
+
+  tenant_id         BIGINT REFERENCES tenants(tenant_id),
+  trip_id           BIGINT REFERENCES trips(trip_id),
+  rider_id          BIGINT REFERENCES riders(rider_id),
+
+  amount            NUMERIC(10,2) NOT NULL,
+  currency_code     CHAR(3) NOT NULL, -- INR, USD, AED
+
+  payment_method    TEXT,             -- card, upi, wallet
+  gateway_reference TEXT,
+
+  payment_status    TEXT REFERENCES lu_payment_status(status_code),
+
+  paid_at_utc       TIMESTAMPTZ,
+
+  created_at_utc    TIMESTAMPTZ DEFAULT now()
+);
+
+
+--📌 Rule: Rider always pays the platform.
+
+-- refunds
+
+--Money returned to riders
+
+CREATE TABLE refunds (
+  refund_id         BIGSERIAL PRIMARY KEY,
+
+  tenant_id         BIGINT REFERENCES tenants(tenant_id),
+  payment_id        BIGINT REFERENCES payments(payment_id),
+
+  refund_amount     NUMERIC(10,2) NOT NULL,
+  currency_code     CHAR(3) NOT NULL,
+
+  reason            TEXT,
+  refund_status     TEXT REFERENCES lu_payment_status(status_code),
+
+  refunded_at_utc   TIMESTAMPTZ,
+
+  created_at_utc    TIMESTAMPTZ DEFAULT now()
+);
+
+
+--📌 Refunds can be partial or full and happen after payment.
+
+--🔹 3. INTERNAL ACCOUNTING (LEDGER)
+-️- financial_ledger
+
+--Single source of truth for money distribution
+
+CREATE TABLE financial_ledger (
+  ledger_id         BIGSERIAL PRIMARY KEY,
+
+  tenant_id         BIGINT REFERENCES tenants(tenant_id),
+  trip_id           BIGINT REFERENCES trips(trip_id),
+
+  entity_type       TEXT NOT NULL,
+  -- platform, tenant, driver, fleet_owner
+
+  entity_id         BIGINT,
+
+  transaction_type  TEXT REFERENCES lu_transaction_type(transaction_type_code),
+
+  amount            NUMERIC(10,2) NOT NULL,
+  currency_code     CHAR(3) NOT NULL,
+
+  created_at_utc    TIMESTAMPTZ DEFAULT now()
+);
+
+
+--📌 Golden rule
+
+--Never compute balances from trips. Always use the ledger.
+
+--🔹 4. PAYOUTS & SETTLEMENTS (WEEKLY)
+-️- payout_batches
+
+--Weekly settlement cycles
+
+CREATE TABLE payout_batches (
+  payout_batch_id   BIGSERIAL PRIMARY KEY,
+
+  tenant_id         BIGINT REFERENCES tenants(tenant_id),
+
+  period_start_utc  TIMESTAMPTZ NOT NULL,
+  period_end_utc    TIMESTAMPTZ NOT NULL,
+
+  payout_status     TEXT REFERENCES lu_payout_status(status_code),
+
+  created_at_utc    TIMESTAMPTZ DEFAULT now()
+);
+
+
+--📌 One batch = one settlement period.
+
+--8️⃣ payout_items
+
+--Who gets paid and how much
+
+CREATE TABLE payout_items (
+  payout_item_id    BIGSERIAL PRIMARY KEY,
+
+  payout_batch_id   BIGINT REFERENCES payout_batches(payout_batch_id),
+
+  entity_type       TEXT NOT NULL,
+  -- driver, fleet_owner, tenant
+
+  entity_id         BIGINT NOT NULL,
+
+  total_amount      NUMERIC(10,2) NOT NULL,
+  currency_code     CHAR(3) NOT NULL,
+
+  payout_status     TEXT REFERENCES lu_payout_status(status_code),
+
+  created_at_utc    TIMESTAMPTZ DEFAULT now()
+);
+--📌 Platform keeps its commission and is not a payout entity.
+
+CREATE TABLE trip_driver_ratings (
+  rating_id        BIGSERIAL PRIMARY KEY,
+
+  tenant_id        BIGINT REFERENCES tenants(tenant_id),
+  trip_id          BIGINT REFERENCES trips(trip_id),
+
+  rider_id         BIGINT REFERENCES riders(rider_id),
+  driver_id        BIGINT REFERENCES drivers(driver_id),
+
+  rating_value     INT NOT NULL CHECK (rating_value BETWEEN 1 AND 5),
+  review_comment   TEXT,
+
+  rated_at_utc     TIMESTAMPTZ NOT NULL,
+
+  created_at_utc   TIMESTAMPTZ DEFAULT now(),
+
+  UNIQUE (trip_id)
+);
+
+CREATE TABLE support_tickets (
+  ticket_id        BIGSERIAL PRIMARY KEY,
+
+  tenant_id        BIGINT REFERENCES tenants(tenant_id),
+  trip_id          BIGINT REFERENCES trips(trip_id),
+
+  ticket_type      TEXT REFERENCES lu_support_ticket_type(ticket_type_code),
+  ticket_status    TEXT REFERENCES lu_support_ticket_status(status_code),
+
+  priority         TEXT REFERENCES lu_sla_priority(priority_code),
+
+  raised_by_user_id BIGINT REFERENCES users(user_id),
+  assigned_to_user_id BIGINT REFERENCES users(user_id),
+
+  description      TEXT,
+
+  sla_due_at_utc   TIMESTAMPTZ,
+  resolved_at_utc  TIMESTAMPTZ,
+
+  created_at_utc   TIMESTAMPTZ DEFAULT now(),
+  updated_at_utc   TIMESTAMPTZ
+);
+
+CREATE TABLE sos_events (
+  sos_id           BIGSERIAL PRIMARY KEY,
+
+  ticket_id        BIGINT REFERENCES support_tickets(ticket_id),
+
+  triggered_at_utc TIMESTAMPTZ NOT NULL,
+  latitude         NUMERIC(9,6),
+  longitude        NUMERIC(9,6),
+
+  police_notified  BOOLEAN DEFAULT false,
+  emergency_contact_notified BOOLEAN DEFAULT false
+);
+
+--Mock data
+INSERT INTO lu_account_status (status_code, description) VALUES
+('active', 'Active and usable'),
+('inactive', 'Inactive but retained'),
+('suspended', 'Temporarily blocked');
+INSERT INTO lu_approval_status (status_code, description) VALUES
+('pending', 'Awaiting approval'),
+('approved', 'Approved'),
+('rejected', 'Rejected');
+INSERT INTO lu_tenant_roles (role_code, role_name) VALUES
+('admin', 'Tenant Admin'),
+('dispatcher', 'Dispatcher');
+
+
+INSERT INTO lu_gender (gender_code, description) VALUES
+('male', 'Male'),
+('female', 'Female'),
+('other', 'Other');
+
+INSERT INTO lu_gender (gender_code, description) VALUES
+('male', 'Male'),
+('female', 'Female'),
+('other', 'Other');
+INSERT INTO lu_driver_type (driver_type_code, description) VALUES
+('individual', 'Driver owns vehicle'),
+('fleet_driver', 'Driver under fleet owner');
+INSERT INTO lu_vehicle_owner_type (owner_type_code, description) VALUES
+('driver', 'Owned by driver'),
+('fleet_owner', 'Owned by fleet owner');
+INSERT INTO lu_vehicle_category (category_code, description) VALUES
+('bike', 'Two wheeler'),
+('auto', 'Auto rickshaw'),
+('sedan', 'Sedan car'),
+('suv', 'SUV car'),
+('luxury', 'Luxury vehicle'),
+('Cab Non AC','Non AC Cab'),
+('Cab AC','AC Cab');
+
+INSERT INTO lu_vehicle_status (status_code, description) VALUES
+('active', 'Vehicle is active'),
+('inactive', 'Vehicle inactive'),
+('blocked', 'Vehicle blocked');
+
+INSERT INTO lu_driver_shift_status (status_code, description) VALUES
+('online', 'Driver online'),
+('offline', 'Driver offline');
+INSERT INTO lu_driver_runtime_status (status_code, description) VALUES
+('available', 'Available for trips'),
+('on_trip', 'Currently on trip'),
+('unavailable', 'Not accepting trips');
+INSERT INTO lu_trip_status (status_code, description) VALUES
+('requested', 'Trip requested'),
+('assigned', 'Driver assigned'),
+('picked_up', 'Rider picked up'),
+('completed', 'Trip completed'),
+('cancelled', 'Trip cancelled');
+INSERT INTO lu_trip_cancel_reason (reason_code, description) VALUES
+('rider_cancel', 'Cancelled by rider'),
+('driver_cancel', 'Cancelled by driver'),
+('no_show', 'Rider did not show'),
+('system_cancel', 'Cancelled by system');
+INSERT INTO lu_dispatch_response (response_code, description) VALUES
+('accepted', 'Driver accepted'),
+('rejected', 'Driver rejected'),
+('timeout', 'No response');
+INSERT INTO lu_coupon_type (coupon_type_code, description) VALUES
+('flat', 'Flat discount'),
+('percentage', 'Percentage discount');
+INSERT INTO lu_payment_status (status_code, description) VALUES
+('initiated', 'Payment initiated'),
+('successful', 'Payment successful'),
+('failed', 'Payment failed'),
+('refunded', 'Payment refunded');
+INSERT INTO lu_payout_status (status_code, description) VALUES
+('pending', 'Pending payout'),
+('processed', 'Payout processed'),
+('failed', 'Payout failed');
+INSERT INTO lu_transaction_type (transaction_type_code, description) VALUES
+('trip_fare', 'Total trip fare'),
+('platform_fee', 'Platform commission'),
+('tenant_share', 'Tenant earnings'),
+('driver_earning', 'Driver earnings'),
+('refund', 'Refund issued'),
+('tax', 'Tax component');
+INSERT INTO lu_support_ticket_type (ticket_type_code, description) VALUES
+('sos', 'Emergency SOS'),
+('lost_item', 'Lost item'),
+('complaint', 'General complaint');
+
+INSERT INTO lu_support_ticket_status (status_code, description) VALUES
+('open', 'Ticket opened'),
+('in_progress', 'Under investigation'),
+('resolved', 'Resolved'),
+('closed', 'Closed'),
+('escalated', 'Escalated');
+INSERT INTO lu_sla_priority (priority_code, description, sla_minutes) VALUES
+('critical', 'Immediate attention', 15),
+('high', 'High priority', 60),
+('medium', 'Medium priority', 240),
+('low', 'Low priority', 1440);
+INSERT INTO countries (country_code, country_name, phone_code, default_currency, timezone) VALUES
+('IN', 'India', '+91', 'INR', 'Asia/Kolkata'),
+('US', 'United States', '+1', 'USD', 'America/New_York'),
+('AE', 'UAE', '+971', 'AED', 'Asia/Dubai');
+INSERT INTO cities (country_id, city_name, timezone, latitude, longitude) VALUES
+(1, 'Hyderabad', 'Asia/Kolkata', 17.3850, 78.4867),
+(1, 'Bangalore', 'Asia/Kolkata', 12.9716, 77.5946),
+(2, 'New York', 'America/New_York', 40.7128, -74.0060),
+(3, 'Dubai', 'Asia/Dubai', 25.2048, 55.2708);
+
+
+
+INSERT INTO lu_driver_invite_status (status_code, description) VALUES
+('sent', 'Invitation sent'),
+('accepted', 'Invitation accepted'),
+('rejected', 'Invitation rejected'),
+('expired', 'Invitation expired'),
+('cancelled', 'Invitation cancelled');
+
+
+--maintables
+INSERT INTO users (phone_e164, email) VALUES
+('+919900000001', 'alice@example.com'),   -- user_id = 1
+('+919900000002', 'bob@example.com'),     -- user_id = 2
+('+919900000003', 'charlie@example.com'), -- user_id = 3
+('+919900000004', 'diana@example.com'),   -- user_id = 4
+('+919900000005', 'eric@example.com');    -- user_id = 5
+
+INSERT INTO user_profiles (user_id, full_name, gender, date_of_birth, preferred_language) VALUES
+(1, 'Alice Rao', 'female', '1995-04-10', 'en'),
+(2, 'Bob Kumar', 'male', '1990-08-21', 'en'),
+(3, 'Charlie Singh', 'male', '1988-01-15', 'en'),
+(4, 'Diana Joseph', 'female', '1992-12-05', 'en'),
+(5, 'Eric Thomas', 'male', '1985-06-18', 'en');
+
+INSERT INTO tenants (tenant_name, legal_name, business_email, approval_status, status) VALUES
+('RideFast India', 'RideFast Technologies Pvt Ltd', 'ops@ridefast.in', 'approved', 'active'), -- tenant_id = 1
+('GoMove USA', 'GoMove Inc', 'ops@gomove.com', 'approved', 'active');                        -- tenant_id = 2
+
+INSERT INTO tenant_countries (tenant_id, country_id, default_currency, timezone, tax_percentage) VALUES
+(1, 1, 'INR', 'Asia/Kolkata', 5.00),  -- RideFast → India
+(2, 2, 'USD', 'America/New_York', 8.50); -- GoMove → USA
+INSERT INTO tenant_cities (tenant_id, city_id, is_active) VALUES
+(1, 1, true), -- RideFast → Hyderabad
+(1, 2, true), -- RideFast → Bangalore
+(2, 3, true); -- GoMove → New York
+
+
+INSERT INTO tenant_users (tenant_id, user_id, role_code) VALUES
+(1, 1, 'rider'),        -- Alice is rider
+(1, 2, 'driver'),       -- Bob is driver
+(1, 3, 'fleet_owner'),  -- Charlie is fleet owner
+(1, 4, 'admin');        -- Diana is tenant admin
+
+INSERT INTO tenant_users (tenant_id, user_id, role_code) VALUES
+(2, 5, 'rider'),        -- Eric is rider
+(2, 4, 'admin');        -- Diana is also admin here
+
+INSERT INTO riders (tenant_id, user_id, default_city_id) VALUES
+(1, 1, 1),  -- Alice → RideFast → Hyderabad
+(2, 5, 3);  -- Eric → GoMove → New York
+INSERT INTO riders (tenant_id, user_id, default_city_id) VALUES
+(1, 1, 1),  -- Alice → RideFast → Hyderabad
+(2, 5, 3);  -- Eric → GoMove → New York
+INSERT INTO fleet_owners (tenant_id, user_id, business_name, approval_status, is_active) VALUES
+(1, 3, 'Charlie Fleet Services', 'approved', true);
+INSERT INTO drivers (
+  tenant_id,
+  user_id,
+  home_city_id,
+  driver_type,
+  kyc_status,
+  is_active,
+  approved_at_utc,
+  created_by
+)
+VALUES (
+  1,                -- RideFast
+  2,                -- Bob
+  1,                -- Hyderabad
+  'individual',     -- owns vehicle
+  'approved',
+  true,
+  now(),
+  4                 -- Diana (admin)
+);
+
+INSERT INTO vehicles (
+  tenant_id,
+  country_id,
+  owner_type,
+  driver_owner_id,
+  category_code,
+  license_plate,
+  model,
+  manufacture_year,
+  created_by
+)
+SELECT
+  1,
+  1,
+  'driver',
+  d.driver_id,
+  'bike',
+  'TS09AB1234',
+  'Honda Activa',
+  2021,
+  2
+FROM drivers d
+WHERE d.tenant_id = 1
+  AND d.user_id = 2;
+
+select * from drivers;
+select * from vehicles;
+INSERT INTO driver_vehicle_assignments (
+  tenant_id,
+  driver_id,
+  vehicle_id,
+  start_time_utc,
+  is_active,
+  created_by
+)
+SELECT
+  1,
+  d.driver_id,
+  v.vehicle_id,
+  now(),
+  true,
+  4
+FROM drivers d
+JOIN vehicles v
+  ON v.driver_owner_id = d.driver_id
+WHERE d.tenant_id = 1
+  AND d.user_id = 2;
+
+  INSERT INTO driver_shifts (
+  tenant_id,
+  driver_id,
+  city_id,
+  shift_status,
+  shift_start_utc,
+  created_by
+)
+VALUES (
+  1,
+  (SELECT driver_id FROM drivers WHERE user_id = 2 AND tenant_id = 1),
+  1,
+  'online',
+  now(),
+  2
+);
+INSERT INTO riders (
+  tenant_id,
+  user_id,
+  default_city_id,
+  is_active,
+  created_by
+)
+VALUES (
+  1,
+  1,
+  1,
+  true,
+  1
+);
+
+INSERT INTO trips (
+  tenant_id,
+  rider_id,
+  city_id,
+  trip_status,
+  pickup_latitude,
+  pickup_longitude,
+  drop_latitude,
+  drop_longitude,
+  requested_at_utc,
+  created_by
+)
+VALUES (
+  1,
+  1,
+  1,
+  'requested',
+  17.3850,
+  78.4867,
+  17.4065,
+  78.4772,
+  now(),
+  1
+);
+
+INSERT INTO trip_dispatch_rounds (
+  tenant_id,
+  trip_id,
+  search_radius_km,
+  max_eta_seconds,
+  round_no,
+  started_at_utc,
+  created_by
+)
+VALUES (
+  1,
+  currval('trips_trip_id_seq'),
+  5.0,
+  600,
+  1,
+  now(),
+  4
+);
+INSERT INTO trip_dispatch_rounds (
+  tenant_id,
+  trip_id,
+  search_radius_km,
+  max_eta_seconds,
+  round_no,
+  started_at_utc,
+  created_by
+)
+VALUES (
+  1,
+  currval('trips_trip_id_seq'),
+  5.0,
+  600,
+  1,
+  now(),
+  4
+);
+
+INSERT INTO trip_dispatch_rounds (
+  tenant_id,
+  trip_id,
+  search_radius_km,
+  max_eta_seconds,
+  round_no,
+  started_at_utc,
+  created_by
+)
+VALUES (
+  1,
+  currval('trips_trip_id_seq'),
+  5.0,
+  600,
+  1,
+  now(),
+  4
+);
+INSERT INTO trip_driver_assignment (
+  tenant_id,
+  trip_id,
+  driver_id,
+  vehicle_id,
+  assigned_at_utc,
+  created_by
+)
+VALUES (
+  1,
+  currval('trips_trip_id_seq'),
+  (SELECT driver_id FROM drivers WHERE user_id = 2 AND tenant_id = 1),
+  (SELECT vehicle_id FROM vehicles WHERE license_plate = 'TS09AB1234'),
+  now(),
+  4
+);
+UPDATE driver_current_status
+SET
+  runtime_status = 'on_trip',
+  last_updated_utc = now()
+WHERE tenant_id = 1
+  AND driver_id = (SELECT driver_id FROM drivers WHERE user_id = 2);
+SELECT
+  up.full_name,
+  v.license_plate,
+  dcs.runtime_status
+FROM driver_current_status dcs
+JOIN drivers d ON dcs.driver_id = d.driver_id
+JOIN user_profiles up ON d.user_id = up.user_id
+JOIN vehicles v ON v.driver_owner_id = d.driver_id;
+SELECT
+  t.trip_id,
+  t.trip_status,
+  up.full_name AS driver,
+  v.license_plate
+FROM trips t
+JOIN drivers d ON t.driver_id = d.driver_id
+JOIN user_profiles up ON d.user_id = up.user_id
+JOIN vehicles v ON t.vehicle_id = v.vehicle_id;
+INSERT INTO drivers (
+  tenant_id,
+  user_id,
+  home_city_id,
+  driver_type,
+  kyc_status,
+  is_active,
+  approved_at_utc,
+  created_by
+)
+SELECT
+  1,
+  2,
+  1,
+  'individual',
+  'approved',
+  true,
+  now(),
+  4
+WHERE NOT EXISTS (
+  SELECT 1 FROM drivers WHERE tenant_id = 1 AND user_id = 2
+);
+UPDATE vehicles
+SET driver_owner_id = (
+  SELECT driver_id FROM drivers WHERE tenant_id = 1 AND user_id = 2
+)
+WHERE license_plate = 'TS09AB1234'
+  AND owner_type = 'driver';
+  INSERT INTO driver_current_status (
+  tenant_id,
+  driver_id,
+  city_id,
+  runtime_status,
+  last_updated_utc
+)
+SELECT
+  1,
+  driver_id,
+  1,
+  'available',
+  now()
+FROM drivers
+WHERE tenant_id = 1
+  AND user_id = 2
+ON CONFLICT (tenant_id, driver_id) DO NOTHING;
+INSERT INTO driver_current_status (
+  tenant_id,
+  driver_id,
+  city_id,
+  runtime_status,
+  last_updated_utc
+)
+SELECT
+  1,
+  driver_id,
+  1,
+  'available',
+  now()
+FROM drivers
+WHERE tenant_id = 1
+  AND user_id = 2
+ON CONFLICT (tenant_id, driver_id) DO NOTHING;
+
+UPDATE trips
+SET
+  driver_id = (SELECT driver_id FROM drivers WHERE tenant_id = 1 AND user_id = 2),
+  vehicle_id = (SELECT vehicle_id FROM vehicles WHERE license_plate = 'TS09AB1234'),
+  trip_status = 'assigned',
+  assigned_at_utc = now()
+WHERE trip_status = 'requested';
+SELECT * FROM account_status;
+SELECT * FROM approval_status;
+select * from tenant_staff;
+select * from tenant_documents;
+select * from lu_document_type;
+
+select *  from users;
+CREATE TABLE fleet_owner_documents (
+  document_id        BIGSERIAL PRIMARY KEY,
+
+  tenant_id          BIGINT NOT NULL REFERENCES tenants(tenant_id),
+  fleet_owner_id     BIGINT NOT NULL REFERENCES fleet_owners(fleet_owner_id),
+
+  document_type      TEXT REFERENCES lu_document_type(document_code),
+  document_number    TEXT,
+  document_url       TEXT NOT NULL,
+
+  expiry_date        DATE,
+
+  verification_status TEXT REFERENCES lu_approval_status(status_code)
+                      DEFAULT 'pending',
+
+  verified_by        BIGINT REFERENCES users(user_id),
+  verified_at_utc    TIMESTAMPTZ,
+
+  created_at_utc     TIMESTAMPTZ DEFAULT now(),
+  created_by         BIGINT REFERENCES users(user_id),
+  updated_at_utc     TIMESTAMPTZ,
+  updated_by         BIGINT REFERENCES users(user_id),
+
+  UNIQUE (tenant_id, fleet_owner_id, document_type)
+);
+
+INSERT INTO lu_vehicle_document_type (document_code, description, is_mandatory) VALUES
+('RC', 'Registration Certificate', true),
+('INSURANCE', 'Commercial Vehicle Insurance', true),
+('PUC', 'Pollution Under Control Certificate', true),
+('COMMERCIAL_PERMIT', 'Commercial Taxi Permit', true),
+('FITNESS', 'Vehicle Fitness Certificate', true),
+('TAXI_BADGE', 'Taxi Identification Badge', false),
+('ROAD_TAX', 'Road Tax Payment Receipt', false),
+('VEHICLE_INSPECTION', 'Platform Vehicle Inspection', false),
+('GPS_CERT', 'GPS Installation Certificate', false),
+('CNG_CERT', 'CNG/LPG Safety Certificate', false);
+
+select * from lu_user_roles;
+select * from fleet_owners;
+update fleet_owners set approval_status = 'pending', is_active= false where fleet_owner_id = 1;
+select * from fleet_owner_documents;
+select * from users;
+select * from lu_vehicle_document_types;
+delete from vehicles where vehicle_id = 1;
+select * from vehicle_documents;
+alter table vehicle_documents add column   tenant_id BIGINT NOT NULL REFERENCES tenants(tenant_id) default 1;
+ALTER TABLE vehicle_documents ALTER COLUMN tenant_id DROP DEFAULT;
+
+SELECT approval_status, is_active
+FROM fleet_owners
+WHERE user_id = 3;
+insert into users (phone_e164) values('+919876543211');
+
+select * from fleet_owner_documents;
+ALTER TABLE vehicle_documents
+DROP CONSTRAINT vehicle_documents_document_type_fkey;
+ALTER TABLE vehicle_documents
+ADD CONSTRAINT fk_vehicle_doc_type
+FOREIGN KEY (document_type)
+REFERENCES lu_vehicle_document_type(document_code);
+
+
+select * from lu_document_type;
+select \d fleet_owner_documents;
+CREATE TABLE lu_fleet_owner_document_type (
+  document_code TEXT PRIMARY KEY,
+  description   TEXT NOT NULL,
+  is_mandatory  BOOLEAN DEFAULT true
+);
+INSERT INTO lu_fleet_owner_document_type (document_code, description, is_mandatory)
+VALUES
+('PAN', 'Fleet Owner PAN', true),
+('GST', 'Fleet Owner GST Certificate', true),
+('INC_CERT', 'Incorporation Certificate', true),
+('TRADE_LICENSE', 'Trade License', false);
+
+ALTER TABLE fleet_owner_documents
+DROP CONSTRAINT fleet_owner_documents_document_type_fkey;
+
+ALTER TABLE fleet_owner_documents
+ADD CONSTRAINT fleet_owner_documents_document_type_fkey
+FOREIGN KEY (document_type)
+REFERENCES lu_fleet_owner_document_type(document_code);
+
+select * from users;
+select * from tenants;
+select * from tenant_staff;
+select * from fleet_owners;
+select * from vehicles;
+select * from lu_vehicle_category;
+select * from drivers;
+
+-- Fleet owner user
+INSERT INTO users  (phone_e164, is_active)
+VALUES ( '+919999999001', true);
+
+-- Driver users
+INSERT INTO users ( phone_e164, is_active)
+VALUES
+('+919999999002', true),
+('+919999999003', true),
+('+919999999004', true);
+
+update users set phone_verified = true;
+
+INSERT INTO drivers (
+  tenant_id,
+  user_id,
+  driver_type,
+  kyc_status,
+  is_active,
+  approved_at_utc,
+  created_at_utc
+)
+VALUES
+( 1, 7, 'fleet_driver', 'approved', true, now(), now()),
+(1, 8, 'fleet_driver', 'approved', true, now(), now()),
+(1, 9, 'fleet_driver', 'approved', true, now(), now());
+INSERT INTO vehicles (
+
+  tenant_id,
+  country_id,
+  owner_type,
+  fleet_owner_id,
+  category_code,
+  license_plate,
+  model,
+  manufacture_year,
+  status,
+  created_by,
+  created_at_utc
+)
+VALUES
+( 1, 1, 'fleet_owner', 1, 'sedan', 'AP09AA1111', 'Swift Dzire', 2021, 'active', 1, now()),
+( 1, 1, 'fleet_owner', 1, 'sedan', 'AP09AA2222', 'Etios', 2020, 'active', 1, now()),
+( 1, 1, 'fleet_owner', 1, 'suv',   'AP09AA3333', 'Ertiga', 2022, 'active', 1, now());
+
+INSERT INTO driver_invites (
+
+  tenant_id,
+  fleet_owner_id,
+  driver_id,
+  invite_status,
+  invited_at_utc,
+  created_by,
+  created_at_utc
+)
+VALUES
+( 1, 1, 4, 'sent', now(), 1, now()),
+( 1, 1, 2, 'sent', now(), 1, now()),
+(1, 1, 3, 'sent', now(), 1, now());
+
+update driver_invites set invite_status='accepted';
+
+select * from users;
+select * from driver_shifts;
+select * from cities;
+
+CREATE TABLE fleet_owner_cities (
+  fleet_owner_city_id BIGSERIAL PRIMARY KEY,
+  tenant_id           BIGINT NOT NULL REFERENCES tenants(tenant_id),
+  fleet_owner_id      BIGINT NOT NULL REFERENCES fleet_owners(fleet_owner_id),
+  city_id             BIGINT NOT NULL REFERENCES cities(city_id),
+
+  is_active           BOOLEAN DEFAULT true,
+
+  created_at_utc      TIMESTAMPTZ DEFAULT now(),
+  created_by          BIGINT REFERENCES users(user_id),
+    updated_at_utc   TIMESTAMPTZ,
+  updated_by       BIGINT REFERENCES users(user_id),
+
+  UNIQUE (fleet_owner_id, city_id)
+);
+
+drop table fleet_owner_cities;
+select * from users;
+
+select * from lu_trip_status;
+alter table tenant_countries drop column tax_percentage;
+insert into tenant_countries(tenant_id, country_id) values(1,1);
+delete from tenant_countries where country_id=1;
+
+INSERT INTO driver_vehicle_assignments (
+  tenant_id,
+  driver_id,
+  vehicle_id,
+  start_time_utc,
+  is_active
+)
+VALUES (
+  1,
+  1,
+  2,
+  now(),
+  true
+);
+INSERT INTO lu_trip_status (status_code, description) VALUES
+('dispatching', 'Trip being dispatched to drivers');
+
+select * from trip_dispatch_rounds;
+select * from trip_dispatch_candidates;
+
+select * from trip_status_history;
+select * from trips;
+select * from trip_driver_assignment;
+
+
+ALTER TABLE trips
+ADD COLUMN distance_km NUMERIC(8,2),
+ADD COLUMN duration_minutes INT;
+CREATE TABLE trip_fares (
+  trip_id           BIGINT PRIMARY KEY REFERENCES trips(trip_id),
+
+  base_fare         NUMERIC(10,2),
+  distance_fare     NUMERIC(10,2),
+  time_fare         NUMERIC(10,2),
+  surge_multiplier  NUMERIC(4,2),
+
+  subtotal          NUMERIC(10,2),
+  tax_amount        NUMERIC(10,2),
+  discount_amount  NUMERIC(10,2),
+
+  final_fare        NUMERIC(10,2),
+
+  calculated_at_utc TIMESTAMPTZ DEFAULT now()
+);
+
+select * from users;
+CREATE TABLE user_roles (
+  user_role_id  BIGSERIAL PRIMARY KEY,
+
+  user_id       BIGINT REFERENCES users(user_id),
+  role TEXT REFERENCES lu_user_types(role_code),
+
+
+  created_at_utc TIMESTAMPTZ DEFAULT now(),
+created_by     BIGINT REFERENCES users(user_id),
+updated_at_utc TIMESTAMPTZ,
+updated_by     BIGINT REFERENCES users(user_id),
+
+  UNIQUE (user_id, role)
+);
+
+
+INSERT INTO lu_user_types (role_code, description) VALUES
+('rider', 'User who books trips (default rider)'),
+('app-admin', 'Platform administrator'),
+('driver','driver'),
+('fleet-owner','handles fleets ');
+
+
+select * from tenants;
+select * from tenant_staff;
+
+select * from users;
+select * from tenant_staff;
+
+select * from cities;
+select * from tenants;
+select * from fleet_owners;
+select * from tenant_staff;
+
+INSERT INTO user_roles (user_id, role)
+VALUES (1, 'app-admin');
+
+drop table riders;
+SELECT * FROM user_roles WHERE user_id = 1;
+select * from tenant_documents;
+
+select * from drivers;
+select * from tenant_documents;
+select * from fleet_owner_cities;
+
+Insert into fleet_owner_documents(tenant_id, fleet_owner_id,document_type,document_number,document_url) values
+(1,2,'GST','27ABCDE1234F1Z7','https://files.example.com/fleet_gst.pdf'),
+(1,2,'PAN','PANBCDE1234F1Z7','https://files.example.com/fleet_gst.pdf'),
+(1,2,'INC_CERT','INCABCDE1234F1Z7','https://files.example.com/fleet_gst.pdf');
+
+CREATE EXTENSION IF NOT EXISTS postgis;
+
+ALTER TABLE trips
+ADD COLUMN pickup_location GEOGRAPHY(Point, 4326),
+ADD COLUMN drop_location   GEOGRAPHY(Point, 4326);
+
+UPDATE trips
+SET pickup_location = ST_SetSRID(ST_MakePoint(pickup_longitude, pickup_latitude), 4326),
+    drop_location   = ST_SetSRID(ST_MakePoint(drop_longitude, drop_latitude), 4326)
+WHERE trip_id = :trip_id;
+
+
+CREATE TABLE driver_locations ( tenant_id BIGINT, driver_id BIGINT, city_id BIGINT, location GEOGRAPHY(Point, 4326), updated_at_utc TIMESTAMPTZ NOT NULL, PRIMARY KEY (tenant_id, driver_id) );
+
+
+ALTER TABLE driver_documents
+ADD COLUMN vehicle_category TEXT
+REFERENCES lu_vehicle_category(category_code);
+
+
+INSERT INTO users (phone_e164, phone_verified, is_active)
+VALUES
+('+919800000001', true, true),
+('+919800000002', true, true),
+('+919800000003', true, true),
+('+919800000004', true, true);
+
+INSERT INTO drivers (
+  tenant_id, user_id, home_city_id,
+  driver_type, kyc_status, is_active, approved_at_utc
+)
+VALUES
+(1, 10, 1, 'individual', 'approved', true, now()), -- bike
+(1, 11, 1, 'individual', 'approved', true, now()), -- sedan
+(1, 12, 1, 'fleet_driver', 'approved', true, now()), -- sedan
+(1, 13, 1, 'fleet_driver', 'approved', true, now()); -- suv
+
+INSERT INTO vehicles (
+  tenant_id, country_id, owner_type, driver_owner_id,
+  category_code, license_plate, model, manufacture_year, status
+)
+VALUES
+(1, 1, 'driver', (SELECT driver_id FROM drivers WHERE user_id=10), 'bike', 'TS01BK1111', 'Activa', 2021, 'active'),
+(1, 1, 'driver', (SELECT driver_id FROM drivers WHERE user_id=11), 'sedan', 'TS01SD2222', 'Dzire', 2022, 'active');
+
+
+INSERT INTO vehicles (
+  tenant_id, country_id, owner_type, fleet_owner_id,
+  category_code, license_plate, model, manufacture_year, status
+)
+VALUES
+(1, 1, 'fleet_owner', 1, 'sedan', 'TS01SD3333', 'Etios', 2020, 'active'),
+(1, 1, 'fleet_owner', 1, 'suv',   'TS01SV4444', 'Ertiga', 2023, 'active');
+
+INSERT INTO driver_documents (
+  tenant_id,
+  driver_id,
+  document_type,
+  document_number,
+  document_url,
+  vehicle_category,
+  verification_status
+)
+SELECT
+  1,
+  d.driver_id,
+  'DRIVING_LICENSE',
+  'DL-' || d.driver_id,
+  '/static/driver_documents/dl_' || u.user_id || '.pdf',
+  CASE
+    WHEN u.user_id = 10 THEN 'bike'
+    WHEN u.user_id IN (11,12) THEN 'sedan'
+    WHEN u.user_id = 13 THEN 'suv'
+  END,
+  'approved'
+FROM drivers d
+JOIN users u ON d.user_id = u.user_id
+WHERE u.user_id IN (10,11,12,13);
+
+
+INSERT INTO vehicle_documents (
+  tenant_id,
+  vehicle_id,
+  document_type,
+  document_number,
+  document_url,
+  verification_status
+)
+SELECT
+  1,
+  v.vehicle_id,
+  'RC',
+  'RC-' || v.license_plate,
+  '/static/vehicle_documents/' || v.license_plate || '_RC.pdf',
+  'approved'
+FROM vehicles v
+WHERE v.license_plate = 'TS01BK1111';
+
+INSERT INTO vehicle_documents (
+  tenant_id,
+  vehicle_id,
+  document_type,
+  document_number,
+  document_url,
+  verification_status
+)
+SELECT
+  1,
+  v.vehicle_id,
+  'INSURANCE',
+  'INS-' || v.license_plate,
+  '/static/vehicle_documents/' || v.license_plate || '_INSURANCE.pdf',
+  'approved'
+FROM vehicles v
+WHERE v.license_plate = 'TS01BK1111';
+INSERT INTO vehicle_documents (
+  tenant_id, vehicle_id, document_type,
+  document_number, document_url, verification_status
+)
+SELECT
+  1,
+  v.vehicle_id,
+  'RC',
+  'RC-' || v.license_plate,
+  '/static/vehicle_documents/' || v.license_plate || '_RC.pdf',
+  'approved'
+FROM vehicles v
+WHERE v.license_plate = 'TS01SD2222';
+
+INSERT INTO vehicle_documents (
+  tenant_id,
+  vehicle_id,
+  document_type,
+  document_number,
+  document_url,
+  verification_status
+)
+SELECT
+  1,
+  v.vehicle_id,
+  'RC',
+  'RC-' || v.license_plate,
+  '/static/vehicle_documents/' || v.license_plate || '_RC.pdf',
+  'approved'
+FROM vehicles v
+WHERE v.license_plate = 'TS01SD3333';
+
+INSERT INTO vehicle_documents (
+  tenant_id,
+  vehicle_id,
+  document_type,
+  document_number,
+  document_url,
+  verification_status
+)
+SELECT
+  1,
+  v.vehicle_id,
+  'RC',
+  'RC-' || v.license_plate,
+  '/static/vehicle_documents/' || v.license_plate || '_RC.pdf',
+  'approved'
+FROM vehicles v
+WHERE v.license_plate = 'TS01SV4444';
+
+INSERT INTO driver_vehicle_assignments (
+  tenant_id, driver_id, vehicle_id,
+  start_time_utc, is_active
+)
+SELECT
+  1,
+  d.driver_id,
+  v.vehicle_id,
+  now(),
+  true
+FROM drivers d
+JOIN vehicles v
+  ON (
+    (v.driver_owner_id = d.driver_id)
+    OR
+    (v.fleet_owner_id = 1 AND d.driver_type = 'fleet_driver')
+  )
+WHERE d.user_id IN (10,11,12,13);
+
+INSERT INTO driver_shifts (
+  tenant_id, driver_id, city_id,
+  shift_status, shift_start_utc
+)
+SELECT
+  1,
+  driver_id,
+  1,
+  'online',
+  now()
+FROM drivers
+WHERE user_id IN (10,11,12,13);
+
+INSERT INTO driver_current_status (
+  tenant_id, driver_id, city_id,
+  runtime_status, last_updated_utc
+)
+SELECT
+  1,
+  driver_id,
+  1,
+  'available',
+  now()
+FROM drivers
+WHERE user_id IN (10,11,12,13)
+ON CONFLICT (tenant_id, driver_id) DO NOTHING;
+INSERT INTO driver_locations (
+  tenant_id, driver_id, city_id, location, updated_at_utc
+)
+SELECT
+  1,
+  driver_id,
+  1,
+  ST_SetSRID(ST_MakePoint(
+    78.48 + random() * 0.02,
+    17.38 + random() * 0.02
+  ), 4326),
+  now()
+FROM drivers
+WHERE user_id IN (10,11,12,13);
+
+select * from users where phone_e164='+919999999002';
+select * from fleet_owners;
+select * from users;
+

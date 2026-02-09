@@ -30,6 +30,8 @@ export default function FleetDocumentCard({
   const [file, setFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  console.log("uploadedDoc:",uploadedDoc);
+
   /* ===============================
      SYNC STATE WHEN DOC CHANGES
   =============================== */

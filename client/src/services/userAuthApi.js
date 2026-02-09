@@ -87,6 +87,7 @@ export const userAuthApi = {
   async getUserProfile() {
     try {
       const res = await apiClient.get("/auth/user/profile");
+      console.log(res);
       return res.data;
     } catch (err) {
       throw new Error(

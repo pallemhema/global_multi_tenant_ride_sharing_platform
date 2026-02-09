@@ -46,6 +46,10 @@ export const resendTripOtp = async (tripId) => {
     .post(`/rider/trips/${tripId}/resend-otp`)
     .then((r) => r.data);
 };
+// tripApi.js
+export const changeProvider = async (tripRequestId) =>{
+  return apiClient.post(`/rider/trips/${tripRequestId}/change-provider`);
+}
 
 export const getTripReceipt = async (tripId) => {
   return apiClient.get(`/rider/trips/${tripId}/receipt`).then((r) => r.data);
@@ -56,3 +60,6 @@ export const cancelTripRequest = async (tripRequestId) => {
     .post(`/rider/trips/${tripRequestId}/cancel`)
     .then((r) => r.data);
 };
+
+
+

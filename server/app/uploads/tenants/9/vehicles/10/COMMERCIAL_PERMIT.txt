@@ -1,0 +1,329 @@
+{
+  "_id": {
+    "$oid": "66f6a95bd3a959b944ea8709"
+  },
+  "userId": {
+    "$oid": "66e5fda599fa39f2e85fe871"
+  },
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-09-27T12:47:23.509Z"
+  },
+  "errors": [],
+  "items": [
+    {
+      "city": "std:020",
+      "domain": "ONDC:RET10",
+      "sellerName": "WITS ONDC TEST STORE",
+      "pid": "pramaan.ondc.org/alpha/mock-server|fe3467e7-2104-46f3-9acf-10a65b0ad75d",
+      "descriptor": {
+        "name": "Corn Flakes",
+        "short_desc": "Corn Flakes",
+        "long_desc": "Corn Flakes Premium",
+        "symbol": "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png",
+        "images": [
+          "https://res.cloudinary.com/dxum9bu0r/image/upload/v1706624067/Frame_qvtmt7.png"
+        ]
+      },
+      "provider_pid": "pramaan.ondc.org/alpha/mock-server|pramaan.ondc.org/alpha/mock-server",
+      "location_pid": "f13873c1-810d-4f2b-ba54-5edcec9f0e4a",
+      "parentId": "12121213232323",
+      "quantity": {
+        "unitized": {
+          "measure": {
+            "unit": "gram",
+            "value": "500"
+          }
+        },
+        "available": {
+          "count": "99"
+        },
+        "maximum": {
+          "count": "3"
+        }
+      },
+      "time": {
+        "label": "enable",
+        "timestamp": "2024-09-26T09:02:16.767Z"
+      },
+      "price": {
+        "currency": "INR",
+        "value": "899.0",
+        "maximum_value": "1099.0"
+      },
+      "@ondc/org/contact_details_consumer_care": "Mayur Popli,mayur.popli@thewitslab.com,9876543210",
+      "fulfillment_id": "c461a827-f43d-487e-871d-e13467acd866",
+      "returnable": true,
+      "returnWindow": "P7D",
+      "cancellable": true,
+      "returnPickupBySeller": false,
+      "vegType": "VEG",
+      "shippingTime": "P2D",
+      "sellerRecommended": false,
+      "categoryIds": [
+        "Cereals and Breakfast"
+      ],
+      "tags": [
+        {
+          "code": "veg_nonveg",
+          "list": [
+            {
+              "code": "veg",
+              "value": "yes"
+            }
+          ]
+        },
+        {
+          "code": "origin",
+          "list": [
+            {
+              "code": "country",
+              "value": "IND"
+            }
+          ]
+        }
+      ],
+      "children": [],
+      "packagedFood": {
+        "nutritionalInfo": "Refer back image",
+        "additiveInfo": "Refer back image",
+        "brandFSSAI": "Refer back image",
+        "otherFSSAI": "Refer back image",
+        "importerFSSAI": "12345678901234"
+      },
+      "packagedCommodity": null,
+      "vegies": null,
+      "statImages": [],
+      "count": 2,
+      "cartId": "a8a2f239-9bad-4d6f-b210-4f1f4514b417",
+      "customizations": [],
+      "quote": {
+        "total": 1798,
+        "breakup": [
+          {
+            "title": "Corn Flakes",
+            "price": "1798.00",
+            "type": "item",
+            "count": 2
+          }
+        ]
+      },
+      "totalPrice": 1798,
+      "changes": []
+    }
+  ],
+  "providerDetails": [
+    {
+      "providerId": "pramaan.ondc.org/alpha/mock-server|pramaan.ondc.org/alpha/mock-server",
+      "transactionIds": [
+        "c1cf767f-8136-4734-a598-60504bfd1c8e"
+      ],
+      "fulfillments": [
+        {
+          "id": "c461a827-f43d-487e-871d-e13467acd866",
+          "type": "DELIVERY",
+          "duration": "PT60M",
+          "category": "Immediate Delivery",
+          "orgName": "WITS ONDC TEST STORE",
+          "tracking": {
+            "enabled": true
+          },
+          "state": "Serviceable",
+          "status": "SERVICEABLE",
+          "statusLog": [
+            {
+              "status": "SERVICEABLE",
+              "at": "2024-09-27T14:42:18.070Z"
+            }
+          ],
+          "delivery": {
+            "start": {},
+            "end": {}
+          },
+          "quote": {
+            "total": 85,
+            "breakup": [
+              {
+                "title": "Delivery charges",
+                "price": "50.00",
+                "type": "delivery",
+                "count": 0
+              },
+              {
+                "title": "Packing charges",
+                "price": "25.00",
+                "type": "packing",
+                "count": 0
+              },
+              {
+                "title": "Convenience Fee",
+                "price": "10.00",
+                "type": "misc",
+                "count": 0
+              }
+            ]
+          }
+        }
+      ],
+      "payment": {
+        "type": "ON-ORDER",
+        "collected_by": "BAP",
+        "uri": "https://snp.com/pg",
+        "status": "NOT-PAID",
+        "@ondc/org/buyer_app_finder_fee_type": "percent",
+        "@ondc/org/buyer_app_finder_fee_amount": "3",
+        "@ondc/org/settlement_basis": "delivery",
+        "@ondc/org/settlement_window": "P1D",
+        "@ondc/org/withholding_amount": "10.00",
+        "@ondc/org/settlement_details": [
+          {
+            "settlement_counterparty": "seller-app",
+            "settlement_phase": "sale-amount",
+            "settlement_type": "upi",
+            "beneficiary_name": "Mayur",
+            "upi_address": "mayur@gmail.com",
+            "settlement_bank_account_no": "12345588548",
+            "settlement_ifsc_code": "sdsd0005685",
+            "bank_name": "ABC",
+            "branch_name": "XYZ"
+          }
+        ],
+        "tags": [
+          {
+            "code": "bpp_collect",
+            "list": [
+              {
+                "code": "success",
+                "value": "Y"
+              },
+              {
+                "code": "error",
+                "value": ".."
+              }
+            ]
+          }
+        ]
+      },
+      "cancellationTerms": [
+        {
+          "fulfillmentState": "PENDING",
+          "allowedCodes": [
+            "002"
+          ],
+          "fee": {
+            "percentage": "0.00",
+            "amount": {
+              "currency": "INR",
+              "value": "0.00"
+            }
+          }
+        },
+        {
+          "fulfillmentState": "PACKED",
+          "allowedCodes": [
+            "001",
+            "003"
+          ],
+          "fee": {
+            "percentage": "10.00",
+            "amount": {
+              "currency": "INR",
+              "value": "42.40"
+            }
+          }
+        },
+        {
+          "fulfillmentState": "ORDER_PICKED_UP",
+          "allowedCodes": [
+            "001",
+            "003"
+          ],
+          "fee": {
+            "percentage": "10.00",
+            "amount": {
+              "currency": "INR",
+              "value": "42.40"
+            }
+          }
+        },
+        {
+          "fulfillmentState": "OUT_FOR_DELIVERY",
+          "allowedCodes": [
+            "009"
+          ],
+          "fee": {
+            "percentage": "0.00",
+            "amount": {
+              "currency": "INR",
+              "value": "0.00"
+            }
+          }
+        },
+        {
+          "fulfillmentState": "OUT_FOR_DELIVERY",
+          "allowedCodes": [
+            "010",
+            "011",
+            "012",
+            "013",
+            "014",
+            "015"
+          ],
+          "fee": {
+            "percentage": "20.00",
+            "amount": {
+              "currency": "INR",
+              "value": "84.80"
+            }
+          }
+        }
+      ],
+      "sellerAppTerms": [
+        {
+          "code": "max_liability",
+          "value": "2"
+        },
+        {
+          "code": "max_liability_cap",
+          "value": "10000.00"
+        },
+        {
+          "code": "mandatory_arbitration",
+          "value": "false"
+        },
+        {
+          "code": "court_jurisdiction",
+          "value": "Bengaluru"
+        },
+        {
+          "code": "delay_interest",
+          "value": "1000.00"
+        },
+        {
+          "code": "tax_number",
+          "value": "22AAAAA0000A1Z5"
+        }
+      ]
+    }
+  ],
+  "recipient": {
+    "name": "jdjss",
+    "phone": "7965853649",
+    "email": null,
+    "location": {
+      "gps": "28.7041, 77.1025",
+      "address": {
+        "area_code": "110085",
+        "name": "zbjzi",
+        "building": "shsusi",
+        "locality": "5MPX+PRW, IIT Guwahati",
+        "state": "Assam",
+        "city": "Guwahati"
+      }
+    }
+  },
+  "totalPrice": 1883,
+  "updatedAt": {
+    "$date": "2024-09-27T14:42:20.589Z"
+  }
+}

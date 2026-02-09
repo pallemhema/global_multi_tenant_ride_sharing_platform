@@ -10,12 +10,13 @@ import {
   FileText,
   X,
 } from "lucide-react";
+import { toast } from "react-toastify";
 
 import { useDriver } from "../../context/DriverContext";
+import { driverApi } from "../../services/driverApi";
 
 const DocumentUploadField = ({ docType, hidePreview = false }) => {
-  const { driver, documents, uploadDocument, deleteDocument, updateDocument } =
-    useDriver();
+  const { driver, documents } = useDriver();
 
   const uploadedDoc = documents.find(
     (d) => d.document_type === docType.document_code,
@@ -61,7 +62,7 @@ const DocumentUploadField = ({ docType, hidePreview = false }) => {
 
   const handleSubmit = async () => {
     if (!selectedFile && !uploadedDoc) {
-      alert("Please select a file");
+      toast.error("Please select a file");
       return;
     }
 
@@ -70,26 +71,28 @@ const DocumentUploadField = ({ docType, hidePreview = false }) => {
 
       // If editing existing document
       if (uploadedDoc) {
-        await updateDocument(uploadedDoc.document_id, {
+        await driverApi.updateDriverDocument(uploadedDoc.document_id, {
           document_number: docNumber || null,
           expiry_date: expiryDate || null,
           file: selectedFile,
         });
+        toast.success("Document updated successfully");
       } else {
         // New document upload
-        await uploadDocument({
+        await driverApi.uploadDriverDocument({
           document_type: docType.document_code,
           document_number: docNumber || null,
           expiry_date: expiryDate || null,
           file: selectedFile,
         });
+        toast.success("Document uploaded successfully");
       }
 
       setSelectedFile(null);
       setShowForm(false);
     } catch (err) {
       console.error(err);
-      alert(err.message || "Failed to upload document");
+      toast.error(err.message || "Failed to upload document");
     } finally {
       setIsUploading(false);
     }
@@ -100,10 +103,11 @@ const DocumentUploadField = ({ docType, hidePreview = false }) => {
     if (!window.confirm("Delete this document?")) return;
 
     try {
-      await deleteDocument(uploadedDoc.document_id);
+      await driverApi.deleteDriverDocument(uploadedDoc.document_id);
+      toast.success("Document deleted successfully");
     } catch (err) {
       console.error(err);
-      alert(err.message || "Failed to delete document");
+      toast.error(err.message || "Failed to delete document");
     }
   };
 

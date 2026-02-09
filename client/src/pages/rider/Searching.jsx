@@ -12,8 +12,12 @@ export default function Searching() {
   const [isRetrying, setIsRetrying] = useState(false);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+    const [isChangingProvider, setIsChangingProvider] = useState(false);
+
 
   useEffect(() => {
+    if (isChangingProvider) return; // ⛔ stop polling when switching provider
+
     let mounted = true;
 
     const poll = async () => {
@@ -24,34 +28,31 @@ export default function Searching() {
         setStatus(res);
         setError(null);
 
-        // Check if driver was assigned
         if (res?.status === "driver_assigned") {
           navigate(`/rider/assigned/${tripRequestId}`);
-        }
-        // Check if trip was cancelled
-        else if (res?.status === "cancelled") {
+        } else if (res?.status === "cancelled") {
           setTripCancelled(true);
-        }
-        // Check if no drivers are available
-        else if (res?.status === "no_drivers_available") {
+        } else if (res?.status === "no_drivers_available") {
           setNoDriversFound(true);
         }
+        // IMPORTANT:
+        // If status === "searching", do nothing.
+        // This avoids re-rendering search UI after "Change Provider".
       } catch (e) {
-        console.error("Trip status error:", e);
         if (mounted) {
-          setError(e.message || "Failed to check trip status");
+          setError("Failed to check trip status");
         }
       }
     };
 
     poll();
-    const id = setInterval(poll, 3000);
+    const intervalId = setInterval(poll, 3000);
 
     return () => {
       mounted = false;
-      clearInterval(id);
+      clearInterval(intervalId);
     };
-  }, [tripRequestId, navigate]);
+  }, [tripRequestId, navigate, isChangingProvider]);
 
   const handleRetry = async () => {
     setIsRetrying(true);
@@ -72,11 +73,26 @@ export default function Searching() {
       setIsRetrying(false);
     }
   };
+const handleChangeTenant = async () => {
+  try {
+     setIsChangingProvider(true);   // ⛔ stop polling
+      setError(null);
+      setNoDriversFound(false);
 
-  const handleChangeTenant = () => {
-    // Navigate back to choose a different tenant
+      console.log("🔥 CLICKED CHANGE PROVIDER");
+  console.log("🔥 changeProvider:", tripApi.changeProvider);
+  
+
+    await tripApi.changeProvider(tripRequestId);
     navigate(`/rider/options/${tripRequestId}`);
-  };
+  } catch (e) {
+    setError(
+      e?.response?.data?.detail || "Unable to change provider. Please try again."
+    );
+  }
+};
+
+
 
   const handleTripCancelledRetry = () => {
     // Reset cancelled state and start searching again
@@ -96,6 +112,16 @@ export default function Searching() {
         setIsRetrying(false);
       });
   };
+  if (isChangingProvider) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-slate-600 text-lg">
+        Redirecting to providers…
+      </p>
+    </div>
+  );
+}
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">

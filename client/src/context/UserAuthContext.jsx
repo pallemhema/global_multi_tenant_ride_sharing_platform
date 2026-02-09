@@ -9,6 +9,7 @@ const UserAuthContext = createContext(null);
 export const UserAuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
+  const [profile,setProfile] = useState(null);
   const [role, setRole] = useState(null);
   const [context, setContext] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -39,6 +40,7 @@ export const UserAuthProvider = ({ children }) => {
 
     // Fetch roles after auth restore
     fetchAvailableRoles();
+    getProfile();
   }, []);
 
   /* ===============================
@@ -119,12 +121,24 @@ export const UserAuthProvider = ({ children }) => {
   const roleNames = availableRoles.map((r) => r.role);
   console.log("availableRoles:", roleNames);
 
+  const getProfile = async () =>{
+    try{
+      const res = userAuthApi.getUserProfile();
+      console.log(res);
+      // setProfile(res)
+    }catch (err) {
+      console.error("fetching profile failed", err);
+      throw err;
+    }
+  }
+
   const value = {
     // State
     token,
     user,
     role,
     context,
+    profile,
     isAuthenticated,
     loading,
     phone,

@@ -382,7 +382,7 @@ export const driverApi = {
 
   async confirmPayment(tripId, paymentMethod) {
     try {
-      const res = await apiClient.post("/driver/payments/confirm", {
+      const res = await apiClient.post("/trips/driver/payments/confirm", {
         trip_id: tripId,
         payment_method: paymentMethod,
       });
@@ -393,4 +393,17 @@ export const driverApi = {
       );
     }
   },
+
+
+
+  async getPendingPayment(){
+    try{
+      const res = await apiClient.get(`/trips/driver/payments/pending`);
+      return res.data;
+    }catch(err){
+      throw new Error(
+        err.response?.data?.detail || "Failed to fetch pending payment",
+      )
+    }
+  }
 };

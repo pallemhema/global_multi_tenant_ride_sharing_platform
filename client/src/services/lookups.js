@@ -194,15 +194,19 @@ export const lookupsAPI = {
   fetchAccountStatuses: () => {
     return apiClient.get("/lookups/account-status");
   },
-  fetchCountries: () => {
-    return apiClient.get("/lookups/countries");
+ fetchCountries: async () => {
+    const res = await apiClient.get("/lookups/countries");
+    return res.data;
   },
-  fetchCities: (countryId) => {
-    return apiClient.get("/lookups/cities", {
+
+  fetchCities: async (countryId) => {
+    const res = await apiClient.get("/lookups/cities", {
       params: countryId ? { country_id: countryId } : {},
     });
+    return res.data;
   },
   fetchTenantFleetDocumentTypes: () => {
     return apiClient.get("/lookups/tenant-fleet-document-types");
   },
 };
+
