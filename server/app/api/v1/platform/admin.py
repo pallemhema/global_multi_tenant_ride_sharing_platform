@@ -9,10 +9,14 @@ from app.core.security.password import hash_password
 from app.models.core.tenants.tenants import Tenant
 from app.models.core.tenants.tenant_documents import TenantDocument
 from app.models.core.tenants.tenant_staff import TenantStaff
+from app.models.core.tenants.tenant_countries import TenantCountry
+from app.models.core.tenants.tenant_cities import TenantCity
 from app.models.core.users.users import User
 from app.schemas.core.admins.create_tenant_admin import TenantAdminCreate
 
+from app.models.lookups.country import Country
 from app.models.lookups.tenant_Fleet_document_types import TenantFleetDocumentType
+from sqlalchemy import func
 
 router = APIRouter(
     prefix="/app-admin",
@@ -42,56 +46,56 @@ def create_tenant(
         "status": "created",
     }
 
-@router.post("/tenant-admins")
-def create_tenant_admin(
-    payload: TenantAdminCreate,
-    db: Session = Depends(get_db),
-    user: dict = Depends(require_app_admin),
-):
-    # 1️⃣ Validate tenant
-    tenant = db.get(Tenant, payload.tenant_id)
-    if not tenant:
-        raise HTTPException(404, "Tenant not found")
+# @router.post("/tenant-admins")
+# def create_tenant_admin(
+#     payload: TenantAdminCreate,
+#     db: Session = Depends(get_db),
+#     user: dict = Depends(require_app_admin),
+# ):
+#     # 1️⃣ Validate tenant
+#     tenant = db.get(Tenant, payload.tenant_id)
+#     if not tenant:
+#         raise HTTPException(404, "Tenant not found")
 
-    # 2️⃣ Ensure email uniqueness
-    existing = (
-        db.query(User)
-        .filter(User.email == payload.email)
-        .first()
-    )
-    if existing:
-        raise HTTPException(400, "User with this email already exists")
+#     # 2️⃣ Ensure email uniqueness
+#     existing = (
+#         db.query(User)
+#         .filter(User.email == payload.email)
+#         .first()
+#     )
+#     if existing:
+#         raise HTTPException(400, "User with this email already exists")
 
-    # 3️⃣ Create tenant admin user
-    new_user = User(
-        email=payload.email,
-        password_hash=hash_password(payload.password),
-        email_verified=True,
-        is_active=True,
-        is_app_admin=False,
-    )
+#     # 3️⃣ Create tenant admin user
+#     new_user = User(
+#         email=payload.email,
+#         password_hash=hash_password(payload.password),
+#         email_verified=True,
+#         is_active=True,
+#         is_app_admin=False,
+#     )
 
-    db.add(new_user)
-    db.flush()  # get user_id
+#     db.add(new_user)
+#     db.flush()  # get user_id
 
-    # 4️⃣ Assign tenant-admin role
-    staff = TenantStaff(
-        tenant_id=payload.tenant_id,
-        user_id=new_user.user_id,
-        role_code="admin",
-        status="active",
-        created_by=int(user["sub"]),
-    )
+#     # 4️⃣ Assign tenant-admin role
+#     staff = TenantStaff(
+#         tenant_id=payload.tenant_id,
+#         user_id=new_user.user_id,
+#         role_code="admin",
+#         status="active",
+#         created_by=int(user["sub"]),
+#     )
 
-    db.add(staff)
-    db.commit()
+#     db.add(staff)
+#     db.commit()
 
-    return {
-        "message": "Tenant admin created",
-        "tenant_id": payload.tenant_id,
-        "user_id": new_user.user_id,
-        "email": new_user.email,
-    }
+#     return {
+#         "message": "Tenant admin created",
+#         "tenant_id": payload.tenant_id,
+#         "user_id": new_user.user_id,
+#         "email": new_user.email,
+#     }
 
 @router.post("/tenants/{tenant_id}/admins")
 def create_tenant_admin_by_tenant_id(
@@ -203,6 +207,34 @@ def approve_tenant(
         "tenant_id": tenant_id,
     }
 
+
+@router.post("/tenants/{tenant_id}/reject")
+
+def reject_tenant(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_app_admin),
+):
+    tenant = db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+    if tenant.approval_status == "approved":
+        raise HTTPException(400, "Tenant already approved")
+
+
+    
+    # 4️⃣ Approve tenant
+    tenant.approval_status = "rejected"
+    tenant.updated_at_utc = datetime.now(timezone.utc)
+    tenant.updated_by = int(user["sub"])
+
+    db.commit()
+
+    return {
+        "status": "tenant rejected",
+        "tenant_id": tenant_id,
+    }
+
 @router.get("/tenants/{tenant_id}/documents")
 def list_tenant_documents(
     tenant_id: int,
@@ -216,8 +248,8 @@ def list_tenant_documents(
     )
 
 
-@router.post("/tenants/{tenant_id}/documents/{doc_id}/verify")
-def verify_tenant_document(
+@router.post("/tenants/{tenant_id}/documents/{doc_id}/approve")
+def approve_tenant_document(
     tenant_id: int,
     doc_id: int,
     db: Session = Depends(get_db),
@@ -251,10 +283,43 @@ def verify_tenant_document(
         "document_type": doc.document_type,
     }
 
+@router.post("/tenants/{tenant_id}/documents/{doc_id}/reject")
+def reject_tenant_document(
+    tenant_id: int,
+    doc_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_app_admin),
+):
+    tenant = db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Tenant not found")
+
+    if tenant.status == "active":
+        raise HTTPException(
+            400,
+            "Tenant already active. Document verification is locked."
+        )
+
+    doc = db.get(TenantDocument, doc_id)
+    if not doc or doc.tenant_id != tenant_id:
+        raise HTTPException(404, "Document not found")
+
+    if doc.verification_status == "approved":
+        raise HTTPException(400, "Document already approved")
+
+    doc.verification_status = "rejected"
+    doc.verified_by = int(user["sub"])
+    doc.verified_at_utc = datetime.now(timezone.utc)
+
+    db.commit()
+
+    return {
+        "status": "document rejected",
+        "document_type": doc.document_type,
+    }
 
 
 
-from sqlalchemy import func
 
 @router.get("/tenants/summary")
 def tenant_summary(
@@ -358,18 +423,41 @@ def get_tenant_details(
     if not tenant:
         raise HTTPException(404, "Tenant not found")
 
+    tenant_countries = (
+        db.query(TenantCountry)
+        .filter(
+            TenantCountry.tenant_id == tenant_id,
+            TenantCountry.is_active == True
+        )
+        .all()
+    )
+
+    country_ids = [tc.country_id for tc in tenant_countries]
+
+    countries = (
+        db.query(Country)
+        .filter(Country.country_id.in_(country_ids))
+        .all()
+    )
+
     return {
         "id": tenant.tenant_id,
         "name": tenant.tenant_name,
         "legal_name": tenant.legal_name,
         "business_email": tenant.business_email,
-        "city": tenant.city,
-        "country": tenant.country,
         "business_registration_number": tenant.business_registration_number,
         "approval_status": tenant.approval_status,
         "status": tenant.status,
         "created_at_utc": tenant.created_at_utc,
         "approved_at_utc": tenant.approved_at_utc,
+        "countries": [
+            {
+                "country_id": c.country_id,
+                "country_name": c.country_name,
+                "currency_code": c.default_currency,
+            }
+            for c in countries
+        ],
     }
 
 @router.get("/tenants/{tenant_id}/admin")

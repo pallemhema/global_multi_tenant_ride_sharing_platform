@@ -170,7 +170,7 @@ export const UserLogin = () => {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex">
+<div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100 flex">
       {/* Left Panel - Branding */}
       <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-b from-blue-600 to-indigo-700 text-white flex-col justify-center items-center p-12">
         <div className="text-center">

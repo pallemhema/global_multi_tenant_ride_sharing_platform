@@ -133,11 +133,14 @@ class PaymentConfirmationService:
                 raise ValueError("Vehicle not found")
 
             owner_type = vehicle.owner_type
-            owner_id = (
-                vehicle.driver_owner_id
-                if owner_type == "driver"
-                else vehicle.fleet_owner_id
-            )
+            if owner_type == "driver":
+                owner_id = vehicle.driver_owner_id
+                transactionType="driver_earning"
+            else:
+                owner_id = vehicle.fleet_owner_id
+                transactionType="fleet_earningS"
+
+
          
 
             # =====================================================
@@ -322,6 +325,7 @@ class PaymentConfirmationService:
             # =====================================================
             # 12️⃣ LEDGER (ALL POSITIVE)
             # =====================================================
+
             ledgers = [
                 FinancialLedger(
                     payment_id=payment.payment_id,
@@ -331,9 +335,10 @@ class PaymentConfirmationService:
                     entity_type="platform",
                     entity_id=None,
                     transaction_type="platform_fee",
+                    entry_type="CREDIT",
                     amount=float(platform_net),
                     currency_code=payment.currency_code,
-                    created_at_utc=now,
+                    credited_at_utc=now,
                 ),
                 FinancialLedger(
                     payment_id=payment.payment_id,
@@ -343,9 +348,10 @@ class PaymentConfirmationService:
                     entity_type="platform",
                     entity_id=None,
                     transaction_type="tax",
+                    entry_type="CREDIT",
                     amount=float(platform_tax),
                     currency_code=payment.currency_code,
-                    created_at_utc=now,
+                    credited_at_utc=now,
                 ),
                 FinancialLedger(
                     payment_id=payment.payment_id,
@@ -354,10 +360,11 @@ class PaymentConfirmationService:
                     country_id=country_id,
                     entity_type="owner",
                     entity_id=owner_id,
-                    transaction_type="driver_earning",
+                    transaction_type=transactionType,
+                    entry_type="CREDIT",
                     amount=float(owner_amount),
                     currency_code=payment.currency_code,
-                    created_at_utc=now,
+                    credited_at_utc=now,
                 ),
                 FinancialLedger(
                     payment_id=payment.payment_id,
@@ -367,9 +374,10 @@ class PaymentConfirmationService:
                     entity_type="tenant",
                     entity_id=trip.tenant_id,
                     transaction_type="tenant_share",
+                    entry_type="CREDIT",
                     amount=float(tenant_amount),
                     currency_code=payment.currency_code,
-                    created_at_utc=now,
+                    credited_at_utc=now,
                 ),
             ]
 
@@ -415,7 +423,7 @@ class PaymentConfirmationService:
                         fleet_owner_id=None,
                         tenant_id=trip.tenant_id,
                         currency_code=payment.currency_code,
-                        balance=Decimal("0"),
+                        balance=owner_amount,
                     )
                 else:
                     owner_wallet = OwnerWallet(
@@ -424,17 +432,13 @@ class PaymentConfirmationService:
                         driver_id=None,
                         tenant_id=trip.tenant_id,
                         currency_code=payment.currency_code,
-                        balance=Decimal("0"),
+                        balance=owner_amount,
                     )
                 
                 db.add(owner_wallet)
                 db.flush()
 
-            if payment_method == "online":
-                owner_wallet.balance += owner_amount
-            else:
-                owner_wallet.balance -= (platform_gross + tenant_amount)
-
+      
             tenant_wallet = (
                 db.query(TenantWallet)
                 .filter(

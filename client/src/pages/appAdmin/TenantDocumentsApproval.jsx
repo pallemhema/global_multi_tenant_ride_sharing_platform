@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, CheckCircle, XCircle } from 'lucide-react';
-import apiClient from '../../services/appAdminApi';
+import  { appAdminAPI } from '../../services/appAdminApi';
 
 export default function TenantDocumentsApproval() {
   const { tenantId } = useParams();
@@ -19,7 +19,7 @@ export default function TenantDocumentsApproval() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await apiClient.get(`/app-admin/tenants/${tenantId}/documents`);
+      const response = await appAdminAPI.getTenantDocuments(tenantId);
       setDocuments(response.data);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to load documents');
@@ -31,10 +31,7 @@ export default function TenantDocumentsApproval() {
   const handleApprove = async (docId) => {
     setSubmitting(true);
     try {
-      await apiClient.post(`/app-admin/documents/${docId}/verify`, {
-        verified: true,
-        notes: approvalNote,
-      });
+      await appAdminAPI.approveDocument(tenantId,docId);
       setApprovalNote('');
       setSelectedDoc(null);
       await fetchDocuments();
@@ -53,10 +50,7 @@ export default function TenantDocumentsApproval() {
     }
     setSubmitting(true);
     try {
-      await apiClient.post(`/app-admin/documents/${docId}/verify`, {
-        verified: false,
-        notes: approvalNote,
-      });
+      await appAdminAPI.rejectDocument(tenantId, docId)
       setApprovalNote('');
       setSelectedDoc(null);
       await fetchDocuments();

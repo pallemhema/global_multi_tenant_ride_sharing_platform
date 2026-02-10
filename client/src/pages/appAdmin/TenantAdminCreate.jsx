@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import apiClient from '../../services/appAdminApi';
+import  { appAdminAPI } from '../../services/appAdminApi';
 
 export default function TenantAdminCreate() {
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ export default function TenantAdminCreate() {
     setLoading(true);
 
     try {
-      const response = await apiClient.post(`/app-admin/tenants/${tenantId}/admins`, {
+      const response = await appAdminAPI.createTenantAdmin(tenantId, {
         email: formData.email,
         password: formData.password,
       });

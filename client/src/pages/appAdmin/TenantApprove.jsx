@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
-import apiClient from '../../services/appAdminApi';
+import { appAdminAPI } from '../../services/appAdminApi';
 
 export default function TenantApprove() {
   const { tenantId } = useParams();
@@ -19,7 +19,7 @@ export default function TenantApprove() {
 
   const fetchTenantDetails = async () => {
     try {
-      const response = await apiClient.get(`/app-admin/tenants/${tenantId}`);
+      const response = await appAdminAPI.getTenantDetails(tenantId)
       setTenant(response.data);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to load tenant details');
@@ -31,10 +31,7 @@ export default function TenantApprove() {
   const handleApprove = async () => {
     setSubmitting(true);
     try {
-      await apiClient.post(`/app-admin/tenants/${tenantId}/approve`, {
-        status: 'approved',
-        notes: approvalNote,
-      });
+      await appAdminAPI.approveTenant(tenantId);
       alert('Tenant approved successfully!');
       navigate('/dashboard/tenants');
     } catch (err) {
@@ -51,10 +48,7 @@ export default function TenantApprove() {
     }
     setSubmitting(true);
     try {
-      await apiClient.post(`/app-admin/tenants/${tenantId}/approve`, {
-        status: 'rejected',
-        notes: approvalNote,
-      });
+      await appAdminAPI.rejectTenant(tenantId)
       alert('Tenant rejected successfully!');
       navigate('/dashboard/tenants');
     } catch (err) {

@@ -29,6 +29,7 @@ import TenantAdminCreate from "../pages/appAdmin/TenantAdminCreate";
 import TenantDocumentsApproval from "../pages/appAdmin/TenantDocumentsApproval";
 import TenantApprove from "../pages/appAdmin/TenantApprove";
 import TenantProfile from "../pages/tenant-admin/Profile";
+import CreatePayoutBatch from "../pages/appAdmin/payouts/CreatePayoutBatch";
 
 /* ===== Tenant Admin ===== */
 import TenantAdminLayout from "../layouts/TenantAdminLayout";
@@ -97,6 +98,7 @@ const router = createBrowserRouter([
       { index: true, element: <DashboardHome /> },
       { path: "tenants", element: <TenantsList /> },
       { path: "tenants/create", element: <TenantCreate /> },
+      {path:"payouts/create", element:<CreatePayoutBatch/>},
       { path: "tenants/:tenantId", element: <TenantDetails /> },
       {
         path: "tenants/:tenantId/admin/create",

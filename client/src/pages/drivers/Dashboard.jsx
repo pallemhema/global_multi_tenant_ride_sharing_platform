@@ -16,8 +16,8 @@ import StatCard from "../../components/common/StatCard";
 import Loader from "../../components/common/Loader";
 import TripRequestsList from "../../components/drivers/TripRequestsList";
 import DriverTripControls from "../../components/drivers/DriverTripControls";
-// import DriverLocationTracker from "../../components/drivers/DriverLocationTracker";
-import DriverPastTripsTable from "../../components/drivers/DriverPastTrips";
+
+
 
 export default function DriverDashboard() {
   const navigate = useNavigate();
@@ -196,15 +196,8 @@ export default function DriverDashboard() {
           color="emerald"
         />
       </div>
-      <div className="mt-6">
-        <h2 className="text-lg font-semibold mb-3">Past Trips</h2>
-
-        <DriverPastTripsTable
-          trips={pastTrips}
-          loading={loading}
-          driver={driver}
-        />
-      </div>
+      
+      
     </div>
   );
 }

@@ -6,7 +6,8 @@ import Button from '../../../components/common/Button';
 import StatusBadge from '../../../components/common/StatusBadge';
 import Loader from '../../../components/common/Loader';
 import Modal from '../../../components/common/Modal';
-import { appAdminAPI,lookupsAPI } from '../../../services/appAdminApi';
+import { appAdminAPI } from '../../../services/appAdminApi';
+import { lookupsAPI } from '../../../services/lookups';
 
 export default function TenantDetails() {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ export default function TenantDetails() {
         appAdminAPI.getTenantDetails(tenantId),
         appAdminAPI.getTenantDocuments(tenantId),
         appAdminAPI.getTenantAdmin(tenantId),
-        lookupsAPI.getTenantDocumentTypes(),
+        lookupsAPI.fetchTenantFleetDocumentTypes(),
       ]);
       setTenant(tenantRes.data);
       setDocuments(docsRes.data);

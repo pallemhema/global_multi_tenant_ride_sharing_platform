@@ -12,10 +12,12 @@ import {
 } from "lucide-react";
 import { Link, useLocation, Outlet } from "react-router-dom";
 import { useAdminAuth } from "../context/AdminAuthContext";
+import { useTenant } from "../context/TenantContext";
 import { useState } from "react";
 
 export default function TenantAdminLayout() {
   const { logout, tenantId } = useAdminAuth();
+  const { tenant } = useTenant();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -58,11 +60,6 @@ export default function TenantAdminLayout() {
       path: "/tenant-admin/drivers",
       label: "Drivers",
       icon: Users,
-    },
-    {
-      path: "/tenant-admin/profile",
-      label: "Profile",
-      icon: User,
     },
   ];
 
@@ -136,7 +133,7 @@ export default function TenantAdminLayout() {
                 "Dashboard"}
             </h2>
             {tenantId && (
-              <p className="text-xs text-slate-500">Tenant ID: {tenantId}</p>
+              <p className="text-xs text-slate-500">{tenant.tenant_name}</p>
             )}
           </div>
           <div className="flex items-center gap-4">

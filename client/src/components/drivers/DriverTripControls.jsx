@@ -17,7 +17,7 @@ export default function DriverTripControls() {
   const [starting, setStarting] = useState(false);
   const [completing, setCompleting] = useState(false);
 
-const [paymentMethods, setPaymentMethods] = useState({});
+
 
 // "online" | "offline"
 
@@ -111,25 +111,14 @@ const [paymentMethods, setPaymentMethods] = useState({});
       alert(err.message || "Failed to cancel trip");
     }
   };
-  const setMethodForPayment = (paymentId, method) => {
-  setPaymentMethods(prev => ({
-    ...prev,
-    [paymentId]: method,
-  }));
-};
+
 
 
 const handleConfirmPayment = async (tripId, method) => {
   try {
     await paymentconfirmation(tripId, method);
 
-    setPaymentMethods(prev => {
-      const copy = { ...prev };
-      delete copy[tripId]; // or payment_id if backend returns it
-      return copy;
-    });
-
-    alert(`Payment confirmed (${method})`);
+    alert("Payment confirmed");
   } catch (err) {
     alert(err.message || "Failed to confirm payment");
   }
@@ -187,7 +176,6 @@ const handleConfirmPayment = async (tripId, method) => {
     <h4 className="font-semibold text-lg">Pending Payments</h4>
 
     {pendingPayments.map((payment) => {
-      const selectedMethod = paymentMethods[payment.payment_id];
 
       return (
         <div
@@ -201,43 +189,12 @@ const handleConfirmPayment = async (tripId, method) => {
           </div>
 
           {/* PAYMENT METHOD */}
-          <div className="mb-3">
-            <p className="text-sm font-medium mb-2">Payment Method</p>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() =>
-                  setMethodForPayment(payment.payment_id, "online")
-                }
-                className={`flex-1 px-3 py-2 rounded border
-                  ${selectedMethod === "online"
-                    ? "bg-green-600 text-white border-green-600"
-                    : "bg-white text-gray-700 border-gray-300"
-                  }`}
-              >
-                Online
-              </button>
-
-              <button
-                onClick={() =>
-                  setMethodForPayment(payment.payment_id, "offline")
-                }
-                className={`flex-1 px-3 py-2 rounded border
-                  ${selectedMethod === "offline"
-                    ? "bg-orange-600 text-white border-orange-600"
-                    : "bg-white text-gray-700 border-gray-300"
-                  }`}
-              >
-                Offline (Cash)
-              </button>
-            </div>
-          </div>
+        
 
           {/* CONFIRM */}
           <button
-            disabled={!selectedMethod}
             onClick={() =>
-              handleConfirmPayment(payment.trip_id, selectedMethod)
+              handleConfirmPayment(payment.trip_id, "online")
             }
             className="w-full px-3 py-2 bg-blue-600 text-white rounded
                        disabled:opacity-50"
@@ -249,10 +206,6 @@ const handleConfirmPayment = async (tripId, method) => {
     })}
   </div>
 )}
-
-
-
-
       </div>
     </div>
   );

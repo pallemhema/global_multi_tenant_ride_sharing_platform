@@ -16,28 +16,42 @@ export const appAdminAPI = {
   getTenantDetails: (tenantId) => {
     return apiClient.get(`/app-admin/tenants/${tenantId}`);
   },
+    
+  createTenant:(payload)=>{
+    return apiClient.post("/app-admin/tenants",payload);
+  },
+
 
   approveTenant: (tenantId) => {
     return apiClient.post(`/app-admin/tenants/${tenantId}/approve`);
   },
+
+  rejectTenant: (tenantId) => {
+    return apiClient.post(`/app-admin/tenants/${tenantId}/reject`);
+  },
+
 
   // Documents
   getTenantDocuments: (tenantId) => {
     return apiClient.get(`/app-admin/tenants/${tenantId}/documents`);
   },
 
-  verifyDocument: (tenantId, docId) => {
+
+
+  approveDocument: (tenantId, docId) => {
     return apiClient.post(
       `/app-admin/tenants/${tenantId}/documents/${docId}/verify`
     );
   },
 
-  // Tenant Admins
-  createTenantAdmin: (tenantId, data) => {
-    return apiClient.post(`/app-admin/tenant-admins`, {
-      tenant_id: tenantId,
-      ...data,
-    });
+  rejectDocument: (tenantId, docId) => {
+    return apiClient.post(
+      `/app-admin/tenants/${tenantId}/documents/${docId}/verify`
+    );
+  },
+
+  createTenantAdmin:(createdTenantId,payload)=>{
+    return apiClient.post(`/app-admin/tenants/${createdTenantId}/admins`,payload);
   },
 
   getTenantAdmins: (tenantId) => {
@@ -47,13 +61,37 @@ export const appAdminAPI = {
   getTenantAdmin: (tenantId) => {
     return apiClient.get(`/app-admin/tenants/${tenantId}/admin`);
   },
-};
 
-// Lookups endpoints
-export const lookupsAPI = {
-  getTenantDocumentTypes: () => {
-    return apiClient.get('/lookups/tenant-document-types');
+  createPayoutBatch : (payload) =>{
+   return apiClient.post("/app-admin/payout-batches", payload)
   },
+
+  listPayoutBatches : () =>{
+   return apiClient.get("/app-admin/payout-batches");
+  },
+
+  getPayoutBatchDetail: (batchId) =>{
+    return apiClient.get(`/app-admin/payout-batches/${batchId}`);
+  },
+
+  executeBatch : (batchId, payload) =>{
+    return apiClient.post(`/app-admin/payout-batches/${batchId}/execute`, payload);
+  },
+
+  getBatchPayments : (batchId) =>{
+  return apiClient.get(`/app-admin/payout-batches/${batchId}/payments`);
+ },
+
+  getBatchPayouts : (batchId) =>{
+  return apiClient.get(`/app-admin/payout-batches/${batchId}/payouts`);
+ },
+
+  calculateBatchPayouts : (batchId) =>{
+  return apiClient.post(`/app-admin/payout-batches/${batchId}/calculate`);
+ }
+
 };
 
-export default apiClient;
+
+
+

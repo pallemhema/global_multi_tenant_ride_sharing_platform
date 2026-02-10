@@ -18,8 +18,9 @@ from app.models.core.fleet_owners.fleet_owner_cities import FleetOwnerCity
 from app.models.lookups.city import City
 
 from fastapi import APIRouter
+from sqlalchemy import func
 
-router = APIRouter()
+router = APIRouter(tags=["Tenants - Admin"])
 @router.get("/{tenant_id}")
 def get_tenant(
     tenant_id: int,
@@ -76,7 +77,7 @@ def tenant_compliance_status(
     }
 
 
-from sqlalchemy import func
+
 
 
 @router.get("/{tenant_id}/fleets")

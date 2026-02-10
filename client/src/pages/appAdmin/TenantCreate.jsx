@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { appAdminAPI } from '../../services/appAdminApi';
-import apiClient from '../../services/appAdminApi';
+
 
 export default function TenantCreate() {
   const navigate = useNavigate();
@@ -72,7 +72,7 @@ export default function TenantCreate() {
       };
       console.log('Sending payload:', payload);
       
-      const response = await apiClient.post('/app-admin/tenants', payload);
+      const response = await appAdminAPI(payload);
       setCreatedTenantId(response.data.id || response.data.tenant_id);
       setStep(2); // Move to admin creation
     } catch (err) {
@@ -95,13 +95,15 @@ export default function TenantCreate() {
     setLoading(true);
 
     try {
-      await apiClient.post(`/app-admin/tenants/${createdTenantId}/admins`, {
+      payload = {
         first_name: adminData.first_name,
         last_name: adminData.last_name,
         email: adminData.email,
         phone: adminData.phone,
         password: adminData.password,
-      });
+      }
+      await appAdminAPI.createTenantAdmin(createdTenantId, payload)
+
       alert('Tenant and admin created successfully!');
       navigate('/dashboard/tenants');
     } catch (err) {

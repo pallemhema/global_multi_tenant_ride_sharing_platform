@@ -12,6 +12,7 @@ import { useDriver } from "../../context/DriverContext";
 import Loader from "../../components/common/Loader";
 import { getCurrentPositionPromise } from "../../utils/location";
 import useHeartbeat from "../../hooks/useHeartbeat";
+import DriverPastTrips from "../../components/drivers/DriverPastTrips";
 
 export default function Shifts() {
   const {
@@ -23,7 +24,9 @@ export default function Shifts() {
     startShift,
     endShift,
     updateRuntimeStatus,
+     pastTrips,
   } = useDriver();
+   
 
   const isApproved = driver?.kyc_status === "approved";
 
@@ -332,14 +335,11 @@ export default function Shifts() {
 
       {/* SHIFT HISTORY (PLACEHOLDER) */}
       <div className="bg-white rounded-lg border p-6">
-        <h3 className="text-lg font-semibold flex gap-2 items-center">
-          <Calendar size={18} /> Recent Shifts
-        </h3>
-
-        <div className="text-center py-8">
-          <Clock className="mx-auto text-slate-400 mb-3" size={36} />
-          <p className="text-slate-600">No shift history available</p>
-        </div>
+        <DriverPastTrips
+          trips={pastTrips}
+          loading={loading}
+          driver={driver}
+        />
       </div>
 
       {/* TIPS */}
