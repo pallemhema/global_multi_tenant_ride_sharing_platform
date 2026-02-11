@@ -9,7 +9,7 @@ Trip Request Endpoints - Multi-tenant ride-sharing trip flow
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import math
 import json
@@ -42,8 +42,7 @@ from app.schemas.core.trips.trip_request import (
 from app.core.fare.tenant_vehicle_categoy_price import get_vehicle_pricing
 from app.models.lookups.vehicle_category import VehicleCategory
 from app.schemas.core.trips.trip_request import TripStatusOut
-from sqlalchemy.orm import aliased
-VehicleAssignmentVehicle = aliased(Vehicle)
+from app.core.trips.trip_otp_service import generate_trip_otp, store_trip_otp
 import os
 from app.core.trips.trip_otp_service import _otp_plain_key
 
@@ -316,8 +315,7 @@ def select_tenant(
     if not trip_req:
         raise HTTPException(status_code=404, detail="Trip request not found")
 
-    # ✅ ALLOW re-selection from: searching, tenant_selected, or no_drivers_available
-    # This enables riders to switch providers when no drivers are found
+   
     allowed_statuses = ("searching", "tenant_selected", "driver_searching", "no_drivers_available")
     if trip_req.status not in allowed_statuses:
         raise HTTPException(
@@ -360,19 +358,19 @@ def select_tenant(
 BATCH_CONFIG = [
     {
         "batch_number": 1,
-        "radius_km": 10.0,   # was 3.0
+        "radius_km": 10.0,  
         "max_drivers": 5,
         "timeout_sec": 15,
     },
     {
         "batch_number": 2,
-        "radius_km": 20.0,   # was 6.0
+        "radius_km": 20.0,   
         "max_drivers": 8,
         "timeout_sec": 20,
     },
     {
         "batch_number": 3,
-        "radius_km": 30.0,   # was 10.0
+        "radius_km": 30.0,   
         "max_drivers": 12,
         "timeout_sec": 25,
     },
@@ -432,9 +430,7 @@ def start_driver_search(
     # ------------------------------------------------
     batch_cfg = BATCH_CONFIG[0]
 
-    # ------------------------------------------------
-    # 3️⃣ Redis GEO lookup (CAST TO FLOAT!)
-    # ------------------------------------------------
+   
     geo_key = f"drivers:geo:{tenant_id}:{city_id}"
     print("geo key :",geo_key)
 
@@ -473,10 +469,9 @@ def start_driver_search(
 
     print("nearby_drivers:",nearby_drivers)
 
-    # ✅ NO DRIVERS: Return 200 OK with empty drivers list instead of 404
-    # This allows riders to retry or switch tenants without blocking the flow
+ 
     if not nearby_drivers:
-        # Update trip request status to no_drivers_available
+      
         trip_req.status = "no_drivers_available"
         db.commit()
         return {
@@ -488,17 +483,14 @@ def start_driver_search(
             "message": "No drivers available right now. Please try again or select a different provider.",
         }
 
-    # ------------------------------------------------
-    # 4️⃣ Filter available drivers (CORRECT KEYS)
-    # ------------------------------------------------
+ 
     nearby_driver_ids = [
     int(raw_id.decode() if isinstance(raw_id, bytes) else raw_id)
     for raw_id in nearby_drivers
     ]
 
     if not nearby_driver_ids:
-        # ✅ NO DRIVERS: Return gracefully instead of blocking
-        # Update trip request status to no_drivers_available
+       
         trip_req.status = "no_drivers_available"
         db.commit()
         return {
@@ -518,9 +510,6 @@ def start_driver_search(
 
     
 
-    # ------------------------------------------------
-    # 6️⃣ Create TripBatch
-    # ------------------------------------------------
     trip_batch = TripBatch(
         trip_request_id=trip_req.trip_request_id,
         tenant_id=tenant_id,
@@ -535,9 +524,6 @@ def start_driver_search(
     db.add(trip_batch)
     db.flush()
 
-    # ------------------------------------------------
-    # 7️⃣ Create TripDispatchCandidate records (link to pre-created trip)
-    # ------------------------------------------------
     candidates = [
         TripDispatchCandidate(
             tenant_id=tenant_id,
@@ -551,9 +537,7 @@ def start_driver_search(
 
     db.add_all(candidates)
 
-    # ------------------------------------------------
-    # 8️⃣ Update TripRequest status
-    # ------------------------------------------------
+  
     trip_req.status = "driver_searching"
     trip_req.updated_at_utc = now
     db.add(trip_req)
@@ -561,9 +545,6 @@ def start_driver_search(
     db.commit()
     db.refresh(trip_batch)
 
-    # ------------------------------------------------
-    # 8️⃣ Notify drivers
-    # ------------------------------------------------
     for driver_id in available_driver_ids:
         redis_client.publish(
             f"driver:trip_request:{driver_id}",
@@ -580,11 +561,6 @@ def start_driver_search(
     }
 
 
-# ============================================
-# STATUS CHECK (for frontend polling)
-# ============================================
-# STATUS CHECK - FOR TRIP REQUEST (before driver accepts)
-# ============================================
 @router.get("/request/{trip_request_id}/status", response_model=TripStatusOut)
 def get_trip_request_status(
     trip_request_id: int,
@@ -624,11 +600,7 @@ def get_trip_request_status(
         "otp": None,
     }
 
-    # Check if trip was cancelled (even if trip_req.status is back to driver_searching)
-    # This happens when driver cancels after accepting. Only report cancelled
-    # if the cancellation happened after the trip_request was last updated —
-    # this allows a subsequent `start-driver-search` (which updates trip_req)
-    # to clear the cancelled flag for the rider.
+    
     cancelled_trip = db.query(Trip).filter(
         Trip.trip_request_id == trip_request_id,
         Trip.trip_status == "cancelled",
@@ -675,8 +647,8 @@ def get_trip_request_status(
                         assigned["driver_name"] = profile.full_name
                     
                     # Get driver rating
-                    assigned["driver_rating_avg"] = driver.rating_avg
-                    assigned["driver_rating_count"] = driver.rating_count
+                    assigned["driver_rating_avg"] = driver.average_rating
+                    assigned["driver_rating_count"] = driver.total_ratings
 
                     # Try to get driver GEO from Redis
                     try:
@@ -826,8 +798,7 @@ def resend_trip_otp(
     rider: User = Depends(require_rider),
 ):
     """Regenerate & store OTP (dev) — in production this would trigger an SMS/notification."""
-    import os
-    from app.core.trips.trip_otp_service import generate_trip_otp, store_trip_otp
+    
 
     if os.environ.get("DEV_MODE", "false").lower() != "true":
         raise HTTPException(status_code=403, detail="OTP resend is disabled in production")

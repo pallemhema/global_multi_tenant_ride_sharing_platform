@@ -35,7 +35,7 @@ def confirm_payment(
             db=db,
             trip_id=payload.trip_id,
             payment_method=payload.payment_method,
-            confirmed_by_user_id=driver.driver_id,
+            confirmed_by_user_id=driver.user_id,
         )
 
         return PaymentConfirmationResponse(**result)

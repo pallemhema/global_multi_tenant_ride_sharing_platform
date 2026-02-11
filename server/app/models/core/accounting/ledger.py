@@ -112,6 +112,11 @@ class FinancialLedger(Base, TimestampMixin, AuditMixin):
         TIMESTAMP(timezone=True),
         nullable=True,
     )
+    payout_batch_id: Mapped[int | None] = mapped_column(
+        BigInteger, 
+          ForeignKey("payout_batches.payout_batch_id"),
+          nullable=True,
+    )
 
     # Ledger write time (immutable)
 

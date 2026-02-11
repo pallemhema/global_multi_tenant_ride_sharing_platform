@@ -14,15 +14,11 @@ router = APIRouter(
     dependencies=[Depends(require_app_admin)],
 )
 
-
-@router.post("/{batch_id}/calculate", response_model=CalculatePayoutsResponse)
+@router.post("/{batch_id}/calculate")
 def calculate_payouts(
     batch_id: int,
     db: Session = Depends(get_db),
 ):
-    # --------------------------------------------------
-    # 1️⃣ Fetch & lock batch
-    # --------------------------------------------------
     batch = (
         db.query(PayoutBatch)
         .filter(PayoutBatch.payout_batch_id == batch_id)
@@ -31,19 +27,19 @@ def calculate_payouts(
     )
 
     if not batch:
-        raise HTTPException(status_code=404, detail="Payout batch not found")
+        raise HTTPException(404, "Payout batch not found")
 
     if batch.status not in ("initiated", "processing"):
         raise HTTPException(
-            status_code=400,
-            detail=f"Cannot calculate payouts in status {batch.status}",
+            400,
+            f"Cannot calculate payouts in status {batch.status}",
         )
 
     batch.status = "processing"
     db.flush()
 
     # --------------------------------------------------
-    # 2️⃣ Aggregate CREDIT ledger (THE TRUTH)
+    # 1️⃣ Select ONLY unsettled CREDIT ledger rows
     # --------------------------------------------------
     credit_rows = (
         db.query(
@@ -53,10 +49,8 @@ def calculate_payouts(
             func.sum(FinancialLedger.amount).label("credit_total"),
         )
         .filter(
-            FinancialLedger.tenant_id == batch.tenant_id,
-            FinancialLedger.country_id == batch.country_id,
-            FinancialLedger.currency_code == batch.currency_code,
             FinancialLedger.entry_type == "CREDIT",
+            FinancialLedger.payout_batch_id == None,
             FinancialLedger.credited_at_utc >= batch.period_start_utc,
             FinancialLedger.credited_at_utc <= batch.period_end_utc,
         )
@@ -72,17 +66,20 @@ def calculate_payouts(
     total_payable = 0.0
 
     # --------------------------------------------------
-    # 3️⃣ Process each earning group
+    # 2️⃣ Create payouts per entity
     # --------------------------------------------------
     for row in credit_rows:
+
         entity_type = row.entity_type
         entity_id = row.entity_id
         transaction_type = row.transaction_type
         credit_total = float(row.credit_total or 0)
 
-        # ----------------------------------------------
-        # Determine owner_type (CORRECTLY)
-        # ----------------------------------------------
+        # Skip platform rows
+        if entity_type == "platform":
+            continue
+
+        # Determine owner type
         if entity_type == "tenant":
             owner_type = None
         elif entity_type == "owner":
@@ -91,35 +88,11 @@ def calculate_payouts(
             elif transaction_type == "fleet_earnings":
                 owner_type = "fleet_owner"
             else:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Unknown owner transaction_type: {transaction_type}",
-                )
+                continue
         else:
-            continue  # platform / tax never get payouts
-
-        # ----------------------------------------------
-        # Subtract already PAID amounts (DEBIT)
-        # ----------------------------------------------
-        debit_total = (
-            db.query(func.coalesce(func.sum(FinancialLedger.amount), 0))
-            .filter(
-                FinancialLedger.entity_type == entity_type,
-                FinancialLedger.entity_id == entity_id,
-                FinancialLedger.currency_code == batch.currency_code,
-                FinancialLedger.entry_type == "DEBIT",
-            )
-            .scalar()
-        )
-
-        payable = credit_total - float(debit_total or 0)
-
-        if payable <= 0:
             continue
 
-        # ----------------------------------------------
-        # Idempotency: skip if payout already exists
-        # ----------------------------------------------
+        # Idempotency safety
         exists = (
             db.query(Payout)
             .filter(
@@ -136,26 +109,43 @@ def calculate_payouts(
         payout = Payout(
             payout_batch_id=batch_id,
             entity_type=entity_type,
-            entity_id=entity_id,
             owner_type=owner_type,
+            entity_id=entity_id,
             currency_code=batch.currency_code,
-            gross_amount=payable,
+            gross_amount=credit_total,
             fee_amount=0,
-            net_amount=payable,
-            paid_amount=payable,
+            net_amount=credit_total,
+            paid_amount=credit_total,
             status="pending",
         )
 
         db.add(payout)
+        db.flush()
+
+        # --------------------------------------------------
+        # 3️⃣ Mark CREDIT rows as settled (assign batch)
+        # --------------------------------------------------
+        db.query(FinancialLedger).filter(
+            FinancialLedger.entity_type == entity_type,
+            FinancialLedger.entity_id == entity_id,
+            FinancialLedger.entry_type == "CREDIT",
+            FinancialLedger.payout_batch_id == None,
+            FinancialLedger.credited_at_utc >= batch.period_start_utc,
+            FinancialLedger.credited_at_utc <= batch.period_end_utc,
+        ).update(
+            {"payout_batch_id": batch_id},
+            synchronize_session=False,
+        )
 
         payouts_created += 1
-        total_payable += payable
+        total_payable += credit_total
 
     db.commit()
 
-   
-    return CalculatePayoutsResponse(
-            batch_id=batch_id,
-            payouts_created=payouts_created,
-            total_payable=round(total_payable, 2),
-        )
+    return {
+        "batch_id": batch_id,
+        "payouts_created": payouts_created,
+        "total_payable": round(total_payable, 2),
+    }
+
+

@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
-import { appAdminAPI } from '../../services/appAdminApi';
+import { useAppAdmin } from '../../context/AppAdminContext';
 
 export default function TenantApprove() {
   const { tenantId } = useParams();
   const navigate = useNavigate();
-  const [tenant, setTenant] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const {
+    tenantDetails: tenant,
+    loading,
+    error,
+    operationInProgress,
+    getTenantDetailsData,
+    approveTenantData,
+    rejectTenantData,
+    clearError,
+  } = useAppAdmin();
   const [approvalNote, setApprovalNote] = useState('');
   const [action, setAction] = useState(null);
 
@@ -18,43 +24,28 @@ export default function TenantApprove() {
   }, [tenantId]);
 
   const fetchTenantDetails = async () => {
-    try {
-      const response = await appAdminAPI.getTenantDetails(tenantId)
-      setTenant(response.data);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load tenant details');
-    } finally {
-      setLoading(false);
-    }
+    await getTenantDetailsData(tenantId);
   };
 
   const handleApprove = async () => {
-    setSubmitting(true);
-    try {
-      await appAdminAPI.approveTenant(tenantId);
+    clearError();
+    const res = await approveTenantData(tenantId);
+    if (res.success) {
       alert('Tenant approved successfully!');
       navigate('/dashboard/tenants');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to approve tenant');
-    } finally {
-      setSubmitting(false);
     }
   };
 
   const handleReject = async () => {
     if (!approvalNote.trim()) {
-      setError('Please provide a reason for rejection');
+      alert('Please provide a reason for rejection');
       return;
     }
-    setSubmitting(true);
-    try {
-      await appAdminAPI.rejectTenant(tenantId)
+    clearError();
+    const res = await rejectTenantData(tenantId);
+    if (res.success) {
       alert('Tenant rejected successfully!');
       navigate('/dashboard/tenants');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to reject tenant');
-    } finally {
-      setSubmitting(false);
     }
   };
 

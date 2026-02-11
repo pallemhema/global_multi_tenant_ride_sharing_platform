@@ -46,56 +46,6 @@ def create_tenant(
         "status": "created",
     }
 
-# @router.post("/tenant-admins")
-# def create_tenant_admin(
-#     payload: TenantAdminCreate,
-#     db: Session = Depends(get_db),
-#     user: dict = Depends(require_app_admin),
-# ):
-#     # 1️⃣ Validate tenant
-#     tenant = db.get(Tenant, payload.tenant_id)
-#     if not tenant:
-#         raise HTTPException(404, "Tenant not found")
-
-#     # 2️⃣ Ensure email uniqueness
-#     existing = (
-#         db.query(User)
-#         .filter(User.email == payload.email)
-#         .first()
-#     )
-#     if existing:
-#         raise HTTPException(400, "User with this email already exists")
-
-#     # 3️⃣ Create tenant admin user
-#     new_user = User(
-#         email=payload.email,
-#         password_hash=hash_password(payload.password),
-#         email_verified=True,
-#         is_active=True,
-#         is_app_admin=False,
-#     )
-
-#     db.add(new_user)
-#     db.flush()  # get user_id
-
-#     # 4️⃣ Assign tenant-admin role
-#     staff = TenantStaff(
-#         tenant_id=payload.tenant_id,
-#         user_id=new_user.user_id,
-#         role_code="admin",
-#         status="active",
-#         created_by=int(user["sub"]),
-#     )
-
-#     db.add(staff)
-#     db.commit()
-
-#     return {
-#         "message": "Tenant admin created",
-#         "tenant_id": payload.tenant_id,
-#         "user_id": new_user.user_id,
-#         "email": new_user.email,
-#     }
 
 @router.post("/tenants/{tenant_id}/admins")
 def create_tenant_admin_by_tenant_id(
@@ -395,14 +345,14 @@ def list_tenants(
 ):
     tenants = db.query(Tenant).all()
 
+    
+
     return [
         {
             "id": t.tenant_id,
             "name": t.tenant_name,
             "legal_name": t.legal_name,
             "business_email": t.business_email,
-            "city": t.city,
-            "country": t.country,
             "business_registration_number": t.business_registration_number,
             "approval_status": t.approval_status,
             "status": t.status,

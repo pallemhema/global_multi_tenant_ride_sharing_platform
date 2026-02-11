@@ -20,7 +20,7 @@ import Login from "../pages/auth/AdminLogin";
 import { UserLogin } from "../pages/auth/UserLogin";
 
 /* ===== Admin Pages ===== */
-import DashboardLayout from "../components/layout/DashboardLayout";
+import DashboardLayout from "../components/app/DashboardLayout";
 import DashboardHome from "../pages/appAdmin/dashboard/Home";
 import TenantsList from "../pages/appAdmin/tenants/TenantsList";
 import TenantDetails from "../pages/appAdmin/tenants/TenantDetails";
@@ -30,6 +30,9 @@ import TenantDocumentsApproval from "../pages/appAdmin/TenantDocumentsApproval";
 import TenantApprove from "../pages/appAdmin/TenantApprove";
 import TenantProfile from "../pages/tenant-admin/Profile";
 import CreatePayoutBatch from "../pages/appAdmin/payouts/CreatePayoutBatch";
+import PayoutBatchList from "../pages/appAdmin/payouts/PayoutBatchList";
+import PayoutBatchDetails from "../pages/appAdmin/payouts/PayoutBatchDetails";
+import { AppAdminProvider } from "../context/AppAdminContext";
 
 /* ===== Tenant Admin ===== */
 import TenantAdminLayout from "../layouts/TenantAdminLayout";
@@ -91,25 +94,24 @@ const router = createBrowserRouter([
     path: "/dashboard",
     element: (
       <AdminGaurd>
-        <DashboardLayout />
+        <AppAdminProvider>
+          <DashboardLayout />
+        </AppAdminProvider>
       </AdminGaurd>
     ),
     children: [
       { index: true, element: <DashboardHome /> },
       { path: "tenants", element: <TenantsList /> },
       { path: "tenants/create", element: <TenantCreate /> },
-      {path:"payouts/create", element:<CreatePayoutBatch/>},
       { path: "tenants/:tenantId", element: <TenantDetails /> },
-      {
-        path: "tenants/:tenantId/admin/create",
-        element: <TenantAdminCreate />,
-      },
-      {
-        path: "tenants/:tenantId/documents",
-        element: <TenantDocumentsApproval />,
-      },
+      { path: "tenants/:tenantId/admin/create", element: <TenantAdminCreate /> },
+      { path: "tenants/:tenantId/documents", element: <TenantDocumentsApproval /> },
       { path: "tenants/:tenantId/approve", element: <TenantApprove /> },
       { path: "profile", element: <TenantProfile /> },
+      // Payout routes (App Admin + Tenant Admin via AdminGuard)
+      { path: "payouts", element: <PayoutBatchList /> },
+      { path: "payouts/create", element: <CreatePayoutBatch /> },
+      { path: "payouts/:batchId", element: <PayoutBatchDetails /> },
     ],
   },
 

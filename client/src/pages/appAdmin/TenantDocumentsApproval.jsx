@@ -1,64 +1,55 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, CheckCircle, XCircle } from 'lucide-react';
-import  { appAdminAPI } from '../../services/appAdminApi';
+import { useAppAdmin } from '../../context/AppAdminContext';
 
 export default function TenantDocumentsApproval() {
   const { tenantId } = useParams();
   const navigate = useNavigate();
-  const [documents, setDocuments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const {
+    tenantDocuments: documents,
+    loading,
+    error,
+    operationInProgress,
+    getTenantDocumentsData,
+    approveDocumentData,
+    rejectDocumentData,
+    clearError,
+  } = useAppAdmin();
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [approvalNote, setApprovalNote] = useState('');
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
   }, [tenantId]);
 
   const fetchDocuments = async () => {
-    try {
-      const response = await appAdminAPI.getTenantDocuments(tenantId);
-      setDocuments(response.data);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load documents');
-    } finally {
-      setLoading(false);
-    }
+    await getTenantDocumentsData(tenantId);
   };
 
   const handleApprove = async (docId) => {
-    setSubmitting(true);
-    try {
-      await appAdminAPI.approveDocument(tenantId,docId);
+    clearError();
+    const res = await approveDocumentData(tenantId, docId);
+    if (res.success) {
       setApprovalNote('');
       setSelectedDoc(null);
       await fetchDocuments();
       alert('Document approved successfully!');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to approve document');
-    } finally {
-      setSubmitting(false);
     }
   };
 
   const handleReject = async (docId) => {
     if (!approvalNote.trim()) {
-      setError('Please provide a reason for rejection');
+      alert('Please provide a reason for rejection');
       return;
     }
-    setSubmitting(true);
-    try {
-      await appAdminAPI.rejectDocument(tenantId, docId)
+    clearError();
+    const res = await rejectDocumentData(tenantId, docId);
+    if (res.success) {
       setApprovalNote('');
       setSelectedDoc(null);
       await fetchDocuments();
       alert('Document rejected successfully!');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to reject document');
-    } finally {
-      setSubmitting(false);
     }
   };
 

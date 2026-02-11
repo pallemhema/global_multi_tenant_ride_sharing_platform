@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    BigInteger, String, Boolean, ForeignKey, Integer, TIMESTAMP
+    BigInteger, String, Boolean, ForeignKey, Integer, TIMESTAMP,NUMERIC
 )
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
@@ -77,3 +77,12 @@ class Driver(Base, TimestampMixin, AuditMixin):
         TIMESTAMP(timezone=True),
         nullable=True
     )
+
+    average_rating: Mapped[int | None] = mapped_column(
+        NUMERIC(3,2),
+           nullable=True
+    )
+    total_ratings: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+   

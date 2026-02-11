@@ -12,5 +12,5 @@ class CancellationResponse(BaseModel):
     """Cancellation confirmation"""
     status: str
     trip_id: int
-    cancellation_fee: float | None = None
+   
     message: str

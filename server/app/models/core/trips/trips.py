@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Text,BigInteger, DateTime, ForeignKey, Numeric, Text, Integer, String
+from sqlalchemy import Text,BigInteger, DateTime, ForeignKey, Numeric, Text, Integer, TIMESTAMP,String
 from sqlalchemy.orm import Mapped, mapped_column
 from typing import Optional
 from app.core.database import Base
@@ -71,4 +71,16 @@ class Trip(Base,AuditMixin,TimestampMixin):
             "lu_vehicle_category.category_code"
         ),
         nullable=True,
+    )
+    rating: Mapped[int | None ] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    rating_comment: Mapped[str | None ] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    rated_at_utc: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True
     )

@@ -2,6 +2,7 @@
 import {
   LayoutDashboard,
   Building2,
+  DollarSign,
   User,
   LogOut,
   Plus,
@@ -16,27 +17,28 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
   const location = useLocation();
 
   const isActive = (path) => {
-    if (path === "/dashboard") {
-      return location.pathname === "/dashboard";
-    }
-    return location.pathname.startsWith(path);
+    // if (path === "/dashboard") {
+    //   return location.pathname === "/dashboard";
+    // }
+    return (
+      location.pathname === path 
+    );
   };
 
   const handleLogout = () => {
     logout();
-    window.location.href = "/login";
+    window.location.href = "/admin/login";
   };
 
   const navItems = [
     { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/dashboard/tenants", label: "Tenants", icon: Building2 },
-  
-  ];
-
-  const actionItems = [
-    { path: "/dashboard/tenants/create", label: "Create Tenant", icon: Plus },
+    { path: "/dashboard/payouts", label: "Payouts", icon: DollarSign },
+     { path: "/dashboard/tenants/create", label: "Create Tenant", icon: Plus },
     { path: "/dashboard/payouts/create", label: "Create Payout Batch", icon:Plus},
   ];
+
+  
 
   return (
     <aside
@@ -86,25 +88,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           );
         })}
 
-        {/* Actions */}
-        <div className="border-t border-slate-700 pt-4 mt-4">
-          {actionItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                title={!sidebarOpen ? item.label : ""}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition"
-              >
-                <Icon size={20} />
-                {sidebarOpen && (
-                  <span className="text-sm">{item.label}</span>
-                )}
-              </Link>
-            );
-          })}
-        </div>
+      
       </nav>
 
       {/* Logout */}

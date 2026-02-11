@@ -1,37 +1,39 @@
 import { useEffect, useState } from "react";
-
-
+import { useAppAdmin } from "../../../context/AppAdminContext";
+import { useNavigate } from "react-router-dom";
 import { appAdminAPI } from "../../../services/appAdminApi";
 
 export default function CreatePayoutBatch() {
-  const [tenants, setTenants] = useState([]);
+  const { tenants, loadTenants, createPayoutBatch, loading, error, clearError } = useAppAdmin();
+  const navigate = useNavigate();
   const [countries, setCountries] = useState([]);
-  console.log(tenants, countries)
+  const [localError, setLocalError] = useState(null);
+  const [fetchingCountries, setFetchingCountries] = useState(false);
+
+  console.log(tenants)
 
   const [form, setForm] = useState({
     tenant_id: "",
     country_id: "",
-    period_start_utc: "",
-    period_end_utc: "",
   });
 
-  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [createdBatch, setCreatedBatch] = useState(null);
 
   /* ----------------------------
-     Load tenants on page load
+     Load tenants on mount
   -----------------------------*/
   useEffect(() => {
-    appAdminAPI.getTenants().then((res) => {
-      setTenants(res.data);
-    });
-  }, []);
+    loadTenants();
+  }, [loadTenants]);
 
   /* ----------------------------
-     When tenant changes → load countries
+     Handle tenant change
   -----------------------------*/
   const handleTenantChange = async (e) => {
     const tenantId = e.target.value;
+    clearError();
+    setLocalError(null);
 
     setForm({
       ...form,
@@ -42,40 +44,96 @@ export default function CreatePayoutBatch() {
 
     if (!tenantId) return;
 
-    const res = await appAdminAPI.getTenantDetails(tenantId);
-    setCountries(res.data.countries);
+    try {
+      setFetchingCountries(true);
+      // Fetch tenant details which includes countries
+      const res = await appAdminAPI.getTenantDetails(tenantId);
+      if (res.data?.countries) {
+        setCountries(res.data.countries);
+      } else {
+        setCountries([]);
+        setLocalError("No countries found for this tenant");
+      }
+    } catch (err) {
+      setLocalError("Failed to load countries");
+      console.error(err);
+    } finally {
+      setFetchingCountries(false);
+    }
   };
 
+  console.log("countries:",countries)
+
   const handleChange = (e) => {
+    clearError();
+    setLocalError(null);
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async () => {
-    setLoading(true);
+    setCreating(true);
+    clearError();
+    setLocalError(null);
+
     try {
-      const res = await appAdminAPI.createPayoutBatch({
+      const res = await createPayoutBatch({
         tenant_id: Number(form.tenant_id),
         country_id: Number(form.country_id),
-        period_start_utc: new Date(form.period_start_utc).toISOString(),
-        period_end_utc: new Date(form.period_end_utc).toISOString(),
+      
       });
 
-      setCreatedBatch(res.data);
+      if (res.success) {
+        setCreatedBatch(res.data);
+        setForm({
+          tenant_id: "",
+          country_id: "",
+         
+        });
+        setCountries([]);
+        // Redirect after 2 seconds
+        setTimeout(() => {
+          navigate("/dashboard/payouts");
+        }, 2000);
+      } else {
+        setLocalError(res.error || "Failed to create batch");
+      }
     } catch (err) {
-      alert(err.response?.data?.detail || "Failed to create batch");
+      setLocalError("An unexpected error occurred");
+      console.error(err);
     } finally {
-      setLoading(false);
+      setCreating(false);
     }
   };
 
   return (
     <div className="p-6 max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-6">
-        Create Payout Batch
-      </h1>
+      <h1 className="text-2xl font-semibold mb-6">Create Payout Batch</h1>
+
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded p-3">
+          <div className="text-sm text-red-700">{error}</div>
+        </div>
+      )}
+
+      {localError && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded p-3">
+          <div className="text-sm text-red-700">{localError}</div>
+        </div>
+      )}
+
+      {createdBatch && (
+        <div className="mb-4 bg-green-50 border border-green-200 rounded p-4">
+          <div className="font-semibold text-green-700">✓ Batch Created Successfully</div>
+          <div className="text-sm mt-2 space-y-1">
+            <div>Batch ID: <b>{createdBatch.payout_batch_id}</b></div>
+            <div>Status: <b>{createdBatch.status}</b></div>
+            <div>Currency: <b>{createdBatch.currency_code}</b></div>
+          </div>
+          <div className="text-xs text-gray-600 mt-3">Redirecting to batch list...</div>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow p-6 space-y-4">
-
         {/* Tenant Dropdown */}
         <SelectField
           label="Tenant"
@@ -86,6 +144,7 @@ export default function CreatePayoutBatch() {
             label: t.name,
           }))}
           placeholder="Select Tenant"
+          disabled={loading || creating || !!createdBatch}
         />
 
         {/* Country Dropdown */}
@@ -98,53 +157,34 @@ export default function CreatePayoutBatch() {
             value: c.country_id,
             label: c.country_name || `Country ${c.country_id}`,
           }))}
-          placeholder={
-            form.tenant_id
-              ? "Select Country"
-              : "Select tenant first"
-          }
-          disabled={!form.tenant_id}
+          placeholder={fetchingCountries ? "Loading countries..." : form.tenant_id ? "Select Country" : "Select tenant first"}
+          disabled={!form.tenant_id || loading || creating || !!createdBatch || fetchingCountries}
         />
 
-        <Field
-          label="Period Start"
-          name="period_start_utc"
-          type="datetime-local"
-          value={form.period_start_utc}
-          onChange={handleChange}
-        />
+        <div>
 
-        <Field
-          label="Period End"
-          name="period_end_utc"
-          type="datetime-local"
-          value={form.period_end_utc}
-          onChange={handleChange}
-        />
+          This will create payout for:
+Monday → Sunday (Last Week)
 
-        <div className="pt-4 flex justify-end">
+        </div>
+
+        <div className="pt-4 flex justify-end gap-3">
           <button
-            disabled={loading}
+            onClick={() => navigate("/dashboard")}
+            className="px-5 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+            disabled={creating || !!createdBatch}
+          >
+            Cancel
+          </button>
+          <button
+            disabled={loading || creating || !!createdBatch}
             onClick={handleSubmit}
             className="bg-blue-600 text-white px-5 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? "Creating..." : "Create Batch"}
+            {loading ? "Loading..." : creating ? "Creating..." : "Create Batch"}
           </button>
         </div>
       </div>
-
-      {createdBatch && (
-        <div className="mt-6 bg-green-50 border border-green-200 rounded p-4">
-          <div className="font-semibold text-green-700">
-            Batch Created Successfully
-          </div>
-          <div className="text-sm mt-1">
-            Batch ID: <b>{createdBatch.payout_batch_id}</b><br />
-            Status: <b>{createdBatch.status}</b><br />
-            Currency: <b>{createdBatch.currency_code}</b>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -153,36 +193,27 @@ export default function CreatePayoutBatch() {
    Reusable components
 -----------------------------*/
 
-function Field({ label, ...props }) {
+function Field({ label, disabled, ...props }) {
   return (
     <div>
-      <label className="block text-sm font-medium mb-1">
-        {label}
-      </label>
+      <label className="block text-sm font-medium mb-1">{label}</label>
       <input
         {...props}
-        className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        disabled={disabled}
+        className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
       />
     </div>
   );
 }
 
-function SelectField({
-  label,
-  options,
-  placeholder,
-  disabled,
-  ...props
-}) {
+function SelectField({ label, options, placeholder, disabled, ...props }) {
   return (
     <div>
-      <label className="block text-sm font-medium mb-1">
-        {label}
-      </label>
+      <label className="block text-sm font-medium mb-1">{label}</label>
       <select
         {...props}
         disabled={disabled}
-        className="w-full border rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+        className="w-full border rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
       >
         <option value="">{placeholder}</option>
         {options.map(opt => (

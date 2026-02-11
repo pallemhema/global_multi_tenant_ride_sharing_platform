@@ -88,7 +88,15 @@ export const appAdminAPI = {
 
   calculateBatchPayouts : (batchId) =>{
   return apiClient.post(`/app-admin/payout-batches/${batchId}/calculate`);
- }
+ },
+
+ paySinglePayout: (batchId, payoutId, payload) => {
+  return apiClient.post(
+    `/app-admin/payout-batches/${batchId}/payouts/${payoutId}/pay`,
+    payload
+  );
+}
+
 
 };
 

@@ -20,7 +20,7 @@ router = APIRouter(
 
 
 
-@router.post("/{payout_id}/pay")
+@router.post("/{batch_id}/payouts/{payout_id}/pay")
 def pay_single_payout(
     payout_id: int,
     payload: PayPayoutRequest,
@@ -144,6 +144,24 @@ def pay_single_payout(
     payout.status = "paid"
     payout.payout_method = payload.payout_method
     payout.paid_at_utc = now
+
+    # --------------------------------------------------
+    # 5️⃣ Check if all payouts in batch are paid
+    # --------------------------------------------------
+    remaining = (
+        db.query(Payout)
+        .filter(
+            Payout.payout_batch_id == payout.payout_batch_id,
+            Payout.status != "paid",
+        )
+        .count()
+    )
+    print(remaining)
+
+    if remaining == 0:
+        batch.status = "completed"
+        batch.processed_at_utc = now
+
 
     db.commit()
 
@@ -324,6 +342,12 @@ def execute_payout_batch(
 
     if not batch:
         raise HTTPException(404, "Payout batch not found")
+
+    if batch.status != "calculated":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot execute batch in status {batch.status}. Batch must be in 'calculated' status.",
+        )
 
     # --------------------------------------------------
     # 2️⃣ Idempotency check (CRITICAL)

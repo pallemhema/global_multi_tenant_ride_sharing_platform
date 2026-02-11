@@ -124,7 +124,7 @@ def start_trip(
         from_status="assigned",
         to_status="picked_up",
         changed_at_utc=now,
-        changed_by=driver.driver_id,
+        changed_by=driver.user_id,
     ))
     
     db.commit()

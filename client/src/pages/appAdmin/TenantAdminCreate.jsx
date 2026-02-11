@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import  { appAdminAPI } from '../../services/appAdminApi';
+import { useAppAdmin } from '../../context/AppAdminContext';
 
 export default function TenantAdminCreate() {
   const navigate = useNavigate();
   const { tenantId } = useParams();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const {
+    operationInProgress,
+    error,
+    createTenantAdminData,
+    clearError,
+  } = useAppAdmin();
+  const [localError, setLocalError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -16,6 +21,8 @@ export default function TenantAdminCreate() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    clearError();
+    setLocalError('');
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -24,26 +31,24 @@ export default function TenantAdminCreate() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    clearError();
+    setLocalError('');
 
     if (formData.password !== formData.confirm_password) {
-      setError('Passwords do not match');
+      setLocalError('Passwords do not match');
       return;
     }
 
-    setLoading(true);
+    const res = await createTenantAdminData(tenantId, {
+      email: formData.email,
+      password: formData.password,
+    });
 
-    try {
-      const response = await appAdminAPI.createTenantAdmin(tenantId, {
-        email: formData.email,
-        password: formData.password,
-      });
+    if (res.success) {
       alert('Tenant admin created successfully!');
       navigate(`/dashboard/tenants/${tenantId}`);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create tenant admin');
-    } finally {
-      setLoading(false);
+    } else {
+      setLocalError(res.error || 'Failed to create tenant admin');
     }
   };
 
@@ -65,9 +70,9 @@ export default function TenantAdminCreate() {
 
         {/* Form Card */}
         <div className="bg-white rounded-lg shadow-sm p-8 border border-slate-200">
-          {error && (
+          {(error || localError) && (
             <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
-              {error}
+              {error || localError}
             </div>
           )}
 
@@ -131,10 +136,10 @@ export default function TenantAdminCreate() {
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={operationInProgress}
                 className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
               >
-                {loading ? 'Creating...' : 'Create Admin'}
+                {operationInProgress ? 'Creating...' : 'Create Admin'}
               </button>
             </div>
           </form>

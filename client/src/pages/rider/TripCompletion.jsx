@@ -9,12 +9,23 @@ export default function TripCompletion() {
   const [receipt, setReceipt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedRating, setSelectedRating] = useState(0);
+const [hoverRating, setHoverRating] = useState(0);
+const [comment, setComment] = useState("");
+const [submitting, setSubmitting] = useState(false);
+const [rated, setRated] = useState(false);
+
+
 
   useEffect(() => {
     const fetchReceipt = async () => {
       try {
         const res = await tripApi.getTripReceipt(tripId);
         console.log("Receipt:", res);
+        if (res.rating) {
+  setRated(true);
+}
+
         setReceipt(res);
       } catch (e) {
         console.error("Failed to fetch receipt:", e);
@@ -25,6 +36,28 @@ export default function TripCompletion() {
     };
     fetchReceipt();
   }, [tripId]);
+
+ const handleTripRating = async () => {
+  if (!selectedRating) return;
+
+  try {
+    setSubmitting(true);
+
+    await tripApi.tripRating(tripId, {
+      rating: selectedRating,
+      comment: comment,
+    });
+    alert("Rating done!!")
+
+    setRated(true);   // 👈 hide rating section
+  } catch (err) {
+    console.error("Failed to rate trip", err);
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+
 
   if (loading) {
     return (
@@ -163,15 +196,63 @@ export default function TripCompletion() {
             </div>
           </div>
 
-          {/* PAYMENT STATUS
-          <div className="p-4 bg-green-50 rounded border border-green-200">
-            <p className="text-sm text-green-800">
-              ✓ Payment marked complete. Your receipt has been sent to
-              registered email.
-            </p>
-          </div> */}
+          {/* rating */}
+          {/* RATING SECTION */}
+          {!rated && (
+        <div className="p-4 bg-white rounded shadow space-y-4">
+          <h3 className="font-semibold text-lg">Rate Your Driver</h3>
 
-          {/* ACTION BUTTON */}
+          {/* Stars */}
+          <div className="flex gap-2 justify-center">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setSelectedRating(star)}
+                onMouseEnter={() => setHoverRating(star)}
+                onMouseLeave={() => setHoverRating(0)}
+                className="focus:outline-none"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill={
+                    star <= (hoverRating || selectedRating)
+                      ? "#facc15"
+                      : "none"
+                  }
+                  viewBox="0 0 24 24"
+                  stroke="#facc15"
+                  strokeWidth={2}
+                  className="w-8 h-8 transition"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l2.036 6.272a1 1 0 00.95.69h6.592c.969 0 1.371 1.24.588 1.81l-5.334 3.874a1 1 0 00-.364 1.118l2.036 6.272c.3.921-.755 1.688-1.538 1.118l-5.334-3.874a1 1 0 00-1.176 0l-5.334 3.874c-.783.57-1.838-.197-1.538-1.118l2.036-6.272a1 1 0 00-.364-1.118L.98 11.699c-.783-.57-.38-1.81.588-1.81h6.592a1 1 0 00.95-.69l2.036-6.272z"
+                  />
+                </svg>
+              </button>
+            ))}
+          </div>
+
+          {/* Comment */}
+          <textarea
+            placeholder="Write a comment (optional)"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+
+          {/* Submit Button */}
+          <button
+            onClick={handleTripRating}
+            disabled={!selectedRating || submitting}
+            className="w-full py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:opacity-50"
+          >
+            {submitting ? "Submitting..." : "Submit Rating"}
+          </button>
+        </div>)}
+
           <button
             onClick={() => navigate("/rider/dashboard")}
             className="w-full py-3 bg-indigo-600 text-white font-medium rounded hover:bg-indigo-700 transition"

@@ -4,27 +4,20 @@ import { Eye } from 'lucide-react';
 import Card from '../../../components/common/Card';
 import StatusBadge from '../../../components/common/StatusBadge';
 import Loader from '../../../components/common/Loader';
-import { appAdminAPI } from '../../../services/appAdminApi';
+import { useAppAdmin } from '../../../context/AppAdminContext';
 
 export default function TenantsList() {
-  const [tenants, setTenants] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { tenants, loading, error, clearError, getTenants } = useAppAdmin();
+  const [localError, setLocalError] = useState('');
 
   useEffect(() => {
     fetchTenants();
   }, []);
 
   const fetchTenants = async () => {
-    try {
-      setLoading(true);
-      const response = await appAdminAPI.getTenants();
-      setTenants(response.data);
-    } catch (err) {
-      setError('Failed to fetch tenants');
-      console.error(err);
-    } finally {
-      setLoading(false);
+    const res = await getTenants();
+    if (!res.success) {
+      setLocalError(res.error);
     }
   };
 
@@ -43,9 +36,9 @@ export default function TenantsList() {
         </p>
       </div>
 
-      {error && (
+      {(error || localError) && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800">{error}</p>
+          <p className="text-red-800">{error || localError}</p>
         </div>
       )}
 

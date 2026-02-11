@@ -2,18 +2,18 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronDown } from "lucide-react";
 
 const COUNTRIES = [
-  { code: "IN", name: "India", dialCode: "+91", flag: "🇮🇳" },
-  { code: "US", name: "United States", dialCode: "+1", flag: "🇺🇸" },
-  { code: "GB", name: "United Kingdom", dialCode: "+44", flag: "🇬🇧" },
-  { code: "CA", name: "Canada", dialCode: "+1", flag: "🇨🇦" },
-  { code: "AU", name: "Australia", dialCode: "+61", flag: "🇦🇺" },
-  { code: "SG", name: "Singapore", dialCode: "+65", flag: "🇸🇬" },
-  { code: "MY", name: "Malaysia", dialCode: "+60", flag: "🇲🇾" },
-  { code: "PH", name: "Philippines", dialCode: "+63", flag: "🇵🇭" },
-  { code: "ID", name: "Indonesia", dialCode: "+62", flag: "🇮🇩" },
-  { code: "TH", name: "Thailand", dialCode: "+66", flag: "🇹🇭" },
-  { code: "AE", name: "UAE", dialCode: "+971", flag: "🇦🇪" },
-  { code: "KSA", name: "Saudi Arabia", dialCode: "+966", flag: "🇸🇦" },
+  { code: "IN", name: "India", dialCode: "+91"  },
+  { code: "US", name: "United States", dialCode: "+1" },
+  { code: "GB", name: "United Kingdom", dialCode: "+44" },
+  { code: "CA", name: "Canada", dialCode: "+1"},
+  { code: "AU", name: "Australia", dialCode: "+61" },
+  { code: "SG", name: "Singapore", dialCode: "+65"},
+  { code: "MY", name: "Malaysia", dialCode: "+60" },
+  { code: "PH", name: "Philippines", dialCode: "+63" },
+  { code: "ID", name: "Indonesia", dialCode: "+62" },
+  { code: "TH", name: "Thailand", dialCode: "+66" },
+  { code: "AE", name: "UAE", dialCode: "+971" },
+  { code: "KSA", name: "Saudi Arabia", dialCode: "+966"},
 ];
 
 export const CountrySelector = ({ value, onChange }) => {
@@ -56,7 +56,6 @@ export const CountrySelector = ({ value, onChange }) => {
         className="w-full px-4 py-3 flex items-center justify-between bg-white border border-gray-300 rounded-lg hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
       >
         <div className="flex items-center gap-3">
-          <span className="text-2xl">{selectedCountry.flag}</span>
           <div className="text-left">
             <div className="text-sm font-medium text-gray-700">
               {selectedCountry.dialCode}
@@ -95,7 +94,6 @@ export const CountrySelector = ({ value, onChange }) => {
                       : ""
                   }`}
                 >
-                  <span className="text-2xl">{country.flag}</span>
                   <div className="flex-1">
                     <div className="font-medium text-gray-900">
                       {country.name}

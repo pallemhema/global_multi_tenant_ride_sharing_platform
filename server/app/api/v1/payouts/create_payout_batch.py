@@ -13,9 +13,23 @@ from app.schemas.core.payouts.payout_batch import (
 )
 from app.core.security.roles import require_app_admin
 from app.models.core.payments.payments import Payment   
+from app.models.core.accounting.ledger import FinancialLedger
 
 router = APIRouter(prefix="/payout-batches", tags=["Payouts"])
 
+from datetime import datetime, timedelta, timezone
+
+def get_last_week_range():
+    now = datetime.now(timezone.utc)
+
+    # Move to last Monday
+    start = now - timedelta(days=now.weekday() + 7)
+    start = start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    end = start + timedelta(days=6)
+    end = end.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    return start, end
 
 @router.post("", response_model=PayoutBatchResponse)
 def create_payout_batch(
@@ -23,9 +37,7 @@ def create_payout_batch(
     db: Session = Depends(get_db),
     app: dict = Depends(require_app_admin),
 ):
-    # -----------------------------------------------------
-    # 1️⃣ Validate tenant operates in this country
-    # -----------------------------------------------------
+ 
     tenant_country = (
         db.query(TenantCountry)
         .filter(
@@ -42,9 +54,7 @@ def create_payout_batch(
             detail="Tenant is not active in this country",
         )
 
-    # -----------------------------------------------------
-    # 2️⃣ Fetch country default currency
-    # -----------------------------------------------------
+    
     country = (
         db.query(Country)
         .filter(Country.country_id == payload.country_id)
@@ -58,17 +68,17 @@ def create_payout_batch(
         )
 
     currency_code = country.default_currency
-    # -----------------------------------------------------
-    # 3️⃣ Prevent overlapping payout batches
-    # -----------------------------------------------------
+
+    period_start, period_end = get_last_week_range()
+
     overlapping_batch = (
         db.query(PayoutBatch)
         .filter(
             PayoutBatch.tenant_id == payload.tenant_id,
             PayoutBatch.country_id == payload.country_id,
             and_(
-                PayoutBatch.period_start_utc <= payload.period_end_utc,
-                PayoutBatch.period_end_utc >= payload.period_start_utc,
+                PayoutBatch.period_start_utc <= period_start,
+                PayoutBatch.period_end_utc >= period_end,
             ),
         )
         .first()
@@ -80,15 +90,13 @@ def create_payout_batch(
             detail="Overlapping payout batch already exists",
         )
 
-    # -----------------------------------------------------
-    # 4️⃣ Create payout batch
-    # -----------------------------------------------------
+
     payout_batch = PayoutBatch(
         tenant_id=payload.tenant_id,
         country_id=payload.country_id,
         currency_code=currency_code,
-        period_start_utc=payload.period_start_utc,
-        period_end_utc=payload.period_end_utc,
+        period_start_utc=period_start,
+        period_end_utc=period_end,
         status="initiated",
     )
 
@@ -96,9 +104,6 @@ def create_payout_batch(
     db.commit()
     db.refresh(payout_batch)
 
-    # -----------------------------------------------------
-    # 5️⃣ Return response
-    # -----------------------------------------------------
     return PayoutBatchResponse(
         payout_batch_id=payout_batch.payout_batch_id,
         tenant_id=payout_batch.tenant_id,
@@ -192,7 +197,9 @@ def get_payout_batch_detail(
         ],
     }
 
+
 @router.get("/{batch_id}/payments")
+
 def list_batch_payments(
     batch_id: int,
     db: Session = Depends(get_db),
@@ -206,15 +213,55 @@ def list_batch_payments(
         db.query(Payment)
         .filter(
             Payment.tenant_id == batch.tenant_id,
-            Payment.country_id == batch.country_id,
-            Payment.created_at_utc >= batch.period_start_utc,
-            Payment.created_at_utc <= batch.period_end_utc,
-            Payment.status == "completed",
+            Payment.paid_at_utc >= batch.period_start_utc,
+            Payment.paid_at_utc <= batch.period_end_utc,
+            Payment.payment_status == "successful",
         )
+        .order_by(Payment.paid_at_utc.desc())
         .all()
     )
 
-    return payments
+    results = []
+
+    for p in payments:
+
+        ledger_rows = (
+            db.query(
+                FinancialLedger.transaction_type,
+                func.sum(FinancialLedger.amount).label("total"),
+            )
+            .filter(
+                FinancialLedger.payment_id == p.payment_id,
+                FinancialLedger.entry_type == "CREDIT",
+            )
+            .group_by(FinancialLedger.transaction_type)
+            .all()
+        )
+
+        # Default values
+        splits = {
+            "platform_fee": 0.0,
+            "tax": 0.0,
+            "driver_earning": 0.0,
+            "tenant_share": 0.0,
+        }
+
+        for row in ledger_rows:
+            splits[row.transaction_type] = float(row.total or 0)
+
+        results.append({
+            "payment_id": p.payment_id,
+            "trip_id": p.trip_id,
+            "total_fare": float(p.amount),
+            "platform_fee": splits["platform_fee"],
+            "tax": splits["tax"],
+            "driver_earning": splits["driver_earning"],
+            "tenant_share": splits["tenant_share"],
+            "currency_code": p.currency_code,
+            "paid_at_utc": p.paid_at_utc,
+        })
+
+    return results
 
 @router.get("/{batch_id}/payouts")
 def list_batch_payout(
@@ -222,8 +269,25 @@ def list_batch_payout(
     db: Session = Depends(get_db),
     _: dict = Depends(require_app_admin),
 ):
-    return (
+    payouts = (
         db.query(Payout)
         .filter(Payout.payout_batch_id == batch_id)
+        .order_by(Payout.payout_id)
         .all()
     )
+    
+    return [
+        {
+            "payout_id": p.payout_id,
+            "payout_batch_id": p.payout_batch_id,
+            "entity_type": p.entity_type,
+            "owner_type": p.owner_type,
+            "entity_id": p.entity_id,
+            "gross_amount": float(p.gross_amount),
+            "net_amount": float(p.net_amount),
+            "paid_amount": float(p.paid_amount),
+            "status": p.status,
+            "created_at_utc": p.created_at_utc,
+        }
+        for p in payouts
+    ]

@@ -72,7 +72,7 @@ class PayoutBatch(Base, TimestampMixin, AuditMixin):
     __table_args__ = (
         # Batch lifecycle
         CheckConstraint(
-            "status IN ('initiated', 'processing', 'completed', 'failed')",
+            "status IN ('initiated', 'calculating', 'calculated', 'processing', 'completed', 'partial', 'failed')",
             name="chk_payout_batch_status",
         ),
 

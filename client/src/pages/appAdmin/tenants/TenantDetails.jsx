@@ -6,19 +6,30 @@ import Button from '../../../components/common/Button';
 import StatusBadge from '../../../components/common/StatusBadge';
 import Loader from '../../../components/common/Loader';
 import Modal from '../../../components/common/Modal';
-import { appAdminAPI } from '../../../services/appAdminApi';
+import { useAppAdmin } from '../../../context/AppAdminContext';
 import { lookupsAPI } from '../../../services/lookups';
 
 export default function TenantDetails() {
   const navigate = useNavigate();
   const { tenantId } = useParams();
-  const [tenant, setTenant] = useState(null);
-  const [admin, setAdmin] = useState(null);
-  const [documents, setDocuments] = useState([]);
+  const {
+    tenantDetails: tenant,
+    tenantDocuments: documents,
+    tenantAdmin: admin,
+    loading,
+    error,
+    operationInProgress,
+    getTenantDetailsData,
+    getTenantDocumentsData,
+    getTenantAdminData,
+    approveDocumentData,
+    rejectDocumentData,
+    approveTenantData,
+    clearError,
+  } = useAppAdmin();
+
   const [mandatoryDocTypes, setMandatoryDocTypes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [adminLoading, setAdminLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
   const [verifyModal, setVerifyModal] = useState(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState('');
@@ -31,25 +42,20 @@ export default function TenantDetails() {
   }, [tenantId]);
 
   const fetchTenantDetails = async () => {
+    clearError();
+    setLocalError('');
+    await Promise.all([
+      getTenantDetailsData(tenantId),
+      getTenantDocumentsData(tenantId),
+      getTenantAdminData(tenantId),
+    ]);
+    // Also get document types
     try {
-      setLoading(true);
-      const [tenantRes, docsRes, adminRes, docTypesRes] = await Promise.all([
-        appAdminAPI.getTenantDetails(tenantId),
-        appAdminAPI.getTenantDocuments(tenantId),
-        appAdminAPI.getTenantAdmin(tenantId),
-        lookupsAPI.fetchTenantFleetDocumentTypes(),
-      ]);
-      setTenant(tenantRes.data);
-      setDocuments(docsRes.data);
-      setAdmin(adminRes.data);
-      // Filter only mandatory documents
+      const docTypesRes = await lookupsAPI.fetchTenantFleetDocumentTypes();
       const mandatory = docTypesRes.data.filter(dt => dt.is_mandatory === true);
       setMandatoryDocTypes(mandatory);
     } catch (err) {
-      setError('Failed to fetch tenant details');
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -61,28 +67,19 @@ export default function TenantDetails() {
   const handleVerifyConfirm = async () => {
     if (!verifyModal) return;
 
-    try {
-      setVerifying(true);
-      await appAdminAPI.verifyDocument(tenantId, verifyModal.tenant_document_id);
-      setDocuments(
-        documents.map((d) =>
-          d.tenant_document_id === verifyModal.tenant_document_id
-            ? { ...d, verification_status: 'approved' }
-            : d
-        )
-      );
+    setVerifying(true);
+    clearError();
+    setVerifyError('');
+
+    const res = await approveDocumentData(tenantId, verifyModal.tenant_document_id);
+    if (res.success) {
+      // Reload documents
+      await getTenantDocumentsData(tenantId);
       setVerifyModal(null);
-    } catch (err) {
-      const errorMessage = 
-        typeof err.response?.data?.detail === 'string' 
-          ? err.response.data.detail 
-          : typeof err.response?.data?.detail === 'object'
-          ? err.response.data.detail.msg || JSON.stringify(err.response.data.detail)
-          : 'Failed to verify document';
-      setVerifyError(errorMessage);
-    } finally {
-      setVerifying(false);
+    } else {
+      setVerifyError(res.error || 'Failed to verify document');
     }
+    setVerifying(false);
   };
 
   const handleApproveClick = () => {
@@ -91,22 +88,19 @@ export default function TenantDetails() {
   };
 
   const handleApproveConfirm = async () => {
-    try {
-      setApproving(true);
-      await appAdminAPI.approveTenant(tenantId);
-      setTenant({ ...tenant, approval_status: 'approved' });
+    setApproving(true);
+    clearError();
+    setApproveError('');
+
+    const res = await approveTenantData(tenantId);
+    if (res.success) {
       setApproveModal(false);
-    } catch (err) {
-      const errorMessage = 
-        typeof err.response?.data?.detail === 'string' 
-          ? err.response.data.detail 
-          : typeof err.response?.data?.detail === 'object'
-          ? err.response.data.detail.msg || JSON.stringify(err.response.data.detail)
-          : 'Failed to approve tenant';
-      setApproveError(errorMessage);
-    } finally {
-      setApproving(false);
+      // Reload tenant details
+      await getTenantDetailsData(tenantId);
+    } else {
+      setApproveError(res.error || 'Failed to approve tenant');
     }
+    setApproving(false);
   };
 
 
@@ -143,9 +137,9 @@ export default function TenantDetails() {
         Back to Tenants
       </Link>
 
-      {error && (
+      {(error || localError) && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800">{error}</p>
+          <p className="text-red-800">{error || localError}</p>
         </div>
       )}
 

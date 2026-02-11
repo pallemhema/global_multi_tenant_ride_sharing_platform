@@ -227,7 +227,7 @@ def complete_trip(
         from_status="picked_up",
         to_status="completed",
         changed_at_utc=now,
-        changed_by=driver.driver_id,
+        changed_by=driver.user_id,
     ))
     
     db.commit()

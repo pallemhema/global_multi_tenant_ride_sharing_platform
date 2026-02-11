@@ -1,15 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { appAdminAPI } from '../../services/appAdminApi';
+import { useAppAdmin } from '../../context/AppAdminContext';
 
 
 export default function TenantCreate() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const {
+    loading,
+    error,
+    operationInProgress,
+    createTenantData,
+    createTenantAdminData,
+    clearError,
+  } = useAppAdmin();
   const [step, setStep] = useState(1); // Step 1: Tenant, Step 2: Admin
   const [createdTenantId, setCreatedTenantId] = useState(null);
+  const [localError, setLocalError] = useState('');
 
   const [tenantData, setTenantData] = useState({
     tenant_name: '',
@@ -31,6 +38,8 @@ export default function TenantCreate() {
 
   const handleTenantChange = (e) => {
     const { name, value } = e.target;
+    clearError();
+    setLocalError('');
     setTenantData((prev) => ({
       ...prev,
       [name]: value,
@@ -39,6 +48,8 @@ export default function TenantCreate() {
 
   const handleAdminChange = (e) => {
     const { name, value } = e.target;
+    clearError();
+    setLocalError('');
     setAdminData((prev) => ({
       ...prev,
       [name]: value,
@@ -47,69 +58,57 @@ export default function TenantCreate() {
 
   const handleCreateTenant = async (e) => {
     e.preventDefault();
-    setError('');
-
-    // Debug log
-    console.log('Form Data:', tenantData);
+    clearError();
+    setLocalError('');
 
     // Validate required fields
     if (!tenantData.tenant_name || !tenantData.business_email) {
-      setError('Business Name and Email are required');
-      console.log('Validation failed - tenant_name:', tenantData.tenant_name, 'business_email:', tenantData.business_email);
+      setLocalError('Business Name and Email are required');
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const payload = {
-        tenant_name: tenantData.tenant_name,
-        legal_name: tenantData.legal_name,
-        business_email: tenantData.business_email,
-        city: tenantData.city,
-        country: tenantData.country,
-        business_registration_number: tenantData.business_registration_number,
-      };
-      console.log('Sending payload:', payload);
-      
-      const response = await appAdminAPI(payload);
-      setCreatedTenantId(response.data.id || response.data.tenant_id);
+    const payload = {
+      tenant_name: tenantData.tenant_name,
+      legal_name: tenantData.legal_name,
+      business_email: tenantData.business_email,
+      city: tenantData.city,
+      country: tenantData.country,
+      business_registration_number: tenantData.business_registration_number,
+    };
+    
+    const res = await createTenantData(payload);
+    if (res.success) {
+      setCreatedTenantId(res.data.id || res.data.tenant_id);
       setStep(2); // Move to admin creation
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create tenant');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
+    } else {
+      setLocalError(res.error || 'Failed to create tenant');
     }
   };
 
   const handleCreateAdmin = async (e) => {
     e.preventDefault();
-    setError('');
+    clearError();
+    setLocalError('');
 
     if (adminData.password !== adminData.confirm_password) {
-      setError('Passwords do not match');
+      setLocalError('Passwords do not match');
       return;
     }
 
-    setLoading(true);
-
-    try {
-      payload = {
-        first_name: adminData.first_name,
-        last_name: adminData.last_name,
-        email: adminData.email,
-        phone: adminData.phone,
-        password: adminData.password,
-      }
-      await appAdminAPI.createTenantAdmin(createdTenantId, payload)
-
+    const payload = {
+      first_name: adminData.first_name,
+      last_name: adminData.last_name,
+      email: adminData.email,
+      phone: adminData.phone,
+      password: adminData.password,
+    };
+    
+    const res = await createTenantAdminData(createdTenantId, payload);
+    if (res.success) {
       alert('Tenant and admin created successfully!');
       navigate('/dashboard/tenants');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create tenant admin');
-    } finally {
-      setLoading(false);
+    } else {
+      setLocalError(res.error || 'Failed to create tenant admin');
     }
   };
 
@@ -152,9 +151,9 @@ export default function TenantCreate() {
 
         {/* Form Card */}
         <div className="bg-white rounded-lg shadow-sm p-8 border border-slate-200">
-          {error && (
+          {(error || localError) && (
             <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200">
-              {error}
+              {error || localError}
             </div>
           )}
 

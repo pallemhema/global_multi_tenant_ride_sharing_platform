@@ -1,35 +1,20 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Building2, CheckCircle, Clock, TrendingUp } from "lucide-react";
 import Card from "../../../components/common/Card";
 import Loader from "../../../components/common/Loader";
 import { useAdminAuth } from "../../../context/AdminAuthContext";
-import { appAdminAPI } from "../../../services/appAdminApi";
+import { useAppAdmin } from "../../../context/AppAdminContext";
 
 export default function DashboardHome() {
   const { loading: adminLoading } = useAdminAuth();
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { tenantsSummary, loading, error, getTenantsSummaryData } = useAppAdmin();
 
   useEffect(() => {
     // Only fetch when AdminContext is done loading
     if (!adminLoading) {
-      fetchSummary();
+      getTenantsSummaryData();
     }
-  }, [adminLoading]);
-
-  const fetchSummary = async () => {
-    try {
-      setLoading(true);
-      const response = await appAdminAPI.getTenantsSummary();
-      setSummary(response.data);
-    } catch (err) {
-      setError("Failed to fetch summary");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [adminLoading, getTenantsSummaryData]);
 
   if (loading) {
     return <Loader />;
@@ -39,25 +24,25 @@ export default function DashboardHome() {
     {
       icon: Building2,
       label: "Total Tenants",
-      value: summary?.total_tenants || 0,
+      value: tenantsSummary?.total_tenants || 0,
       color: "indigo",
     },
     {
       icon: CheckCircle,
       label: "Approved",
-      value: summary?.approved || 0,
+      value: tenantsSummary?.approved || 0,
       color: "emerald",
     },
     {
       icon: Clock,
       label: "Pending",
-      value: summary?.pending || 0,
+      value: tenantsSummary?.pending || 0,
       color: "amber",
     },
     {
       icon: TrendingUp,
       label: "Active",
-      value: summary?.active || 0,
+      value: tenantsSummary?.active || 0,
       color: "indigo",
     },
   ];
@@ -126,22 +111,22 @@ export default function DashboardHome() {
             <div className="flex items-center justify-between pb-4 border-b border-slate-200">
               <span className="text-slate-600">Total Tenants</span>
               <span className="font-bold text-slate-900">
-                {summary?.total_tenants || 0}
+                {tenantsSummary?.total_tenants || 0}
               </span>
             </div>
             <div className="flex items-center justify-between pb-4 border-b border-slate-200">
               <span className="text-slate-600">Inactive Tenants</span>
               <span className="font-bold text-slate-900">
-                {summary?.inactive || 0}
+                {tenantsSummary?.inactive || 0}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-600">Approval Rate</span>
               <span className="font-bold text-emerald-600">
-                {summary?.total_tenants > 0
+                {tenantsSummary?.total_tenants > 0
                   ? Math.round(
-                      ((summary?.approved || 0) /
-                        (summary?.total_tenants || 1)) *
+                      ((tenantsSummary?.approved || 0) /
+                        (tenantsSummary?.total_tenants || 1)) *
                         100,
                     )
                   : 0}

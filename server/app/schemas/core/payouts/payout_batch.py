@@ -5,10 +5,7 @@ from datetime import datetime
 class PayoutBatchCreateRequest(BaseModel):
     tenant_id: int
     country_id: int
-    period_start_utc: datetime
-    period_end_utc: datetime
-
-
+  
 class PayoutBatchResponse(BaseModel):
     payout_batch_id: int
     tenant_id: int
