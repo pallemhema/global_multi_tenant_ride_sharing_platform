@@ -20,7 +20,7 @@ import Login from "../pages/auth/AdminLogin";
 import { UserLogin } from "../pages/auth/UserLogin";
 
 /* ===== Admin Pages ===== */
-import DashboardLayout from "../components/app/DashboardLayout";
+import AppAdminLayout from "../layouts/AppAdminLayout";
 import DashboardHome from "../pages/appAdmin/dashboard/Home";
 import TenantsList from "../pages/appAdmin/tenants/TenantsList";
 import TenantDetails from "../pages/appAdmin/tenants/TenantDetails";
@@ -95,7 +95,7 @@ const router = createBrowserRouter([
     element: (
       <AdminGaurd>
         <AppAdminProvider>
-          <DashboardLayout />
+          <AppAdminLayout />
         </AppAdminProvider>
       </AdminGaurd>
     ),

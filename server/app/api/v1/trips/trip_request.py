@@ -45,6 +45,7 @@ from app.schemas.core.trips.trip_request import TripStatusOut
 from app.core.trips.trip_otp_service import generate_trip_otp, store_trip_otp
 import os
 from app.core.trips.trip_otp_service import _otp_plain_key
+from sqlalchemy import and_, func
 
 router = APIRouter(
     prefix="/rider/trips",
@@ -109,8 +110,12 @@ def create_trip_request(
         closest_city = (
             db.query(City)
             .filter(City.is_active.is_(True))
-            .filter(pickup_filter_sql)
-            .params(lng=payload.pickup_lng, lat=payload.pickup_lat)
+            .filter(
+                func.ST_Contains(
+                    City.boundary,
+                    func.ST_SetSRID(func.ST_Point(payload.pickup_lng, payload.pickup_lat), 4326)
+                )
+            )
             .first()
         )
     except ProgrammingError as exc:
@@ -505,7 +510,35 @@ def start_driver_search(
 
 
    
-    available_driver_ids =nearby_driver_ids
+
+       
+
+    previously_rejected = db.query(TripDispatchCandidate.driver_id).filter(
+            TripDispatchCandidate.trip_request_id == trip_req.trip_request_id,
+            TripDispatchCandidate.response_code == "rejected"
+        ).all()
+
+    rejected_driver_ids = {d[0] for d in previously_rejected}
+
+    available_driver_ids = [
+            driver_id
+            for driver_id in nearby_driver_ids
+            if driver_id not in rejected_driver_ids
+        ]
+    
+    if not available_driver_ids:
+        trip_req.status = "no_drivers_available"
+        db.commit()
+        return {
+            "trip_request_id": trip_req.trip_request_id,
+            "batch_id": None,
+            "batch_number": 0,
+            "drivers_notified": 0,
+            "status": "no_drivers_available",
+            "message": "All nearby drivers have already rejected this trip.",
+        }
+
+
 
 
     
@@ -601,17 +634,16 @@ def get_trip_request_status(
     }
 
     
+   
     cancelled_trip = db.query(Trip).filter(
         Trip.trip_request_id == trip_request_id,
         Trip.trip_status == "cancelled",
     ).order_by(Trip.trip_id.desc()).first()
 
-    if cancelled_trip:
-        cancelled_at = getattr(cancelled_trip, "cancelled_at_utc", None)
-        last_req_update = getattr(trip_req, "updated_at_utc", None) or getattr(trip_req, "created_at_utc", None)
-        if cancelled_at and last_req_update and cancelled_at > last_req_update:
-            out_dict["status"] = "cancelled"
-            return TripStatusOut(**out_dict)
+    if cancelled_trip and trip_req.status == "tenant_selected":
+        out_dict["status"] = "driver_cancelled"
+        return TripStatusOut(**out_dict)
+
 
     # If driver assigned or trip in progress, enrich with trip/driver info
     if trip_req.status in ("driver_assigned", "in_progress"):

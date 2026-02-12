@@ -165,7 +165,7 @@ def get_past_trips(
             and_(
                 Trip.driver_id == driver.driver_id,
                 Trip.tenant_id == driver.tenant_id,
-                Trip.trip_status.in_(["completed", "cancelled"]),
+                Trip.trip_status=='completed',
             )
         ).order_by(desc(Trip.completed_at_utc)).all()
       

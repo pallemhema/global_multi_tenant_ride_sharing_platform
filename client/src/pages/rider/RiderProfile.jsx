@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { User, Phone, LogOut, ArrowRight, Plus } from "lucide-react";
 import { useState } from "react";
 import SwitchRole from "../../components/SwitchRole";
+import UserProfile from "../auth/UserProfile";
 
 export default function RiderProfile() {
-  const { user, role, availableRoles, logoutUser } =
+  const { user, role, availableRoles, logoutUser, profile} =
     useUserAuth();
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  console.log(user);
 
   // Get other roles besides "rider"
   const otherRoles = availableRoles.filter((r) => r.toLowerCase() !== "rider");
@@ -49,7 +51,7 @@ export default function RiderProfile() {
           </div>
           <div>
             <div className="font-semibold text-lg">
-              {user?.name || user?.sub || "User"}
+              {profile?.full_name || user?.sub || "User"}
             </div>
             <div className="text-sm text-slate-600">Rider Account</div>
           </div>
@@ -61,7 +63,7 @@ export default function RiderProfile() {
             <Phone size={20} className="text-slate-600" />
             <div>
               <div className="text-sm text-slate-600">Phone</div>
-              <div className="font-medium">{user?.phone || "Not provided"}</div>
+              <div className="font-medium">{profile?.phone || "Not provided"}</div>
             </div>
           </div>
         </div>
@@ -80,6 +82,8 @@ export default function RiderProfile() {
           </div>
         </div>
       </div>
+      <UserProfile/>
+      
 
       {/* Role Management Section */}
       {otherRoles.length > 0 ? (

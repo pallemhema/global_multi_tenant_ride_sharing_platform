@@ -138,7 +138,7 @@ class PaymentConfirmationService:
                 transactionType="driver_earning"
             else:
                 owner_id = vehicle.fleet_owner_id
-                transactionType="fleet_earningS"
+                transactionType="fleet_earnings"
 
 
          
@@ -423,7 +423,6 @@ class PaymentConfirmationService:
                         fleet_owner_id=None,
                         tenant_id=trip.tenant_id,
                         currency_code=payment.currency_code,
-                        balance=owner_amount,
                     )
                 else:
                     owner_wallet = OwnerWallet(
@@ -432,11 +431,15 @@ class PaymentConfirmationService:
                         driver_id=None,
                         tenant_id=trip.tenant_id,
                         currency_code=payment.currency_code,
-                        balance=owner_amount,
+                        
                     )
                 
                 db.add(owner_wallet)
                 db.flush()
+            current_owner_balance = Decimal(str(owner_wallet.balance or 0))
+            owner_wallet.balance = (current_owner_balance + owner_amount).quantize(Decimal("0.01"))
+            owner_wallet.last_updated_utc = now
+            db.add(owner_wallet)
 
       
             tenant_wallet = (
@@ -458,7 +461,9 @@ class PaymentConfirmationService:
                 db.add(tenant_wallet)
                 db.flush()
 
-            tenant_wallet.balance += tenant_amount
+            current_tenant_balance = Decimal(str(tenant_wallet.balance or 0))
+            tenant_wallet.balance = (current_tenant_balance + tenant_amount).quantize(Decimal("0.01"))
+            db.add(tenant_wallet)
 
             db.commit()
 

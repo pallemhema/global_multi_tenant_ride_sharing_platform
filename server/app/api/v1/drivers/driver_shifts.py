@@ -9,6 +9,8 @@ from app.models.core.vehicles.vehicles import Vehicle
 from app.models.core.tenants.tenant_cities import TenantCity
 from app.models.core.fleet_owners.fleet_owner_cities import FleetOwnerCity
 from app.schemas.core.drivers.driver_shifts import DriverShiftStart
+from app.models.core.trips.trip_request import TripRequest
+from app.models.core.drivers.drivers import Driver
 from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 from app.core.redis import redis_client
 from app.schemas.core.drivers.location_heartbeat import LocationHeartbeatSchema
@@ -329,10 +331,15 @@ def get_trip_requests(
     Server-side filtering ensures frontend shows only actionable trips.
     """
     # Return all trip_dispatch_candidates for this driver where response_code is pending
-    candidates = db.query(TripDispatchCandidate).filter(
+    candidates = db.query(TripDispatchCandidate).join(
+        TripRequest,
+        TripDispatchCandidate.trip_request_id == TripRequest.trip_request_id
+    ).filter(
         TripDispatchCandidate.driver_id == driver.driver_id,
-        TripDispatchCandidate.response_code.is_(None)  # Only pending (not accepted/rejected/expired)
+        TripDispatchCandidate.response_code.is_(None),
+        TripRequest.status == "driver_searching"
     ).all()
+
     
     # Return minimal info for UI
     return [

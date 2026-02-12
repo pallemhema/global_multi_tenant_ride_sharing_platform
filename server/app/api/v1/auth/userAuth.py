@@ -269,21 +269,38 @@ def get_available_roles(
     "/profile",
     response_model=UserProfileOut
 )
+@router.get("/profile")
 def get_user_profile(
     db: Session = Depends(get_db),
-    user=Depends(verify_access_token)
+    token_data=Depends(verify_access_token)
 ):
-    user_id = int(user["sub"])
-  
-    profile = (db.query(UserProfile)
-        .filter(UserProfile.user_id == user_id)
-        .first())
+    user_id = int(token_data["sub"])
+
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    profile = db.query(UserProfile).filter(
+        UserProfile.user_id == user_id
+    ).first()
+
     if not profile:
         raise HTTPException(
             status_code=403,
             detail="User profile not found"
         )
-    return profile
+
+    return {
+        "user_id": user.user_id,
+        "full_name": profile.full_name,
+        "gender":profile.gender,
+        "preferred_language":profile.preferred_language,
+        "date_of_birth":profile.date_of_birth,
+        
+        "phone": user.phone_e164,
+        "role": token_data.get("role"),
+    }
+
 
 @router.post("/profile")
 def create__user_profile(

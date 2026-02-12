@@ -417,6 +417,7 @@ console.log("pending payment:",pendingPayments)
       startShift,
       endShift,
       updateRuntimeStatus,
+      loadTripRequests,
 
       acceptTrip,
       rejectTrip,

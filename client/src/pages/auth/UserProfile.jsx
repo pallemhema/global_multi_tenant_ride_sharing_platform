@@ -1,62 +1,29 @@
-import { useEffect, useState } from 'react';
-import { AlertCircle, Save } from 'lucide-react';
-import Loader from '../../components/common/Loader';
-import { userAuthApi } from '../../services/userAuthApi';
+import { useState } from "react";
+import { AlertCircle, Save } from "lucide-react";
+import Loader from "../../components/common/Loader";
+import { useUserAuth } from "../../context/UserAuthContext";
 
 export default function UserProfile() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState(null);
+  const {
+    profile,
+    loading,
+    createUserProfile,
+    editUserProfile,
+  } = useUserAuth();
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isEditing, setIsEditing] = useState(!profile);
 
   const [formData, setFormData] = useState({
-    fullname: '',
-    date_of_birth: '',
-    gender: '',
-    preferred_language: '',
+    fullname: profile?.full_name || "",
+    date_of_birth: profile?.date_of_birth || "",
+    gender: profile?.gender || "",
+    preferred_language: profile?.preferred_language || "",
   });
 
-  /* -------------------------------
-     FETCH USER PROFILE
-  -------------------------------- */
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        setLoading(true);
-        setError('');
+  if (loading) return <Loader />;
 
-        const data = await userAuthApi.getUserProfile();
-        setProfile(data);
-
-        if (data) {
-          // profile exists → edit/view mode
-          setFormData({
-            fullname: data.full_name || '',
-            date_of_birth: data.date_of_birth || '',
-            gender: data.gender || '',
-            preferred_language: data.preferred_language || '',
-          });
-          setIsEditing(false);
-        } else {
-          // profile missing → create mode
-          setIsEditing(true);
-        }
-      } catch (err) {
-        setError(err.message || 'Failed to load profile');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, []);
-
-  const showForm = isEditing || !profile;
-
-  /* -------------------------------
-     HANDLERS
-  -------------------------------- */
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -66,9 +33,8 @@ export default function UserProfile() {
     e.preventDefault();
 
     try {
-      setLoading(true);
-      setError('');
-      setSuccess('');
+      setError("");
+      setSuccess("");
 
       const payload = {
         full_name: formData.fullname,
@@ -78,31 +44,22 @@ export default function UserProfile() {
       };
 
       if (profile) {
-        // UPDATE
-        await userAuthApi.editUserProfile(payload);
+        await editUserProfile(payload);
       } else {
-        // CREATE
-        await userAuthApi.createUserProfile(payload);
+        await createUserProfile(payload);
       }
 
-      const data = await userAuthApi.getUserProfile();
-      setProfile(data);
       setIsEditing(false);
-      setSuccess('Profile saved successfully');
+      setSuccess("Profile saved successfully");
 
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to save profile');
-    } finally {
-      setLoading(false);
+      setError(err.message || "Failed to save profile");
     }
   };
 
-  if (loading) return <Loader />;
+  const showForm = isEditing || !profile;
 
-  /* -------------------------------
-     RENDER
-  -------------------------------- */
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">User Profile</h1>
@@ -121,7 +78,6 @@ export default function UserProfile() {
       )}
 
       {showForm ? (
-        /* CREATE / EDIT FORM */
         <form onSubmit={handleSave} className="bg-white border p-5 space-y-4">
           <input
             name="fullname"
@@ -154,7 +110,7 @@ export default function UserProfile() {
 
           <input
             name="preferred_language"
-            placeholder="Preferred Language (en / hi / te)"
+            placeholder="Preferred Language"
             value={formData.preferred_language}
             onChange={handleChange}
             className="w-full border px-3 py-2 rounded"
@@ -168,12 +124,11 @@ export default function UserProfile() {
           </button>
         </form>
       ) : (
-        /* VIEW MODE */
         <div className="bg-white border p-5 grid grid-cols-2 gap-4">
           <p><strong>Full Name:</strong> {profile.full_name}</p>
-          <p><strong>Gender:</strong> {profile.gender || '-'}</p>
-          <p><strong>DOB:</strong> {profile.date_of_birth || '-'}</p>
-          <p><strong>Language:</strong> {profile.preferred_language || '-'}</p>
+          <p><strong>Gender:</strong> {profile.gender || "-"}</p>
+          <p><strong>DOB:</strong> {profile.date_of_birth || "-"}</p>
+          <p><strong>Language:</strong> {profile.preferred_language || "-"}</p>
 
           <button
             onClick={() => setIsEditing(true)}

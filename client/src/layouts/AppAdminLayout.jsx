@@ -1,9 +1,9 @@
 import { Outlet } from "react-router-dom";
 import { useState } from "react";
-import Sidebar from "./Sidebar";
-import Topbar from "./Topbar";
+import Sidebar from "../components/app/Sidebar";
+import Topbar from "../components/app/Topbar";
 
-export default function DashboardLayout() {
+export default function AppAdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (

@@ -23,6 +23,7 @@ export default function Searching() {
     const poll = async () => {
       try {
         const res = await tripApi.getTripStatus(tripRequestId);
+        console.log("traip cancelled:",res)
         if (!mounted) return;
 
         setStatus(res);
@@ -30,14 +31,22 @@ export default function Searching() {
 
         if (res?.status === "driver_assigned") {
           navigate(`/rider/assigned/${tripRequestId}`);
-        } else if (res?.status === "cancelled") {
-          setTripCancelled(true);
-        } else if (res?.status === "no_drivers_available") {
+        }
+
+        else if (res?.status === "no_drivers_available") {
           setNoDriversFound(true);
         }
-        // IMPORTANT:
-        // If status === "searching", do nothing.
-        // This avoids re-rendering search UI after "Change Provider".
+        else if (res?.status === "driver_cancelled") {
+   setTripCancelled(true)
+}
+
+        else if (res?.status === "driver_searching") {
+          // reset cancellation flags
+          setTripCancelled(false);
+          setNoDriversFound(false);
+        }
+
+      
       } catch (e) {
         if (mounted) {
           setError("Failed to check trip status");
@@ -61,7 +70,8 @@ export default function Searching() {
     try {
       // Retry the same tenant/vehicle selection
       await tripApi.startDriverSearch(tripRequestId);
-      setRetryCount(retryCount + 1);
+      setRetryCount(prev => prev + 1);
+
       // Clear the message and start polling again
     } catch (e) {
       console.error("Retry failed:", e);
@@ -102,7 +112,7 @@ const handleChangeTenant = async () => {
     tripApi
       .startDriverSearch(tripRequestId)
       .then(() => {
-        setRetryCount(retryCount + 1);
+        setRetryCount(prev => prev + 1);
       })
       .catch((e) => {
         setError(e?.response?.data?.detail || "Failed to retry");
@@ -112,6 +122,7 @@ const handleChangeTenant = async () => {
         setIsRetrying(false);
       });
   };
+  console.log("tripCancelled:",tripCancelled)
   if (isChangingProvider) {
   return (
     <div className="min-h-screen flex items-center justify-center">

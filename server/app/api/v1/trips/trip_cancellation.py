@@ -210,7 +210,9 @@ def cancel_trip_driver(
     )
 
     if trip_req:
-        trip_req.status = "driver_searching"
+        trip_req.status = "tenant_selected"
+
+
        
         trip_req.updated_at_utc = now
         db.add(trip_req)

@@ -3,6 +3,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 from ...mixins import TimestampMixin
 from sqlalchemy import DateTime
+from sqlalchemy import Numeric
+
+
+
 
 class OwnerWallet(Base, TimestampMixin):
     """

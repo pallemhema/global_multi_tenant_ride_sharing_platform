@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import { tokenStorage } from "../utils/toeknStorage";
@@ -9,14 +10,15 @@ const UserAuthContext = createContext(null);
 export const UserAuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
-  const [profile,setProfile] = useState(null);
+  const [profile, setProfile] = useState(null);
+
   const [role, setRole] = useState(null);
   const [context, setContext] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [phone, setPhone] = useState(null);
 
   const [availableRoles, setAvailableRoles] = useState([]);
+  console.log(profile);
 
   /* ===============================
      INIT FROM STORAGE
@@ -31,22 +33,29 @@ export const UserAuthProvider = ({ children }) => {
     }
 
     const decoded = jwtDecode(storedToken);
+
     setToken(storedToken);
     setUser(decoded);
     setRole(decoded.role || null);
     setContext(decoded.context || null);
     setIsAuthenticated(true);
-    setLoading(false);
 
-    // Fetch roles after auth restore
-    fetchAvailableRoles();
-    getProfile();
+    initializeAfterLogin();
   }, []);
+
+  /* ===============================
+     INITIALIZE AFTER LOGIN/RESTORE
+  =============================== */
+  const initializeAfterLogin = async () => {
+    await fetchAvailableRoles();
+    await fetchUserProfile();
+    setLoading(false);
+  };
 
   /* ===============================
      LOGIN
   =============================== */
-  const loginUser = async (jwt, phoneNumber = null) => {
+  const loginUser = async (jwt) => {
     tokenStorage.set(jwt);
     const decoded = jwtDecode(jwt);
 
@@ -55,9 +64,8 @@ export const UserAuthProvider = ({ children }) => {
     setRole(decoded.role || null);
     setContext(decoded.context || null);
     setIsAuthenticated(true);
-    setPhone(phoneNumber);
 
-    await fetchAvailableRoles();
+    await initializeAfterLogin();
   };
 
   /* ===============================
@@ -67,11 +75,11 @@ export const UserAuthProvider = ({ children }) => {
     tokenStorage.clear();
     setToken(null);
     setUser(null);
+    setProfile(null);
     setRole(null);
     setContext(null);
     setAvailableRoles([]);
     setIsAuthenticated(false);
-    setPhone(null);
   };
 
   /* ===============================
@@ -80,81 +88,86 @@ export const UserAuthProvider = ({ children }) => {
   const fetchAvailableRoles = async () => {
     try {
       const res = await userAuthApi.getAvailableRoles();
-
-      // 🔑 normalize once
       setAvailableRoles(res.roles || []);
-
-      return res.roles || [];
     } catch (err) {
       console.error("Failed to fetch roles", err);
       setAvailableRoles([]);
-      return [];
     }
+  };
+
+  /* ===============================
+     FETCH USER PROFILE
+  =============================== */
+  const fetchUserProfile = async () => {
+    try {
+      const data = await userAuthApi.getUserProfile();
+      setProfile(data);
+      return data;
+    } catch (err) {
+      console.error("Failed to fetch profile", err);
+      setProfile(null);
+      return null;
+    }
+  };
+
+  /* ===============================
+     CREATE PROFILE
+  =============================== */
+  const createUserProfile = async (payload) => {
+    await userAuthApi.createUserProfile(payload);
+    return await fetchUserProfile();
+  };
+
+  /* ===============================
+     EDIT PROFILE
+  =============================== */
+  const editUserProfile = async (payload) => {
+    await userAuthApi.editUserProfile(payload);
+    return await fetchUserProfile();
   };
 
   /* ===============================
      SWITCH ROLE
   =============================== */
   const switchUserRole = async (newRole) => {
-    console.log("Switching to role:", newRole);
-    try {
-      const res = await userAuthApi.switchRole(newRole);
-      const newToken = res.access_token;
+    const res = await userAuthApi.switchRole(newRole);
+    const newToken = res.access_token;
 
-      console.log("New token received:", newToken);
-      tokenStorage.set(newToken);
-      const decoded = jwtDecode(newToken);
+    tokenStorage.set(newToken);
+    const decoded = jwtDecode(newToken);
 
-      console.log("Decoded token:", decoded);
-      setToken(newToken);
-      setUser(decoded);
-      setRole(decoded.role || null);
-      setContext(decoded.context || null);
-      setIsAuthenticated(true);
+    setToken(newToken);
+    setUser(decoded);
+    setRole(decoded.role || null);
+    setContext(decoded.context || null);
+    setIsAuthenticated(true);
 
-      return res;
-    } catch (err) {
-      console.error("Role switch failed", err);
-      throw err;
-    }
+    await fetchUserProfile();
+
+    return res;
   };
-  const roleNames = availableRoles.map((r) => r.role);
-  console.log("availableRoles:", roleNames);
 
-  const getProfile = async () =>{
-    try{
-      const res = userAuthApi.getUserProfile();
-      console.log(res);
-      // setProfile(res)
-    }catch (err) {
-      console.error("fetching profile failed", err);
-      throw err;
-    }
-  }
+  const roleNames = availableRoles.map((r) => r.role);
 
   const value = {
-    // State
     token,
     user,
+    profile,
     role,
     context,
-    profile,
     isAuthenticated,
     loading,
-    phone,
     availableRoles: roleNames,
 
-    // Methods
     loginUser,
     logoutUser,
-    fetchAvailableRoles,
     switchUserRole,
 
-    // Helpers
+    fetchUserProfile,
+    createUserProfile,
+    editUserProfile,
+
     userId: user?.sub,
-    driverId: user?.driver_id,
-    fleetOwnerId: user?.fleet_owner_id,
-    tenantId: user?.tenant_id,
   };
 
   return (

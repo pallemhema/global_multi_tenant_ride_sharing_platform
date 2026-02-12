@@ -133,7 +133,7 @@ export default function TenantAdminLayout() {
                 "Dashboard"}
             </h2>
             {tenantId && (
-              <p className="text-xs text-slate-500">{tenant.tenant_name}</p>
+              <p className="text-xs text-slate-500">{tenant?.tenant_name}</p>
             )}
           </div>
           <div className="flex items-center gap-4">
