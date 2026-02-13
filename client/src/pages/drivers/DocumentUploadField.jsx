@@ -10,13 +10,22 @@ import {
   FileText,
   X,
 } from "lucide-react";
-import { toast } from "react-toastify";
+
+
 
 import { useDriver } from "../../context/DriverContext";
 import { driverApi } from "../../services/driverApi";
+const ACCEPT_TYPES = "image/jpeg,image/png,image/webp,application/pdf";
 
+  /* ---------------- HELPERS ---------------- */
+
+  const isImage = (name) => /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+  const isPdf = (name) => /\.pdf$/i.test(name);
+  
 const DocumentUploadField = ({ docType, hidePreview = false }) => {
-  const { driver, documents } = useDriver();
+const { driver, documents, refreshDocuments } = useDriver();
+
+
 
   const uploadedDoc = documents.find(
     (d) => d.document_type === docType.document_code,
@@ -59,12 +68,26 @@ const DocumentUploadField = ({ docType, hidePreview = false }) => {
   };
 
   /* ---------------- ACTIONS ---------------- */
+  
 
   const handleSubmit = async () => {
     if (!selectedFile && !uploadedDoc) {
-      toast.error("Please select a file");
+     alert("Please select a file");
       return;
     }
+
+   
+    if ((docType=='Vehicle_RC' || docType=='DRIVING_LICENSE' || docType=='VEHICLE_RC') && !expiryDate) {
+  alert("Expiry date is required for this document.");
+  return;
+}
+
+if (expiryDate && new Date(expiryDate) < new Date()) {
+  alert("Expiry date cannot be in the past.");
+  return;
+}
+
+
 
     try {
       setIsUploading(true);
@@ -76,7 +99,7 @@ const DocumentUploadField = ({ docType, hidePreview = false }) => {
           expiry_date: expiryDate || null,
           file: selectedFile,
         });
-        toast.success("Document updated successfully");
+        alert("Document updated successfully");
       } else {
         // New document upload
         await driverApi.uploadDriverDocument({
@@ -85,14 +108,15 @@ const DocumentUploadField = ({ docType, hidePreview = false }) => {
           expiry_date: expiryDate || null,
           file: selectedFile,
         });
-        toast.success("Document uploaded successfully");
+        alert("Document uploaded successfully");
       }
+      await refreshDocuments();
 
       setSelectedFile(null);
       setShowForm(false);
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "Failed to upload document");
+      alert(err.message || "Failed to upload document");
     } finally {
       setIsUploading(false);
     }
@@ -103,18 +127,17 @@ const DocumentUploadField = ({ docType, hidePreview = false }) => {
     if (!window.confirm("Delete this document?")) return;
 
     try {
-      await driverApi.deleteDriverDocument(uploadedDoc.document_id);
-      toast.success("Document deleted successfully");
+     await driverApi.deleteDriverDocument(uploadedDoc.document_id);
+     await refreshDocuments();   // 🔥 IMPORTANT
+alert("Document deleted successfully");
+
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "Failed to delete document");
+      alert(err.message || "Failed to delete document");
     }
   };
 
-  /* ---------------- HELPERS ---------------- */
 
-  const isImage = (name) => /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
-  const isPdf = (name) => /\.pdf$/i.test(name);
 
   /* ---------------- UI ---------------- */
 
@@ -262,7 +285,7 @@ const DocumentUploadField = ({ docType, hidePreview = false }) => {
             </div>
           )}
 
-          {["DRIVING_LICENSE", "ID_PROOF"].includes(docType.document_code) && (
+          {["DRIVING_LICENSE", "ID_PROOF",'VEHICLE_RC'].includes(docType.document_code) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Expiry Date
@@ -283,10 +306,29 @@ const DocumentUploadField = ({ docType, hidePreview = false }) => {
             <div className="relative">
               <input
                 type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => setSelectedFile(e.target.files[0])}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                accept={ACCEPT_TYPES}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+
+                  const allowedTypes = [
+                    "image/jpeg",
+                    "image/png",
+                    "image/webp",
+                    "application/pdf",
+                  ];
+
+                  if (!allowedTypes.includes(file.type)) {
+                    alert("Only image (jpg, png, webp) or PDF files are allowed.");
+                    e.target.value = null;
+                    return;
+                  }
+
+                  setSelectedFile(file);
+                }}
               />
+
+
               <div className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors">
                 <Upload size={18} className="text-gray-400" />
                 <span className="text-sm text-gray-600">

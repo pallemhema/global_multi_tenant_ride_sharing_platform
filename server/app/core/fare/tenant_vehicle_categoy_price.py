@@ -1,6 +1,4 @@
 from sqlalchemy import or_
-from datetime import datetime, timezone
-from decimal import Decimal
 from .pricing_engine import PricingEngine
 
 def get_vehicle_pricing(
@@ -10,6 +8,8 @@ def get_vehicle_pricing(
     vehicle_category,
     estimated_distance_km,
     estimated_duration_minutes,
+    pickup_lat,
+    pickup_lng,
 ):
     try:
         return PricingEngine.calculate_fare(
@@ -19,6 +19,8 @@ def get_vehicle_pricing(
             vehicle_category=vehicle_category,
             distance_km=estimated_distance_km,
             duration_minutes=estimated_duration_minutes,
+            pickup_lat=pickup_lat,
+            pickup_lng=pickup_lng,
         )
     except ValueError:
         # Missing pricing config

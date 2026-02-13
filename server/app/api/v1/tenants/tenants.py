@@ -21,7 +21,7 @@ from fastapi import APIRouter
 from sqlalchemy import func
 
 router = APIRouter(tags=["Tenants - Admin"])
-@router.get("/{tenant_id}")
+@router.get("profile/{tenant_id}")
 def get_tenant(
     tenant_id: int,
     db: Session = Depends(get_db),

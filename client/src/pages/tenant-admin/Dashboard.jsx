@@ -6,7 +6,7 @@ import StatCard from "../../components/common/StatCard";
 import Loader from "../../components/common/Loader";
 
 export default function Dashboard() {
-  const { dashboardStats, loading, error, loadDashboardStats, wallet } =
+  const { dashboardStats, loading, loadDashboardStats, wallet } =
     useTenant();
   const navigate = useNavigate();
 
@@ -36,17 +36,6 @@ export default function Dashboard() {
           Manage your tenant operations efficiently
         </p>
       </div>
-
-      {/* Error Alert */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
-          <div>
-            <h3 className="font-semibold text-red-900">Error</h3>
-            <p className="text-sm text-red-700">{error}</p>
-          </div>
-        </div>
-      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

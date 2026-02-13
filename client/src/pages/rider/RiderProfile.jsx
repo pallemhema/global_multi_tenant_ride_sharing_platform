@@ -31,11 +31,11 @@ export default function RiderProfile() {
 
   const handleRegisterAsDriver = () => {
     console.log("Navigating to driver registration");
-    navigate("/register/fleet");
+    navigate("/register/driver");
   };
 
   const handleRegisterAsFleet = () => {
-    navigate("/register/driver");
+    navigate("/register/fleet");
   };
 
   return (

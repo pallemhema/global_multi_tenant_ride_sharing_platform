@@ -7,6 +7,12 @@ import Loader from "../../components/common/Loader";
 import StatusBadge from "../../components/common/StatusBadge";
 import Button from "../../components/common/Button";
 import { FileText, Plus, AlertCircle, Trash2, Eye, Edit3 } from "lucide-react";
+const ACCEPT_TYPES = "image/jpeg,image/png,image/webp,application/pdf";
+
+  /* ---------------- HELPERS ---------------- */
+
+  const isImage = (name) => /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
+  const isPdf = (name) => /\.pdf$/i.test(name);
 
 export default function Documents() {
   const {
@@ -330,15 +336,31 @@ export default function Documents() {
                 </label>
                 <input
                   type="file"
-                  onChange={(e) =>
+                  accept={ACCEPT_TYPES}
+                  onChange={(e) =>{
+                    const file = e.target.files[0];
+                  if (!file) return;
+
+                  const allowedTypes = [
+                    "image/jpeg",
+                    "image/png",
+                    "image/webp",
+                    "application/pdf",
+                  ];
+
+                  if (!allowedTypes.includes(file.type)) {
+                    alert("Only image (jpg, png, webp) or PDF files are allowed.");
+                    e.target.value = null;
+                    return;
+                  }
                     setFormData({
                       ...formData,
                       file: e.target.files?.[0],
                     })
-                  }
+                  }}
                   required
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  accept=".pdf,.jpg,.jpeg,.png"
+                 
                 />
               </div>
             </div>
@@ -420,16 +442,32 @@ export default function Documents() {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   File
                 </label>
-                <input
+                 <input
                   type="file"
-                  onChange={(e) =>
+                  accept={ACCEPT_TYPES}
+                  onChange={(e) =>{
+                    const file = e.target.files[0];
+                  if (!file) return;
+
+                  const allowedTypes = [
+                    "image/jpeg",
+                    "image/png",
+                    "image/webp",
+                    "application/pdf",
+                  ];
+
+                  if (!allowedTypes.includes(file.type)) {
+                    alert("Only image (jpg, png, webp) or PDF files are allowed.");
+                    e.target.value = null;
+                    return;
+                  }
                     setFormData({
                       ...formData,
                       file: e.target.files?.[0],
                     })
-                  }
+                  }}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  accept=".pdf,.jpg,.jpeg,.png"
+           
                   required
                 />
               </div>

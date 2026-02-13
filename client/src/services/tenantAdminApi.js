@@ -162,7 +162,7 @@ export const tenantAdminAPI = {
 
   // Profile
   getTenantProfile: (tenantId) => {
-    return apiClient.get(`/tenant-admin/${tenantId}`);
+    return apiClient.get(`/tenant-admin/profile/${tenantId}`);
   },
 
   // ===============================
@@ -179,7 +179,87 @@ export const tenantAdminAPI = {
     }
   },
 
+  //fare calculations
+  createFareConfig: async (payload) => {
+  try {
+    const res = await apiClient.post(
+      "/tenant-admin/fare-config",
+      payload
+    );
+    return res;
+  } catch (err) {
+    const detail = err.response?.data?.detail;
 
+    if (Array.isArray(detail)) {
+      const message = detail.map(e => e.msg).join(", ");
+      throw new Error(message);
+    }
 
- 
+    throw new Error(detail || "Failed to create fare config");
+  }
+},
+
+  updateFareConfig: async(payload)=>{
+     try {
+      const res = await apiClient.put("/tenant-admin/fare-config",payload);
+      console.log("Tenant Fare config Response:", res.data);
+      return res;
+    } catch (err) {
+      throw new Error(err.response?.data?.detail || "Failed to fetch fare config");
+    }
+
+  },
+  deleteFareConfig: async (payload) => {
+  try {
+    const res = await apiClient.delete(
+      "/tenant-admin/fare-config",
+      { data: payload }   // ✅ VERY IMPORTANT
+    );
+    return res;
+  } catch (err) {
+    throw new Error(
+      err.response?.data?.detail || "Failed to delete fare config"
+    );
+  }
+},
+
+getFareConfigs: async (countryId, cityId) => {
+  try {
+    const res = await apiClient.get("/tenant-admin/fare-config", {
+      params: {
+        country_id: countryId,
+        city_id: cityId,
+      },
+    });
+
+    console.log("Tenant Fare config Response:", res.data);
+    return res;
+  } catch (err) {
+    const detail = err.response?.data?.detail;
+
+    if (Array.isArray(detail)) {
+      throw new Error(detail.map(e => e.msg).join(", "));
+    }
+
+    throw new Error(detail || "Failed to fetch fare config");
+  }
+},
+
+//surge
+createSurgeZone: async (payload) => {
+  return apiClient.post("/tenant-admin/surge-zone", payload);
+},
+
+getZones: async (cityId) => {
+  return apiClient.get(`/tenant-admin/surge-zone?city_id=${cityId}`);
+},
+
+createSurgeEvent: async (payload) => {
+  return apiClient.post("/tenant-admin/surge-zone/event", payload);
+},
+
+getActiveSurges: async (cityId) => {
+  return apiClient.get(`/tenant-admin/surge-zone/event?city_id=${cityId}`);
+},
+
 }

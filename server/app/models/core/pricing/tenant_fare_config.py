@@ -36,7 +36,6 @@ class TenantFareConfig(Base,TimestampMixin,AuditMixin):
     # ----------------------------
     # Surge & tax
     # ----------------------------
-    surge_multiplier: Mapped[Decimal] = mapped_column(Numeric(4, 2), default=1.0)
     tax_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0)
 
     # ----------------------------

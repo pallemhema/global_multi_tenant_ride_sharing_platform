@@ -7,6 +7,10 @@ class SelectTenantSchema(BaseModel):
 class DriverTypeSchema(BaseModel):
     """Update driver type during onboarding"""
     driver_type: str  # e.g., "individual", "fleet-based"
+class SelectLocationSchema(BaseModel):
+    country_id: int
+    city_id: int
+ 
 
 class SubmitDocumentsResponse(BaseModel):
     """Response when submitting documents to complete onboarding"""

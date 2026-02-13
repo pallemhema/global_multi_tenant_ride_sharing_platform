@@ -28,7 +28,6 @@ import TenantCreate from "../pages/appAdmin/TenantCreate";
 import TenantAdminCreate from "../pages/appAdmin/TenantAdminCreate";
 import TenantDocumentsApproval from "../pages/appAdmin/TenantDocumentsApproval";
 import TenantApprove from "../pages/appAdmin/TenantApprove";
-import TenantProfile from "../pages/tenant-admin/Profile";
 import CreatePayoutBatch from "../pages/appAdmin/payouts/CreatePayoutBatch";
 import PayoutBatchList from "../pages/appAdmin/payouts/PayoutBatchList";
 import PayoutBatchDetails from "../pages/appAdmin/payouts/PayoutBatchDetails";
@@ -42,7 +41,7 @@ import TenantRegions from "../pages/tenant-admin/Regions";
 import TenantVehicles from "../pages/tenant-admin/Vehicles";
 import TenantFleetOwners from "../pages/tenant-admin/FleetOwners";
 import TenantDrivers from "../pages/tenant-admin/Drivers";
-// import PayoutDashboard from "../components/tenant-admin/PayoutDashboard";
+import TenantFare from "../pages/tenant-admin/fare/TenantFare"
 
 /* ===== Driver ===== */
 import DriverLayout from "../layouts/DriverLayout";
@@ -107,8 +106,7 @@ const router = createBrowserRouter([
       { path: "tenants/:tenantId/admin/create", element: <TenantAdminCreate /> },
       { path: "tenants/:tenantId/documents", element: <TenantDocumentsApproval /> },
       { path: "tenants/:tenantId/approve", element: <TenantApprove /> },
-      { path: "profile", element: <TenantProfile /> },
-      // Payout routes (App Admin + Tenant Admin via AdminGuard)
+
       { path: "payouts", element: <PayoutBatchList /> },
       { path: "payouts/create", element: <CreatePayoutBatch /> },
       { path: "payouts/:batchId", element: <PayoutBatchDetails /> },
@@ -130,8 +128,7 @@ const router = createBrowserRouter([
       { path: "vehicles", element: <TenantVehicles /> },
       { path: "fleet-owners", element: <TenantFleetOwners /> },
       { path: "drivers", element: <TenantDrivers /> },
-      // { path: "payouts", element: <PayoutDashboard /> },
-      { path: "profile", element: <TenantProfile /> },
+      { path: "fare", element: <TenantFare /> },
     ],
   },
 

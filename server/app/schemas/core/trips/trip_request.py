@@ -70,6 +70,8 @@ class VehiclePricingInfo(BaseModel):
     base_fare: float
     price_per_km: float
     estimated_price: float
+    surge_multipler:float
+    surge_applied:bool
 
 
 class TenantAvailabilityInfo(BaseModel):

@@ -93,6 +93,12 @@ export default function ChooseOption() {
                     <div className="text-sm text-slate-700 font-semibold">
                       Est: ₹{v.estimated_price?.toFixed(2)}
                     </div>
+                    {v.surge_applied && (
+                    <span className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
+                      Surge x{v.surge_multiplier}
+                    </span>
+                  )}
+
                   </button>
                 ))}
               </div>

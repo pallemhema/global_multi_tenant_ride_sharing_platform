@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.models.core.pricing.tenant_fare_config import TenantFareConfig
+from .surge_engine import SurgeService
 
 
 class PricingEngine:
@@ -16,6 +17,8 @@ class PricingEngine:
         vehicle_category: str,
         distance_km: float,
         duration_minutes: int,
+         pickup_lat: float,
+        pickup_lng: float,
     ) -> dict:
 
         now = datetime.now(timezone.utc)
@@ -59,13 +62,21 @@ class PricingEngine:
         # ----------------------------
         # Surge
         # ----------------------------
-        surge_multiplier = (
-            Decimal(fare_rule.surge_multiplier)
-            if fare_rule.surge_multiplier is not None
-            else Decimal("1.00")
+        surge_multiplier = SurgeService.get_active_zone_surge(
+            db=db,
+            tenant_id=tenant_id,
+            city_id=city_id,
+            vehicle_category=vehicle_category,
+            pickup_lat=pickup_lat,
+            pickup_lng=pickup_lng,
         )
 
-        surged_subtotal = subtotal * surge_multiplier
+        surge_applied = False
+
+        if surge_multiplier is not None:
+            subtotal = subtotal * Decimal(str(surge_multiplier))
+            surge_applied = True
+
 
         # ----------------------------
         # Tax
@@ -76,9 +87,9 @@ class PricingEngine:
             else Decimal("0.00")
         )
 
-        tax_amount = (surged_subtotal * tax_percent) / Decimal("100")
+        tax_amount = (subtotal * tax_percent) / Decimal("100")
 
-        total_fare = surged_subtotal + tax_amount
+        total_fare = subtotal + tax_amount
 
         # ----------------------------
         # Proper rounding (bank-safe)
@@ -87,13 +98,11 @@ class PricingEngine:
         tax_amount = tax_amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         return {
-            "base_fare": float(base_fare),
-            "distance_charge": float(distance_charge),
-            "time_charge": float(time_charge),
-            "subtotal": float(subtotal),
-            "surge_multiplier": float(surge_multiplier),
-            "tax_percentage": float(tax_percent),
-            "tax_amount": float(tax_amount),
-            "total_fare": float(total_fare),
-            "currency": "INR",
-        }
+        "vehicle_category": vehicle_category,
+        "base_fare": float(base_fare),
+        "price_per_km": float(rate_per_km),
+        "estimated_price": float(total_fare),
+       "surge_multiplier": surge_multiplier,
+       "surge_applied": surge_applied,
+    }
+

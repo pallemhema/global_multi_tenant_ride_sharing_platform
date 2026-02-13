@@ -90,7 +90,7 @@ def get_or_create_driver(
     if not driver:
         driver = Driver(
             user_id=user_id,
-            onboarding_status="draft",
+            onboarding_status="not_started",
         )
         db.add(driver)
         db.commit()

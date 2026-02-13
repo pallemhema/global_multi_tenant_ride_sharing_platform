@@ -61,6 +61,11 @@ export default function TenantAdminLayout() {
       label: "Drivers",
       icon: Users,
     },
+    {
+      path: "/tenant-admin/fare",
+      label: "Fare Config",
+      icon: Users,
+    },
   ];
 
   return (

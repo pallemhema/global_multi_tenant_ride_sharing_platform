@@ -18,6 +18,7 @@ router = APIRouter(
 )
 
 
+
 @router.post(
     "/documents",
     response_model=DriverDocumentOut,
@@ -33,6 +34,17 @@ def upload_driver_document(
     # 🧾 Basic validation
     if not file.filename:
         raise HTTPException(400, "Invalid file")
+    # 🧾 Validate file
+ 
+
+    # Optional: prevent past expiry upload
+    if expiry_date and expiry_date < date.today():
+        raise HTTPException(
+            status_code=400,
+            detail="Expiry date cannot be in the past",
+        )
+
+
 
     ext = file.filename.split(".")[-1]
     filename = f"{document_type}.{ext}"
@@ -127,6 +139,9 @@ def update_driver_document(
     if file:
         if not file.filename:
             raise HTTPException(400, "Invalid file")
+        # 🧾 Validate file
+      
+
 
         ext = file.filename.split(".")[-1]
         filename = f"{doc.document_type}.{ext}"

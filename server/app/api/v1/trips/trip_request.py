@@ -266,6 +266,8 @@ def list_available_tenants(
                 vehicle_category=category.category_code,
                 estimated_distance_km=estimated_distance,
                 estimated_duration_minutes=estimated_duration,
+                pickup_lat=trip_req.pickup_lat,
+                pickup_lng = trip_req.pickup_lng,
             )
 
             if pricing:

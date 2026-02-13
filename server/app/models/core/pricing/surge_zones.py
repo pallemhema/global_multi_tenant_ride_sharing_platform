@@ -8,9 +8,10 @@ from sqlalchemy import (
 from geoalchemy2 import Geography
 from datetime import datetime
 from app.core.database import Base
+from ...mixins import TimestampMixin, AuditMixin
 
 
-class SurgeZone(Base):
+class SurgeZone(Base,TimestampMixin,AuditMixin):
     __tablename__ = "surge_zones"
 
     zone_id: Mapped[int] = mapped_column(
@@ -42,12 +43,3 @@ class SurgeZone(Base):
         nullable=False,
     )
 
-    created_at_utc: Mapped[datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        default=datetime.utcnow,
-    )
-
-    created_by: Mapped[int | None] = mapped_column(
-        BigInteger,
-        ForeignKey("users.user_id"),
-    )

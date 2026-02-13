@@ -15,6 +15,7 @@ import {
 const isImage = (name = "") => /\.(jpg|jpeg|png|gif|webp)$/i.test(name);
 
 const isPdf = (name = "") => /\.pdf$/i.test(name);
+const ACCEPT_TYPES = "image/jpeg,image/png,image/webp,application/pdf";
 
 export default function FleetDocumentCard({
   docType,
@@ -238,10 +239,28 @@ export default function FleetDocumentCard({
           />
 
           <input
-            type="file"
-            accept="image/*,.pdf"
-            onChange={(e) => setFile(e.target.files?.[0])}
-          />
+                type="file"
+                accept={ACCEPT_TYPES}
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+
+                  const allowedTypes = [
+                    "image/jpeg",
+                    "image/png",
+                    "image/webp",
+                    "application/pdf",
+                  ];
+
+                  if (!allowedTypes.includes(file.type)) {
+                    alert("Only image (jpg, png, webp) or PDF files are allowed.");
+                    e.target.value = null;
+                    return;
+                  }
+
+                  setFile(file);
+                }}
+              />
 
           <button
             onClick={handleSubmit}

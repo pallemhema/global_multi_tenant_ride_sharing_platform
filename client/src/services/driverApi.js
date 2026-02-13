@@ -1,52 +1,37 @@
 import { apiClient } from "./axios";
 
 export const driverApi = {
-  /* ===============================
-     ONBOARDING ENDPOINTS
-  =============================== */
 
-  async selectTenantForDriver(tenant_id) {
-    try {
-      const res = await apiClient.post("/driver/select-tenant", {
-        tenant_id,
-      });
-      return res.data;
-    } catch (err) {
-      throw new Error(
-        err.response?.data?.detail ||
-          err.response?.data?.message ||
-          "Failed to select tenant",
-      );
-    }
-  },
 
-  async updateDriverType(driver_type) {
-    try {
-      const res = await apiClient.put("/driver/driver-type", {
-        driver_type,
-      });
-      return res.data;
-    } catch (err) {
-      throw new Error(
-        err.response?.data?.detail ||
-          err.response?.data?.message ||
-          "Failed to update driver type",
-      );
-    }
-  },
 
-  async submitDocuments() {
-    try {
-      const res = await apiClient.post("/driver/submit-documents");
-      return res.data;
-    } catch (err) {
-      throw new Error(
-        err.response?.data?.detail ||
-          err.response?.data?.message ||
-          "Failed to submit documents",
-      );
-    }
-  },
+ /* ===============================
+   ONBOARDING ENDPOINTS
+=============================== */
+
+async selectTenantForDriver(tenant_id) {
+  const res = await apiClient.post("/driver/select-tenant", { tenant_id });
+  return res.data;
+},
+
+async getTenantLocations() {
+  const res = await apiClient.get("/driver/tenant-locations");
+  return res.data;
+},
+
+async selectLocation(data) {
+  const res = await apiClient.post("/driver/select-location", data);
+  return res.data;
+},
+
+async updateDriverType(driver_type) {
+  const res = await apiClient.put("/driver/driver-type", { driver_type });
+  return res.data;
+},
+
+async submitDocuments() {
+  const res = await apiClient.post("/driver/submit-documents");
+  return res.data;
+},
 
   /* ===============================
      DOCUMENT ENDPOINTS

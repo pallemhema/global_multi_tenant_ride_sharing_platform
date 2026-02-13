@@ -10,8 +10,7 @@ from sqlalchemy import (
 )
 from datetime import datetime
 from app.core.database import Base
-from mixins import TimestampMixin, AuditMixin
-
+from ...mixins import TimestampMixin, AuditMixin
 class SurgePricingEvent(Base,TimestampMixin,AuditMixin):
     __tablename__ = "surge_pricing_events"
 
@@ -69,7 +68,7 @@ class SurgePricingEvent(Base,TimestampMixin,AuditMixin):
         default=True,
         nullable=False,
     )
-    zone_id = Mapped[int] = mapped_column(
+    zone_id : Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey('surge_zones.zone_id'),
         nullable=True

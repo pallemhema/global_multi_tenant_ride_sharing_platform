@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import BigInteger, Text, Boolean, Numeric, ForeignKey
 from app.core.database import Base
-from geoalchemy2 import Geometry
+from geoalchemy2 import Geography
 
 
 
@@ -15,7 +15,7 @@ class City(Base):
     timezone: Mapped[str] = mapped_column(Text)
 
     boundary = mapped_column(
-    Geometry(geometry_type="POLYGON", srid=4326),
+    Geography(geometry_type="POLYGON", srid=4326),
     nullable=True,
 )
 

@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { useUserAuth } from "./UserAuthContext";
 import { driverApi } from "../services/driverApi";
@@ -8,10 +7,14 @@ const DriverContext = createContext(null);
 export const DriverProvider = ({ children }) => {
   const { isAuthenticated, loading: authLoading } = useUserAuth();
 
-  /* ================= CORE STATE ================= */
+  /* =====================================================
+     CORE STATE
+  ===================================================== */
 
   const [driver, setDriver] = useState(null);
   const driverId = driver?.driver_id ?? null;
+
+  const [tenantLocations, setTenantLocations] = useState([]);
 
   const [documents, setDocuments] = useState([]);
   const [activeShift, setActiveShift] = useState(null);
@@ -22,133 +25,40 @@ export const DriverProvider = ({ children }) => {
   const [tripRequests, setTripRequests] = useState([]);
   const [tripRequestsLoading, setTripRequestsLoading] = useState(false);
 
+  const [invites, setInvites] = useState([]);
+  const [assignedVehicle, setAssignedVehicle] = useState(null);
+
+  const [wallet, setWallet] = useState(null);
+  const [pastTrips, setPastTrips] = useState([]);
+  const [pendingPayments, setPendingPayments] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [invites, setInvites] = useState([]);
-  const [assignedVehicle, setAssignedVehicle] = useState();
+  /* =====================================================
+     RESET ON AUTH CHANGE
+  ===================================================== */
 
-  const [wallet, setWallet] = useState(null);
-
-  const [pastTrips, setPastTrips] = useState([]);
-
-  // const [paymentId, setPaymentId] = useState(null);
-const [pendingPayments, setPendingPayments] = useState([]);
-
-  /* ================= RESET ON DRIVER CHANGE ================= */
-
- useEffect(() => {
-  // 🔥 HARD RESET on auth change
-  setDriver(null);
-  setDocuments([]);
-  setActiveShift(null);
-  setRuntimeStatus(null);
-  setActiveTrip(null);
-  setVehicleSummary(null);
-  setTripRequests([]);
-  setInvites([]);
-  setAssignedVehicle(null);
-  setError(null);
-  setLoading(true);
-  setWallet(null)
-  setPastTrips([])
+useEffect(() => { // 🔥 HARD RESET on auth change 
+  setDriver(null); 
+  setDocuments([]); 
+  setActiveShift(null); 
+  setRuntimeStatus(null); 
+  setActiveTrip(null); 
+  setVehicleSummary(null); 
+  setTripRequestsLoading(false)
+  setTripRequests([]); setInvites([]); 
+  setAssignedVehicle(null); 
+  setError(null); 
+  setLoading(true); 
+  setWallet(null) 
+  setPastTrips([]) 
   setPendingPayments([])
-}, [isAuthenticated]);
+ }, [isAuthenticated]);
 
-  /* ================= HELPERS ================= */
-
-  const refreshRuntime = async () => {
-    const res = await driverApi.getRuntimeStatus();
-    setRuntimeStatus(res || null);
-    return res;
-  };
-
-  const refreshActiveTrip = async () => {
-    try {
-      const res = await driverApi.getactiveTrip();
-      setActiveTrip(res || null);
-    } catch {
-      setActiveTrip(null);
-    }
-  };
-
-  /* 🔒 HARD-GUARDED TRIP REQUEST LOADER */
-  const loadTripRequests = async () => {
-    if (runtimeStatus?.runtime_status !== "available") {
-      console.log(
-        "Skipping trip requests. Runtime:",
-        runtimeStatus?.runtime_status
-      );
-      return;
-    }
-
-    try {
-      setTripRequestsLoading(true);
-      const res = await driverApi.getTripRequests();
-
-      setTripRequests((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(res)) return prev;
-        return res || [];
-      });
-    } catch (err) {
-      console.error("Failed to load trip requests", err);
-    } finally {
-      setTripRequestsLoading(false);
-    }
-  };
-
-  /* ================= FLEET-DRIVER ONLY ================= */
-
-const loadFleetInvites = async () => {
-  try {
-    const res = await driverApi.getFleetInvites();
-    setInvites(res || []);
-  } catch (err) {
-    console.error("Failed to load fleet invites", err);
-    setInvites([]);
-  }
-};
-
-const loadAssignedVehicle = async () => {
-  try {
-    const res = await driverApi.getAssignedVehicle();
-    setAssignedVehicle(res || null);
-  } catch (err) {
-    console.error("Failed to load assigned vehicles", err);
-    setAssignedVehicle(null);
-  }
-};
-const refreshWallet = async () => {
-  try {
-    const res = await driverApi.getWallet();
-    setWallet(res || null);
-    return res;
-  } catch (err) {
-    console.error("Failed to refresh wallet", err);
-  }
-};
-
-const refreshPastTrips = async () => {
-  try {
-    const res = await driverApi.getPastTrips();
-    setPastTrips(res || []);
-    return res;
-  } catch (err) {
-    console.error("Failed to refresh past trips", err);
-  }
-};
-
-
-  const loadPendingPayment = async () => {
-  try {
-    const res = await driverApi.getPendingPayment();
-    setPendingPayments(res || []);
-  } catch (err) {
-    console.error("Failed to load pending payment", err);
-  }
-};
-
-  /* ================= INITIAL DRIVER LOAD ================= */
+  /* =====================================================
+     DRIVER INITIAL LOAD
+  ===================================================== */
 
   const loadDriverData = async () => {
     try {
@@ -166,16 +76,24 @@ const refreshPastTrips = async () => {
         driverApi.getShiftStatus(),
         driverApi.getRuntimeStatus(),
         driverApi.getVehicleSummary(),
-     
       ]);
 
       setDocuments(docs || []);
       setActiveShift(shift || null);
       setRuntimeStatus(runtime || null);
       setVehicleSummary(vehicle || null);
-    
+
       await refreshPastTrips();
       await refreshWallet();
+      await loadPendingPayment();
+
+      // 🔥 Resume onboarding data
+      if (
+        nextDriver.onboarding_status === "tenant_selected" ||
+        nextDriver.onboarding_status === "location_selected"
+      ) {
+        await loadTenantLocations();
+      }
 
     } catch (err) {
       console.error(err);
@@ -185,86 +103,86 @@ const refreshPastTrips = async () => {
     }
   };
 
-  /* ================= POLLING (STATE DRIVEN) ================= */
-
-  // Trip requests → ONLY when available
-  useEffect(() => {
-    if (runtimeStatus?.runtime_status !== "available") return;
-
-    const interval = setInterval(() => {
-      loadTripRequests();
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [runtimeStatus?.runtime_status]);
-
-
-
-
-  /* ================= ACTIVE TRIP SYNC ================= */
-
-  useEffect(() => {
-    if (
-      runtimeStatus?.runtime_status === "trip_accepted" ||
-      runtimeStatus?.runtime_status === "on_trip"
-    ) {
-      refreshActiveTrip();
-    } else {
-      setActiveTrip(null);
-    }
-  }, [runtimeStatus?.runtime_status]);
-
-  /* ================= AUTH BOOTSTRAP ================= */
-
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
       loadDriverData();
-      loadPendingPayment(); 
     } else if (!authLoading && !isAuthenticated) {
-      setDriver(null);
       setLoading(false);
     }
   }, [authLoading, isAuthenticated]);
 
-  /* ================= FLEET-DRIVER BOOTSTRAP ================= */
+  /* =====================================================
+     ONBOARDING METHODS
+  ===================================================== */
 
-useEffect(() => {
-  if (!driver?.driver_type) return;
+  const loadTenantLocations = async () => {
+    const res = await driverApi.getTenantLocations();
+    setTenantLocations(res.countries || []);
+    return res;
+  };
 
-  if (driver.driver_type === "fleet_driver") {
-    loadFleetInvites();
-    loadAssignedVehicle();
-  } else {
-    // 🚫 Not a fleet driver → hard reset
-    setInvites([]);
-    setAssignedVehicle([]);
-  }
-}, [driver?.driver_type]);
+  const selectTenant = async (tenantId) => {
+    const res = await driverApi.selectTenantForDriver(tenantId);
 
+    setDriver((prev) => ({
+      ...prev,
+      tenant_id: tenantId,
+      onboarding_status: res.onboarding_status,
+    }));
 
-  /* ================= DERIVED ================= */
+    setTenantLocations(res.countries || []);
+    return res;
+  };
 
-const can_start_shift = useMemo(() => {
-  if (!driver) return false;
-  if (driver.kyc_status !== "approved") return false;
+  const selectLocation = async (payload) => {
+    const res = await driverApi.selectLocation(payload);
 
-  if (driver.driver_type === "fleet_driver") {
-    return (
-      activeShift?.shift_status === "offline" &&
-      assignedVehicle !== null
-    );
-  }
+    setDriver((prev) => ({
+      ...prev,
+      country_id: payload.country_id,
+      city_id: payload.city_id,
+      onboarding_status: res.onboarding_status,
+    }));
 
-  return (
-    activeShift?.shift_status === "offline" &&
-    (vehicleSummary?.active_vehicles ?? 0) > 0
-  );
-}, [driver, activeShift, assignedVehicle, vehicleSummary]);
+    return res;
+  };
 
+  const updateDriverType = async (type) => {
+    const res = await driverApi.updateDriverType(type);
 
+    setDriver((prev) => ({
+      ...prev,
+      driver_type: type,
+      onboarding_status: res.onboarding_status,
+    }));
 
+    return res;
+  };
 
-  /* ================= SHIFT ================= */
+  const submitDocuments = async () => {
+    const res = await driverApi.submitDocuments();
+
+    setDriver((prev) => ({
+      ...prev,
+      onboarding_status: res.onboarding_status,
+    }));
+
+    return res;
+  };
+
+  /* =====================================================
+     DOCUMENTS
+  ===================================================== */
+
+  const refreshDocuments = async () => {
+    const docs = await driverApi.getDriverDocuments();
+    setDocuments(docs || []);
+    return docs;
+  };
+
+  /* =====================================================
+     SHIFT & RUNTIME
+  ===================================================== */
 
   const startShift = async (payload) => {
     const res = await driverApi.startShift(payload);
@@ -278,17 +196,43 @@ const can_start_shift = useMemo(() => {
     return res;
   };
 
-  /* ================= RUNTIME ================= */
-
   const updateRuntimeStatus = async (status) => {
-    // 🚫 never allow manual on_trip
     if (status === "on_trip") return;
     const res = await driverApi.updateRuntimeStatus(status);
     setRuntimeStatus(res);
     return res;
   };
 
-  /* ================= TRIP ACTIONS ================= */
+  /* =====================================================
+     TRIPS
+  ===================================================== */
+
+  const refreshRuntime = async () => {
+    const res = await driverApi.getRuntimeStatus();
+    setRuntimeStatus(res || null);
+    return res;
+  };
+
+  const refreshActiveTrip = async () => {
+    try {
+      const res = await driverApi.getactiveTrip();
+      setActiveTrip(res || null);
+    } catch {
+      setActiveTrip(null);
+    }
+  };
+
+  const loadTripRequests = async () => {
+    if (runtimeStatus?.runtime_status !== "available") return;
+
+    setTripRequestsLoading(true);
+    try {
+      const res = await driverApi.getTripRequests();
+      setTripRequests(res || []);
+    } finally {
+      setTripRequestsLoading(false);
+    }
+  };
 
   const acceptTrip = async ({ trip_request_id, batch_id }) => {
     const res = await driverApi.respondToOffer(
@@ -296,9 +240,8 @@ const can_start_shift = useMemo(() => {
       batch_id,
       "accepted"
     );
-
-    await refreshRuntime(); // → trip_accepted
-    setTripRequests([]);    // stop further requests
+    await refreshRuntime();
+    setTripRequests([]);
     return res;
   };
 
@@ -314,8 +257,7 @@ const can_start_shift = useMemo(() => {
 
   const startTrip = async ({ trip_id, otp }) => {
     const res = await driverApi.startTrip(trip_id, otp);
-    await refreshRuntime(); // → on_trip
-    await loadTripRequests();
+    await refreshRuntime();
     return res;
   };
 
@@ -324,128 +266,192 @@ const can_start_shift = useMemo(() => {
       distance_km,
       duration_minutes,
     });
-    await loadPendingPayment();
-    await refreshRuntime(); // → available
+
+    await refreshRuntime();
     await refreshWallet();
     await refreshPastTrips();
+    await loadPendingPayment();
 
     return res;
   };
 
   const cancelTrip = async ({ trip_id, reason }) => {
     const res = await driverApi.cancelTrip(trip_id, { reason });
-    await refreshRuntime(); 
-      await refreshPastTrips();
+    await refreshRuntime();
+    await refreshPastTrips();
+    return res;
+  };
+  useEffect(() => {
+    if (
+      runtimeStatus?.runtime_status === "trip_accepted" ||
+      runtimeStatus?.runtime_status === "on_trip"
+    ) {
+      refreshActiveTrip();
+    } else {
+      setActiveTrip(null);
+    }
+  }, [runtimeStatus?.runtime_status]);
+
+
+  /* =====================================================
+     FLEET
+  ===================================================== */
+
+  const loadFleetInvites = async () => {
+    const res = await driverApi.getFleetInvites();
+    setInvites(res || []);
   };
 
+  const loadAssignedVehicle = async () => {
+    const res = await driverApi.getAssignedVehicle();
+    setAssignedVehicle(res || null);
+  };
 
-   const acceptInvite = async (inviteId) => {
+  const acceptInvite = async (inviteId) => {
     const res = await driverApi.acceptFleetInvite(inviteId);
-
-    // Mark accepted invite
-    setInvites((prev) =>
-      prev.map((i) =>
-        i.invite_id === inviteId
-          ? { ...i, invite_status: "accepted" }
-          : { ...i, invite_status: "rejected" }
-      )
-    );
-
+    await loadFleetInvites();
     return res;
   };
 
   const rejectInvite = async (inviteId) => {
     const res = await driverApi.rejectFleetInvite(inviteId);
+    await loadFleetInvites();
+    return res;
+  };
+  useEffect(() => {
+  if (!driver?.driver_type) return;
 
-    setInvites((prev) =>
-      prev.map((i) =>
-        i.invite_id === inviteId
-          ? { ...i, invite_status: "rejected" }
-          : i
-      )
-    );
+  if (driver.driver_type === "fleet_driver") {
+    loadFleetInvites();
+    loadAssignedVehicle();
+  } else {
+    // 🚫 Not a fleet driver → hard reset
+    setInvites([]);
+    setAssignedVehicle([]);
+  }
+}, [driver?.driver_type]);
 
+  /* =====================================================
+     FINANCE
+  ===================================================== */
+
+  const refreshWallet = async () => {
+    const res = await driverApi.getWallet();
+    setWallet(res || null);
     return res;
   };
 
-const paymentconfirmation = async (tripId, paymentMethod) => {
-  const res = await driverApi.confirmPayment(tripId, paymentMethod);
+  const refreshPastTrips = async () => {
+    const res = await driverApi.getPastTrips();
+    setPastTrips(res || []);
+    return res;
+  };
 
-  // Refresh balances & history
-  await refreshWallet();
-  await refreshPastTrips();
+  const loadPendingPayment = async () => {
+    const res = await driverApi.getPendingPayment();
+    setPendingPayments(res || []);
+  };
 
-  // ✅ Remove ONLY this payment
-  setPendingPayments(prev =>
-    prev.filter(p => p.trip_id !== tripId)
-  );
+  const paymentconfirmation = async (tripId, paymentMethod) => {
+    const res = await driverApi.confirmPayment(tripId, paymentMethod);
+    await refreshWallet();
+    await refreshPastTrips();
+    setPendingPayments((prev) =>
+      prev.filter((p) => p.trip_id !== tripId)
+    );
+    return res;
+  };
 
-  return res;
-};
+  /* =====================================================
+     DERIVED
+  ===================================================== */
 
-console.log("pending payment:",pendingPayments)
+  const can_start_shift = useMemo(() => {
+    if (!driver) return false;
+    if (driver.kyc_status !== "approved") return false;
 
+    if (driver.driver_type === "fleet_driver") {
+      return activeShift?.shift_status === "offline" && assignedVehicle;
+    }
 
+    return (
+      activeShift?.shift_status === "offline" &&
+      (vehicleSummary?.active_vehicles ?? 0) > 0
+    );
+  }, [driver, activeShift, assignedVehicle, vehicleSummary]);
 
-
-
-  console.log("past trips:",pastTrips)
-  /* ================= CONTEXT VALUE ================= */
+  /* =====================================================
+     CONTEXT VALUE
+  ===================================================== */
 
   const value = useMemo(
     () => ({
       driver,
       driverId,
+      loading,
+      error,
+
+      tenantLocations,
       documents,
       activeShift,
       runtimeStatus,
       activeTrip,
       vehicleSummary,
-      loading,
-      error,
-       invites,         
-    assignedVehicle,
-
-      can_start_shift,
-
-      tripRequests,
-      tripRequestsLoading,
-      wallet,
-      pastTrips,
-      pendingPayments,
-
-      startShift,
-      endShift,
-      updateRuntimeStatus,
-      loadTripRequests,
-
-      acceptTrip,
-      rejectTrip,
-      startTrip,
-      completeTrip,
-      cancelTrip,
-      acceptInvite,
-      rejectInvite,
-      paymentconfirmation
-    }),
-    [
-      driver,
-      driverId,
-      documents,
-      activeShift,
-      runtimeStatus,
-      activeTrip,
-      vehicleSummary,
-      loading,
-      error,
       tripRequests,
       tripRequestsLoading,
       invites,
       assignedVehicle,
       wallet,
       pastTrips,
-      can_start_shift,
       pendingPayments,
+
+      // onboarding
+      selectTenant,
+      selectLocation,
+      updateDriverType,
+      submitDocuments,
+      loadTenantLocations,
+
+      // documents
+      refreshDocuments,
+
+      // shifts
+      startShift,
+      endShift,
+      updateRuntimeStatus,
+      can_start_shift,
+
+      // trips
+      acceptTrip,
+      rejectTrip,
+      startTrip,
+      completeTrip,
+      cancelTrip,
+
+      // fleet
+      acceptInvite,
+      rejectInvite,
+
+      // finance
+      paymentconfirmation,
+    }),
+    [
+      driver,
+      loading,
+      error,
+      tenantLocations,
+      documents,
+      activeShift,
+      runtimeStatus,
+      activeTrip,
+      vehicleSummary,
+      tripRequests,
+      invites,
+      assignedVehicle,
+      wallet,
+      pastTrips,
+      pendingPayments,
+      can_start_shift,
     ]
   );
 
@@ -455,8 +461,6 @@ console.log("pending payment:",pendingPayments)
     </DriverContext.Provider>
   );
 };
-
-/* ================= HOOK ================= */
 
 export const useDriver = () => {
   const ctx = useContext(DriverContext);
