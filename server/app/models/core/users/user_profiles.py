@@ -18,8 +18,12 @@ class UserProfile(Base, TimestampMixin, AuditMixin):
         BigInteger,
         ForeignKey("users.user_id"),
         nullable=False,
+        unique=True,
+
         index=True
     )
+
+
 
     full_name: Mapped[str] = mapped_column(
         String,

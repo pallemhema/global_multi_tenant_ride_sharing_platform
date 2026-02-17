@@ -16,13 +16,19 @@ import { Outlet } from "react-router-dom";
 
 import { useUserAuth } from "../context/UserAuthContext";
 import { useFleetOwner } from "../context/FleetOwnerContext";
+import Loader from "../components/common/Loader";
 
 function FleetLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logoutUser } = useUserAuth();
-  const { fleetOwner } = useFleetOwner();
+  const { logoutUser, loading: authLoading } = useUserAuth();
+  const { fleetOwner, loading: fleetLoading } = useFleetOwner();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Wait for auth and fleet data to load
+  if (authLoading || fleetLoading) {
+    return <Loader />;
+  }
 
   const isActive = (path) => {
     return location.pathname.startsWith(path);

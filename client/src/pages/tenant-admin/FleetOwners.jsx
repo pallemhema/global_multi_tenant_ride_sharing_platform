@@ -28,7 +28,7 @@ export default function FleetOwners() {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [approvingFleetOwner, setApprovingFleetOwner] = useState(null);
   const [approving, setApproving] = useState(false);
-  console.log("fleetOwners:", selectedFleetOwner);
+  console.log("fleetOwners:", fleetOwners);
 
   // Load fleet owners on mount
   useEffect(() => {

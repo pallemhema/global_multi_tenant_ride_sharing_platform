@@ -18,13 +18,15 @@ export default function FareConfigList({
   }, []);
 
   return (
-    <div className="grid md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {vehicleCategories.map((category) => {
         const existing = configs.find(
           (c) => c.vehicle_category === category.category_code
         );
 
         return (
+          <>
+
           <FareConfigCard
             key={category.category_code}
             category={category}
@@ -33,6 +35,7 @@ export default function FareConfigList({
             cityId={cityId}
             reload={reload}
           />
+          </>
         );
       })}
     </div>

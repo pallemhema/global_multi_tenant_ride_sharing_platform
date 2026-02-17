@@ -39,10 +39,7 @@ class PayoutBatch(Base, TimestampMixin, AuditMixin):
         nullable=False,
     )
 
-    currency_code: Mapped[str] = mapped_column(
-        CHAR(3),
-        nullable=False,
-    )
+    
 
     period_start_utc: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),

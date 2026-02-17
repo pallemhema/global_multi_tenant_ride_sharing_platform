@@ -184,7 +184,7 @@ export default function DriverDashboard() {
         {driver.driver_type == "individual" && (
           <StatCard
             title="Wallet Balance"
-            count={wallet?.balance ?? 0}
+            count={`${wallet?.currency_code} ${wallet?.balance ?? 0}`}
             icon={Wallet}
             color="teal"
           />

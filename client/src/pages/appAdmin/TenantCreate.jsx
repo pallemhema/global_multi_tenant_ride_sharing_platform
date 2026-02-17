@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAppAdmin } from '../../context/AppAdminContext';
+import { lookupsAPI } from '../../services/lookups';
+
 
 
 export default function TenantCreate() {
@@ -14,16 +16,21 @@ export default function TenantCreate() {
     createTenantAdminData,
     clearError,
   } = useAppAdmin();
-  const [step, setStep] = useState(1); // Step 1: Tenant, Step 2: Admin
+ 
+  const [step, setStep] = useState(1);
   const [createdTenantId, setCreatedTenantId] = useState(null);
   const [localError, setLocalError] = useState('');
+
+  const [countries, setCountries] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
 
   const [tenantData, setTenantData] = useState({
     tenant_name: '',
     legal_name: '',
     business_email: '',
     city: '',
-    country: '',
+    country_id: '',
+    settlement_currency_code: '',
     business_registration_number: '',
   });
 
@@ -36,6 +43,30 @@ export default function TenantCreate() {
     confirm_password: '',
   });
 
+  // ==============================
+  // Load Lookups
+  // ==============================
+  useEffect(() => {
+    async function loadLookups() {
+      try {
+        const countryRes = await lookupsAPI.fetchCountries();
+        const currencyRes = await lookupsAPI.fetchCurrencies();
+        console.log(countryRes)
+
+        setCountries(countryRes || []);
+        setCurrencies(currencyRes || []);
+      } catch (err) {
+        console.error('Failed to load lookups', err);
+      }
+    }
+
+    loadLookups();
+  }, []);
+  console.log(countries)
+
+  // ==============================
+  // Tenant Change
+  // ==============================
   const handleTenantChange = (e) => {
     const { name, value } = e.target;
     clearError();
@@ -46,6 +77,27 @@ export default function TenantCreate() {
     }));
   };
 
+  // ==============================
+  // Country Change (Auto-fill currency)
+  // ==============================
+  const handleCountryChange = (e) => {
+    const selectedCountryId = e.target.value;
+
+    const selectedCountry = countries.find(
+      (c) => c.country_id.toString() === selectedCountryId
+    );
+
+    setTenantData((prev) => ({
+      ...prev,
+      country_id: selectedCountryId,
+      settlement_currency_code:
+        selectedCountry?.default_currency_code || '',
+    }));
+  };
+
+  // ==============================
+  // Admin Change
+  // ==============================
   const handleAdminChange = (e) => {
     const { name, value } = e.target;
     clearError();
@@ -56,14 +108,21 @@ export default function TenantCreate() {
     }));
   };
 
+  // ==============================
+  // Create Tenant
+  // ==============================
   const handleCreateTenant = async (e) => {
     e.preventDefault();
     clearError();
     setLocalError('');
 
-    // Validate required fields
-    if (!tenantData.tenant_name || !tenantData.business_email) {
-      setLocalError('Business Name and Email are required');
+    if (
+      !tenantData.tenant_name ||
+      !tenantData.business_email ||
+      !tenantData.country_id ||
+      !tenantData.settlement_currency_code
+    ) {
+      setLocalError('Please fill all required fields');
       return;
     }
 
@@ -72,19 +131,25 @@ export default function TenantCreate() {
       legal_name: tenantData.legal_name,
       business_email: tenantData.business_email,
       city: tenantData.city,
-      country: tenantData.country,
-      business_registration_number: tenantData.business_registration_number,
+      country_id: tenantData.country_id,
+      settlement_currency_code: tenantData.settlement_currency_code,
+      business_registration_number:
+        tenantData.business_registration_number,
     };
-    
+
     const res = await createTenantData(payload);
+
     if (res.success) {
       setCreatedTenantId(res.data.id || res.data.tenant_id);
-      setStep(2); // Move to admin creation
+      setStep(2);
     } else {
       setLocalError(res.error || 'Failed to create tenant');
     }
   };
 
+  // ==============================
+  // Create Admin
+  // ==============================
   const handleCreateAdmin = async (e) => {
     e.preventDefault();
     clearError();
@@ -102,8 +167,9 @@ export default function TenantCreate() {
       phone: adminData.phone,
       password: adminData.password,
     };
-    
+
     const res = await createTenantAdminData(createdTenantId, payload);
+
     if (res.success) {
       alert('Tenant and admin created successfully!');
       navigate('/dashboard/tenants');
@@ -111,6 +177,7 @@ export default function TenantCreate() {
       setLocalError(res.error || 'Failed to create tenant admin');
     }
   };
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -159,117 +226,104 @@ export default function TenantCreate() {
 
           {/* Step 1: Tenant Creation */}
           {step === 1 && (
-            <form onSubmit={handleCreateTenant} className="space-y-6">
+                        <form onSubmit={handleCreateTenant} className="space-y-6">
+
               {/* Business Name */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Business Name *
-                </label>
-                <input
-                  type="text"
-                  name="tenant_name"
-                  value={tenantData.tenant_name}
-                  onChange={handleTenantChange}
-                  required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Enter business name"
-                />
-              </div>
+              <input
+                type="text"
+                name="tenant_name"
+                placeholder="Business Name *"
+                value={tenantData.tenant_name}
+                onChange={handleTenantChange}
+                className="w-full px-4 py-2 border rounded-lg"
+                required
+              />
 
               {/* Business Email */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Business Email *
-                </label>
-                <input
-                  type="email"
-                  name="business_email"
-                  value={tenantData.business_email}
-                  onChange={handleTenantChange}
-                  required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Enter business email"
-                />
-              </div>
+              <input
+                type="email"
+                name="business_email"
+                placeholder="Business Email *"
+                value={tenantData.business_email}
+                onChange={handleTenantChange}
+                className="w-full px-4 py-2 border rounded-lg"
+                required
+              />
 
-              {/* Legal Name */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Legal Name
-                </label>
-                <input
-                  type="text"
-                  name="legal_name"
-                  value={tenantData.legal_name}
-                  onChange={handleTenantChange}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Enter legal name (optional)"
-                />
-              </div>
+              {/* City */}
+              <input
+                type="text"
+                name="city"
+                placeholder="City *"
+                value={tenantData.city}
+                onChange={handleTenantChange}
+                className="w-full px-4 py-2 border rounded-lg"
+                required
+              />
 
-              {/* City and Country */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    City *
-                  </label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={tenantData.city}
-                    onChange={handleTenantChange}
-                    required
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Enter city"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Country *
-                  </label>
-                  <input
-                    type="text"
-                    name="country"
-                    value={tenantData.country}
-                    onChange={handleTenantChange}
-                    required
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Enter country"
-                  />
-                </div>
-              </div>
+              {/* Country Dropdown */}
+              <select
+                name="country_id"
+                value={tenantData.country_id}
+                onChange={handleCountryChange}
+                className="w-full px-4 py-2 border rounded-lg"
+                required
+              >
+                <option value="">Select Country *</option>
+                {countries.map((country) => (
+                  <option
+                    key={country.country_id}
+                    value={country.country_id}
+                  >
+                    {country.country_name}
+                  </option>
+                ))}
+              </select>
 
-              {/* Business Registration Number */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Business Registration Number *
-                </label>
-                <input
-                  type="text"
-                  name="business_registration_number"
-                  value={tenantData.business_registration_number}
-                  onChange={handleTenantChange}
-                  required
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="Enter registration number"
-                />
-              </div>
+              {/* Settlement Currency Dropdown */}
+              <select
+                name="settlement_currency_code"
+                value={tenantData.settlement_currency_code}
+                onChange={handleTenantChange}
+                className="w-full px-4 py-2 border rounded-lg"
+                required
+              >
+                <option value="">Settlement Currency *</option>
+                {currencies.map((currency) => (
+                  <option
+                    key={currency.currency_code}
+                    value={currency.currency_code}
+                  >
+                    {currency.currency_code} - {currency.currency_name}
+                  </option>
+                ))}
+              </select>
 
-              {/* Submit Buttons */}
-              <div className="flex gap-4 pt-6 border-t border-slate-200">
+              {/* Registration */}
+              <input
+                type="text"
+                name="business_registration_number"
+                placeholder="Business Registration Number *"
+                value={tenantData.business_registration_number}
+                onChange={handleTenantChange}
+                className="w-full px-4 py-2 border rounded-lg"
+                required
+              />
+
+              <div className="flex gap-4 pt-6 border-t">
                 <button
                   type="button"
                   onClick={() => navigate(-1)}
-                  className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+                  className="flex-1 px-4 py-2 border rounded-lg"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg"
                 >
-                  {loading ? 'Creating...' : 'Next: Create Admin'}
+                  Next
                 </button>
               </div>
             </form>

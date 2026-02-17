@@ -49,6 +49,7 @@ export default function ChooseOption() {
   };
 
   if (loading) return <div>Loading options…</div>;
+  console.log(options)
 
   return (
     <div className="space-y-6">
@@ -93,11 +94,13 @@ export default function ChooseOption() {
                     <div className="text-sm text-slate-700 font-semibold">
                       Est: ₹{v.estimated_price?.toFixed(2)}
                     </div>
-                    {v.surge_applied && (
-                    <span className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded">
-                      Surge x{v.surge_multiplier}
-                    </span>
-                  )}
+                    {v.surge_applied  && (
+                      <span className="relative top-2 right-2 bg-red-600 text-white text-xs font-semibold px-2 py-1 rounded">
+                        Surge x{Number(v.surge_multiplier).toFixed(1)}
+                      </span>
+                    )}
+
+                 
 
                   </button>
                 ))}

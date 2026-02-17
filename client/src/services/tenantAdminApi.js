@@ -247,19 +247,35 @@ getFareConfigs: async (countryId, cityId) => {
 
 //surge
 createSurgeZone: async (payload) => {
-  return apiClient.post("/tenant-admin/surge-zone", payload);
+  return apiClient.post("/tenant-admin/surge-event/zone", payload);
 },
 
 getZones: async (cityId) => {
-  return apiClient.get(`/tenant-admin/surge-zone?city_id=${cityId}`);
+  return apiClient.get(`/tenant-admin/surge-event/zone?city_id=${cityId}`);
 },
+
 
 createSurgeEvent: async (payload) => {
-  return apiClient.post("/tenant-admin/surge-zone/event", payload);
+  return apiClient.post("/tenant-admin/surge-event", payload);
 },
 
-getActiveSurges: async (cityId) => {
-  return apiClient.get(`/tenant-admin/surge-zone/event?city_id=${cityId}`);
+getActiveSurges: async (countryId, cityId) => {
+  return apiClient.get(`/tenant-admin/surge-event`, { params: { country_id: countryId, city_id: cityId } });
 },
+
+updateSurgeEvent: async (surgeId, payload) => {
+  return apiClient.put(`/tenant-admin/surge-event/${surgeId}`, payload);
+},
+
+endSurgeEvent: async (surgeId) => {
+  return apiClient.put(`/tenant-admin/surge-event/${surgeId}/end`);
+},
+
+updateSurgeZone: async (zoneId, payload) => {
+  return apiClient.put(`/tenant-admin/surge-event/zone/${zoneId}`, payload);
+},
+  getZone: async (zoneId) => {
+    return apiClient.get(`/tenant-admin/surge-event/zone/${zoneId}`);
+  },
 
 }

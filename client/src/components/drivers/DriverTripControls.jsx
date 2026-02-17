@@ -1,3 +1,216 @@
+// import React, { useState, useEffect } from "react";
+// import { useDriver } from "../../context/DriverContext";
+
+// export default function DriverTripControls() {
+//   const {
+//     activeTrip,
+//     startTrip,
+//     completeTrip,
+//     runtimeStatus,
+//     cancelTrip,
+//     refreshActiveTrip,
+//     pendingPayments,
+//     paymentconfirmation,
+//   } = useDriver();
+
+//   const [otp, setOtp] = useState("");
+//   const [starting, setStarting] = useState(false);
+//   const [completing, setCompleting] = useState(false);
+
+
+
+// // "online" | "offline"
+
+
+//   // Auto-poll active trip only when on_trip (not during OTP entry)
+//   useEffect(() => {
+//     if (runtimeStatus?.runtime_status !== "on_trip") {
+//       return; // Don't poll during trip_accepted (OTP entry phase)
+//     }
+
+//     const pollInterval = setInterval(() => {
+//       refreshActiveTrip();
+//     }, 3000);
+
+//     return () => clearInterval(pollInterval);
+//   }, [runtimeStatus?.runtime_status, refreshActiveTrip]);
+
+//   console.log("activeTrip:", activeTrip);
+//   console.log("pendingPayments:", pendingPayments);
+
+// {(!activeTrip || !activeTrip.trip_id) && pendingPayments.length === 0 && (
+//   <div className="p-4 border rounded bg-yellow-50 text-sm">
+//     No active trip assigned
+//   </div>
+// )}
+
+
+
+//   const handleStart = async () => {
+//     if (!otp) return alert("OTP required");
+
+//     setStarting(true);
+//     try {
+//       const res = await startTrip({
+//         trip_id: activeTrip.trip_id,
+//         otp,
+//       });
+//       alert(res.message || "Trip started");
+//       setOtp("");
+//     } catch (err) {
+//       console.error("startTrip failed", err);
+//       alert(err.message || "Failed to start trip");
+//     } finally {
+//       setStarting(false);
+//     }
+//   };
+
+//   const handleComplete = async () => {
+//     const distance = parseFloat(prompt("Enter distance in km (e.g., 5.2)"));
+//     const duration = parseInt(
+//       prompt("Enter duration in minutes (e.g., 12)"),
+//       10,
+//     );
+
+//     if (isNaN(distance) || isNaN(duration)) {
+//       return alert("Distance and duration required");
+//     }
+
+//     setCompleting(true);
+//     try {
+//       const res = await completeTrip({
+//         trip_id: activeTrip.trip_id,
+//         distance_km: distance,
+//         duration_minutes: duration,
+//       });
+
+//       console.log("Trip completed response:", res);
+     
+//       alert(res.message || "Trip completed");
+
+//     } catch (err) {
+//       console.error("completeTrip failed", err);
+//       alert(err.message || "Failed to complete trip");
+//     } finally {
+//       setCompleting(false);
+//     }
+//   };
+
+//   const handleCancel = async () => {
+//     const reason = prompt("Enter cancel reason");
+//     if (!reason) return;
+
+//     try {
+//       await cancelTrip({
+//         trip_id: activeTrip.trip_id,
+//         reason,
+//       });
+//       alert("Trip cancelled");
+//     } catch (err) {
+//       console.error("cancelTrip failed", err);
+//       alert(err.message || "Failed to cancel trip");
+//     }
+//   };
+
+
+
+// const handleConfirmPayment = async (tripId,currency_code, method) => {
+//   try {
+//     await paymentconfirmation(tripId, currency_code,method);
+
+//     alert("Payment confirmed");
+//   } catch (err) {
+//     alert(err.message || "Failed to confirm payment");
+//   }
+// };
+
+
+
+//   return (
+//     <div className="p-4 border rounded-lg bg-white">
+//       <h3 className="font-semibold mb-3">Trip Controls</h3>
+
+//       <div className="grid gap-3">
+//         {/* START TRIP */}
+//         {runtimeStatus.runtime_status === "trip_accepted" && (
+//           <div className="flex gap-2">
+//             <input
+//               value={otp}
+//               onChange={(e) => setOtp(e.target.value)}
+//               className="border p-2 rounded flex-1"
+//               placeholder="Enter OTP"
+//             />
+//             <button
+//               disabled={starting}
+//               onClick={handleStart}
+//               className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
+//             >
+//               Start Trip
+//             </button>
+//           </div>
+//         )}
+
+//         {/* COMPLETE TRIP */}
+//         {runtimeStatus.runtime_status === "on_trip" && (
+//           <button
+//             disabled={completing}
+//             onClick={handleComplete}
+//             className="px-3 py-1 bg-emerald-500 text-white rounded disabled:opacity-50"
+//           >
+//             Complete Trip
+//           </button>
+//         )}
+
+//         {/* CANCEL TRIP */}
+//         {["trip_accepted"].includes(runtimeStatus.runtime_status) && (
+//           <button
+//             onClick={handleCancel}
+//             className="px-3 py-1 bg-red-500 text-white rounded"
+//           >
+//             Cancel Trip
+//           </button>
+//         )}
+
+// {pendingPayments.length > 0 && (
+//   <div className="space-y-4">
+//     <h4 className="font-semibold text-lg">Pending Payments</h4>
+
+//     {pendingPayments.map((payment) => {
+
+//       return (
+//         <div
+//           key={payment.payment_id}
+//           className="p-4 border border-blue-300 rounded-lg bg-blue-50"
+//         >
+//           <div className="text-sm mb-3">
+//             <div><b>Trip ID:</b> {payment.trip_id}</div>
+//             <div><b>Amount:</b> {payment.amount} {payment.currency}</div>
+//             <div><b>Status:</b> {payment.payment_status}</div>
+//           </div>
+
+//           {/* PAYMENT METHOD */}
+        
+
+//           {/* CONFIRM */}
+//           <button
+//             onClick={() =>
+//               handleConfirmPayment(payment.trip_id,payment.currency_code, "online")
+//             }
+//             className="w-full px-3 py-2 bg-blue-600 text-white rounded
+//                        disabled:opacity-50"
+//           >
+//             Confirm Payment
+//           </button>
+//         </div>
+//       );
+//     })}
+//   </div>
+// )}
+//       </div>
+//     </div>
+//   );
+// }
+
 import React, { useState, useEffect } from "react";
 import { useDriver } from "../../context/DriverContext";
 
@@ -16,17 +229,30 @@ export default function DriverTripControls() {
   const [otp, setOtp] = useState("");
   const [starting, setStarting] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [loadingState, setLoadingState] = useState(true);
 
-
-
-// "online" | "offline"
-
-
-  // Auto-poll active trip only when on_trip (not during OTP entry)
+  /* -----------------------------------------------------
+     FETCH ACTIVE TRIP ON COMPONENT MOUNT
+  ----------------------------------------------------- */
   useEffect(() => {
-    if (runtimeStatus?.runtime_status !== "on_trip") {
-      return; // Don't poll during trip_accepted (OTP entry phase)
-    }
+    const loadInitialTrip = async () => {
+      try {
+        await refreshActiveTrip();
+      } catch (err) {
+        console.error("Initial trip load failed:", err);
+      } finally {
+        setLoadingState(false);
+      }
+    };
+
+    loadInitialTrip();
+  }, [refreshActiveTrip]);
+
+  /* -----------------------------------------------------
+     POLL ONLY WHEN DRIVER IS ON TRIP
+  ----------------------------------------------------- */
+  useEffect(() => {
+    if (runtimeStatus?.runtime_status !== "on_trip") return;
 
     const pollInterval = setInterval(() => {
       refreshActiveTrip();
@@ -35,16 +261,31 @@ export default function DriverTripControls() {
     return () => clearInterval(pollInterval);
   }, [runtimeStatus?.runtime_status, refreshActiveTrip]);
 
-  console.log("activeTrip:", activeTrip);
-  console.log("pendingPayments:", pendingPayments);
+  /* -----------------------------------------------------
+     LOADING GUARD (prevents wrong UI flash)
+  ----------------------------------------------------- */
+  if (loadingState) {
+    return (
+      <div className="p-4 border rounded bg-gray-50 text-sm">
+        Loading trip state...
+      </div>
+    );
+  }
 
-{(!activeTrip || !activeTrip.trip_id) && pendingPayments.length === 0 && (
-  <div className="p-4 border rounded bg-yellow-50 text-sm">
-    No active trip assigned
-  </div>
-)}
+  /* -----------------------------------------------------
+     NO ACTIVE TRIP + NO PAYMENTS
+  ----------------------------------------------------- */
+  if (!activeTrip?.trip_id && pendingPayments.length === 0) {
+    return (
+      <div className="p-4 border rounded bg-yellow-50 text-sm">
+        No active trip assigned
+      </div>
+    );
+  }
 
-
+  /* -----------------------------------------------------
+     HANDLERS
+  ----------------------------------------------------- */
 
   const handleStart = async () => {
     if (!otp) return alert("OTP required");
@@ -55,8 +296,10 @@ export default function DriverTripControls() {
         trip_id: activeTrip.trip_id,
         otp,
       });
+
       alert(res.message || "Trip started");
       setOtp("");
+      await refreshActiveTrip();
     } catch (err) {
       console.error("startTrip failed", err);
       alert(err.message || "Failed to start trip");
@@ -69,7 +312,7 @@ export default function DriverTripControls() {
     const distance = parseFloat(prompt("Enter distance in km (e.g., 5.2)"));
     const duration = parseInt(
       prompt("Enter duration in minutes (e.g., 12)"),
-      10,
+      10
     );
 
     if (isNaN(distance) || isNaN(duration)) {
@@ -84,10 +327,8 @@ export default function DriverTripControls() {
         duration_minutes: duration,
       });
 
-      console.log("Trip completed response:", res);
-     
       alert(res.message || "Trip completed");
-
+      await refreshActiveTrip();
     } catch (err) {
       console.error("completeTrip failed", err);
       alert(err.message || "Failed to complete trip");
@@ -105,26 +346,32 @@ export default function DriverTripControls() {
         trip_id: activeTrip.trip_id,
         reason,
       });
+
       alert("Trip cancelled");
+      await refreshActiveTrip();
     } catch (err) {
       console.error("cancelTrip failed", err);
       alert(err.message || "Failed to cancel trip");
     }
   };
 
+  const handleConfirmPayment = async (
+    tripId,
+    currency_code,
+    method
+  ) => {
+    try {
+      await paymentconfirmation(tripId, currency_code, method);
+      alert("Payment confirmed");
+      await refreshActiveTrip();
+    } catch (err) {
+      alert(err.message || "Failed to confirm payment");
+    }
+  };
 
-
-const handleConfirmPayment = async (tripId, method) => {
-  try {
-    await paymentconfirmation(tripId, method);
-
-    alert("Payment confirmed");
-  } catch (err) {
-    alert(err.message || "Failed to confirm payment");
-  }
-};
-
-
+  /* -----------------------------------------------------
+     RENDER
+  ----------------------------------------------------- */
 
   return (
     <div className="p-4 border rounded-lg bg-white">
@@ -132,80 +379,90 @@ const handleConfirmPayment = async (tripId, method) => {
 
       <div className="grid gap-3">
         {/* START TRIP */}
-        {runtimeStatus.runtime_status === "trip_accepted" && (
-          <div className="flex gap-2">
-            <input
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              className="border p-2 rounded flex-1"
-              placeholder="Enter OTP"
-            />
-            <button
-              disabled={starting}
-              onClick={handleStart}
-              className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
-            >
-              Start Trip
-            </button>
-          </div>
-        )}
+        {runtimeStatus?.runtime_status === "trip_accepted" &&
+          activeTrip?.trip_id && (
+            <div className="flex gap-2">
+              <input
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                className="border p-2 rounded flex-1"
+                placeholder="Enter OTP"
+              />
+              <button
+                disabled={starting}
+                onClick={handleStart}
+                className="px-3 py-1 bg-indigo-600 text-white rounded disabled:opacity-50"
+              >
+                Start Trip
+              </button>
+            </div>
+          )}
 
         {/* COMPLETE TRIP */}
-        {runtimeStatus.runtime_status === "on_trip" && (
-          <button
-            disabled={completing}
-            onClick={handleComplete}
-            className="px-3 py-1 bg-emerald-500 text-white rounded disabled:opacity-50"
-          >
-            Complete Trip
-          </button>
-        )}
+        {runtimeStatus?.runtime_status === "on_trip" &&
+          activeTrip?.trip_id && (
+            <button
+              disabled={completing}
+              onClick={handleComplete}
+              className="px-3 py-1 bg-emerald-500 text-white rounded disabled:opacity-50"
+            >
+              Complete Trip
+            </button>
+          )}
 
         {/* CANCEL TRIP */}
-        {["trip_accepted"].includes(runtimeStatus.runtime_status) && (
-          <button
-            onClick={handleCancel}
-            className="px-3 py-1 bg-red-500 text-white rounded"
-          >
-            Cancel Trip
-          </button>
-        )}
+        {runtimeStatus?.runtime_status === "trip_accepted" &&
+          activeTrip?.trip_id && (
+            <button
+              onClick={handleCancel}
+              className="px-3 py-1 bg-red-500 text-white rounded"
+            >
+              Cancel Trip
+            </button>
+          )}
 
-{pendingPayments.length > 0 && (
-  <div className="space-y-4">
-    <h4 className="font-semibold text-lg">Pending Payments</h4>
+        {/* PENDING PAYMENTS */}
+        {pendingPayments.length > 0 && (
+          <div className="space-y-4">
+            <h4 className="font-semibold text-lg">
+              Pending Payments
+            </h4>
 
-    {pendingPayments.map((payment) => {
+            {pendingPayments.map((payment) => (
+              <div
+                key={payment.payment_id}
+                className="p-4 border border-blue-300 rounded-lg bg-blue-50"
+              >
+                <div className="text-sm mb-3">
+                  <div>
+                    <b>Trip ID:</b> {payment.trip_id}
+                  </div>
+                  <div>
+                    <b>Amount:</b> {payment.amount}{" "}
+                    {payment.currency}
+                  </div>
+                  <div>
+                    <b>Status:</b>{" "}
+                    {payment.payment_status}
+                  </div>
+                </div>
 
-      return (
-        <div
-          key={payment.payment_id}
-          className="p-4 border border-blue-300 rounded-lg bg-blue-50"
-        >
-          <div className="text-sm mb-3">
-            <div><b>Trip ID:</b> {payment.trip_id}</div>
-            <div><b>Amount:</b> {payment.amount} {payment.currency}</div>
-            <div><b>Status:</b> {payment.payment_status}</div>
+                <button
+                  onClick={() =>
+                    handleConfirmPayment(
+                      payment.trip_id,
+                      payment.currency_code,
+                      "online"
+                    )
+                  }
+                  className="w-full px-3 py-2 bg-blue-600 text-white rounded"
+                >
+                  Confirm Payment
+                </button>
+              </div>
+            ))}
           </div>
-
-          {/* PAYMENT METHOD */}
-        
-
-          {/* CONFIRM */}
-          <button
-            onClick={() =>
-              handleConfirmPayment(payment.trip_id, "online")
-            }
-            className="w-full px-3 py-2 bg-blue-600 text-white rounded
-                       disabled:opacity-50"
-          >
-            Confirm Payment
-          </button>
-        </div>
-      );
-    })}
-  </div>
-)}
+        )}
       </div>
     </div>
   );

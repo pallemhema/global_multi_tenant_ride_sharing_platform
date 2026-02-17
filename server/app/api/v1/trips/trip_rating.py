@@ -163,7 +163,11 @@ def get_trip_receipt(
             "driver_id": trip.driver_id,
             "vehicle_category": trip.selected_vehicle_category,
         },
-        "surge_multiplier": float(fare.surge_multiplier) if fare and hasattr(fare, 'surge_multiplier') else 1.0,
+        "surge_multiplier": (
+            float(fare.surge_multiplier)
+            if fare and fare.surge_multiplier is not None
+            else 1.0
+        )
     }
     
     return receipt

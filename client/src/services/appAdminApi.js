@@ -18,7 +18,7 @@ export const appAdminAPI = {
   },
     
   createTenant:(payload)=>{
-    return apiClient.post("/app-admin/tenants",payload);
+    return apiClient.post("/app-admin/create-tenant",payload);
   },
 
 
@@ -62,42 +62,46 @@ export const appAdminAPI = {
     return apiClient.get(`/app-admin/tenants/${tenantId}/admin`);
   },
 
-  createPayoutBatch : (payload) =>{
-   return apiClient.post("/app-admin/payout-batches", payload)
+  getUnsettledPeriods : (params) =>{
+   return apiClient.get("/app-admin/payouts/unsettled-periods", { params });
   },
 
-  listPayoutBatches : () =>{
-   return apiClient.get("/app-admin/payout-batches");
+  createBatch :(params) =>{
+   return apiClient.post("/app-admin/payouts/create-from-period", null, { params });
   },
+  
+  listPayoutBatches : () =>{
+   return apiClient.get("/app-admin/payouts/batches");
+  },
+
 
   getPayoutBatchDetail: (batchId) =>{
-    return apiClient.get(`/app-admin/payout-batches/${batchId}`);
+    return apiClient.get(`/app-admin/payouts/batches/details/${batchId}`);
   },
 
-  executeBatch : (batchId, payload) =>{
-    return apiClient.post(`/app-admin/payout-batches/${batchId}/execute`, payload);
-  },
-
+ 
   getBatchPayments : (batchId) =>{
-  return apiClient.get(`/app-admin/payout-batches/${batchId}/payments`);
+  return apiClient.get(`/app-admin/payouts/batches/${batchId}/payments`);
  },
 
   getBatchPayouts : (batchId) =>{
-  return apiClient.get(`/app-admin/payout-batches/${batchId}/payouts`);
+  return apiClient.get(`/app-admin/payouts/batches/${batchId}`);
  },
 
   calculateBatchPayouts : (batchId) =>{
-  return apiClient.post(`/app-admin/payout-batches/${batchId}/calculate`);
+  return apiClient.post(`/app-admin/payouts/batches/${batchId}/calculate`);
  },
+  executeBatch : (batchId, payload) =>{
+    return apiClient.post(`/app-admin/payouts/batches/${batchId}/execute`, payload);
+  },
+
 
  paySinglePayout: (batchId, payoutId, payload) => {
   return apiClient.post(
-    `/app-admin/payout-batches/${batchId}/payouts/${payoutId}/pay`,
+    `/app-admin/payouts/batches/${batchId}/payouts/${payoutId}/pay`,
     payload
   );
-}
-
-
+},
 };
 
 

@@ -365,11 +365,13 @@ async submitDocuments() {
      PAYMENT CONFIRMATION
   ========================= */
 
-  async confirmPayment(tripId, paymentMethod) {
+  async confirmPayment(tripId,currencyCode, paymentMethod) {
     try {
       const res = await apiClient.post("/trips/driver/payments/confirm", {
         trip_id: tripId,
+        currency_code:currencyCode,
         payment_method: paymentMethod,
+        
       });
       return res.data;
     } catch (err) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { tenantAdminAPI } from "../../../services/tenantAdminApi";
 import {
   MapContainer,
@@ -24,9 +24,28 @@ const makeLucideIcon = (color = "#7c3aed", size = 28) => {
   });
 };
 
-export default function SurgeZoneForm({ cityId, close, reload }) {
+export default function SurgeZoneForm({ cityId, close, reload, zoneId }) {
   const [coordinates, setCoordinates] = useState([]);
   const [zoneName, setZoneName] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadZone = async () => {
+      if (!zoneId) return;
+      setLoading(true);
+      try {
+        const res = await tenantAdminAPI.getZone(zoneId);
+        const data = res.data;
+        setZoneName(data.zone_name || "");
+        if (data.coordinates) setCoordinates(data.coordinates);
+      } catch (err) {
+        console.error("Failed to load zone", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadZone();
+  }, [zoneId]);
   
 
   // 🔥 This handles map clicks
@@ -50,11 +69,19 @@ export default function SurgeZoneForm({ cityId, close, reload }) {
     // Close polygon automatically
     const closedPolygon = [...coordinates, coordinates[0]];
 
-    await tenantAdminAPI.createSurgeZone({
-      city_id: cityId,
-      zone_name: zoneName,
-      coordinates: closedPolygon,
-    });
+    if (zoneId) {
+      await tenantAdminAPI.updateSurgeZone(zoneId, {
+        city_id: cityId,
+        zone_name: zoneName,
+        coordinates: closedPolygon,
+      });
+    } else {
+      await tenantAdminAPI.createSurgeZone({
+        city_id: cityId,
+        zone_name: zoneName,
+        coordinates: closedPolygon,
+      });
+    }
 
     reload();
     close();
@@ -63,14 +90,34 @@ export default function SurgeZoneForm({ cityId, close, reload }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center">
       <div className="bg-white p-6 w-[600px] rounded space-y-4">
-        <h3 className="font-semibold text-lg">Create Surge Zone</h3>
+        <h3 className="font-semibold text-lg">{zoneId ? 'Edit Surge Zone' : 'Create Surge Zone'}</h3>
 
-        <input
-          placeholder="Zone Name"
-          className="w-full border p-2 rounded"
-          value={zoneName}
-          onChange={(e) => setZoneName(e.target.value)}
-        />
+        {loading && <div className="text-sm text-slate-500">Loading zone...</div>}
+
+        <div className="space-y-1">
+  <label className="text-sm font-medium text-gray-700">
+    Surge Zone Name <span className="text-red-500">*</span>
+  </label>
+
+  <input
+    type="text"
+    placeholder="Example: Hitech City Peak Zone"
+    className="w-full border border-gray-300 p-2 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+    value={zoneName}
+    onChange={(e) => setZoneName(e.target.value)}
+  />
+
+  {!zoneName && (
+    <p className="text-xs text-red-500">
+      Zone name is required
+    </p>
+  )}
+</div>
+
+        <p className="text-sm text-gray-500">
+        Click on the map to draw your surge zone. Minimum 3 points required.
+        </p>
+
 
         <MapContainer
           center={[17.385, 78.4867]}
@@ -117,7 +164,7 @@ export default function SurgeZoneForm({ cityId, close, reload }) {
               onClick={handleSave}
               className="bg-blue-600 text-white px-4 py-2 rounded"
             >
-              Save Zone
+              {zoneId ? 'Save Changes' : 'Save Zone'}
             </button>
           </div>
         </div>

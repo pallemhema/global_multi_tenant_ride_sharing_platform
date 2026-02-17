@@ -5,21 +5,28 @@ import {
   Car,
   Truck,
   Users,
-  User,
+  DollarSign,
   LogOut,
   Menu,
   X,
 } from "lucide-react";
+
 import { Link, useLocation, Outlet } from "react-router-dom";
 import { useAdminAuth } from "../context/AdminAuthContext";
 import { useTenant } from "../context/TenantContext";
 import { useState } from "react";
+import Loader from "../components/common/Loader";
 
 export default function TenantAdminLayout() {
-  const { logout, tenantId } = useAdminAuth();
-  const { tenant } = useTenant();
+  const { logout, tenantId, loading: authLoading } = useAdminAuth();
+  const { tenant, loading: tenantLoading } = useTenant();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Wait for auth and tenant data to load
+  if (authLoading || tenantLoading) {
+    return <Loader />;
+  }
 
   const isActive = (path) => {
     return location.pathname.startsWith(path);
@@ -63,8 +70,8 @@ export default function TenantAdminLayout() {
     },
     {
       path: "/tenant-admin/fare",
-      label: "Fare Config",
-      icon: Users,
+      label: "Fare & Surge",
+      icon:DollarSign ,
     },
   ];
 
@@ -80,7 +87,7 @@ export default function TenantAdminLayout() {
           {sidebarOpen && (
             <div>
               <h1 className="text-2xl font-bold">RideShare</h1>
-              <p className="text-xs text-slate-400">Tenant Admin</p>
+              <p className="text-xs text-slate-400">{tenant?.tenanat_name}</p>
             </div>
           )}
           <button
@@ -133,12 +140,19 @@ export default function TenantAdminLayout() {
         {/* Top Bar */}
         <div className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">
-              {navItems.find((item) => isActive(item.path))?.label ||
-                "Dashboard"}
-            </h2>
+              {tenantId && ( <h2 className="text-lg font-semibold text-slate-900">
+              {tenant?.tenant_name || "Tenant"}
+            </h2> )}
             {tenantId && (
-              <p className="text-xs text-slate-500">{tenant?.tenant_name}</p>
+                  <p
+                      className={`text-xs ${
+                        tenant?.approval_status === "approved"
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                        {tenant?.approval_status}
+                      </p>
             )}
           </div>
           <div className="flex items-center gap-4">

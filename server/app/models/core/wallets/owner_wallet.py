@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Numeric, ForeignKey, CHAR, UniqueConstraint, Text
+from sqlalchemy import BigInteger, Numeric, ForeignKey, CHAR, UniqueConstraint, Text,CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 from ...mixins import TimestampMixin
@@ -65,4 +65,12 @@ class OwnerWallet(Base, TimestampMixin):
             "currency_code",
             name="uq_owner_wallet"
         ),
+    CheckConstraint(
+        """
+        (owner_type = 'driver' AND driver_id IS NOT NULL AND fleet_owner_id IS NULL)
+        OR
+        (owner_type = 'fleet_owner' AND fleet_owner_id IS NOT NULL AND driver_id IS NULL)
+        """,
+        name="ck_owner_wallet_valid_owner"
+    ),
     )

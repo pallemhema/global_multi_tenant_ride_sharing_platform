@@ -1,6 +1,4 @@
 
-
-
 import {
   LayoutDashboard,
   FileText,
@@ -16,12 +14,18 @@ import { Link, useLocation, Outlet } from "react-router-dom";
 import { useUserAuth } from "../context/UserAuthContext";
 import { useDriver } from "../context/DriverContext";
 import { useState } from "react";
+import Loader from "../components/common/Loader";
 
 export default function DriverLayout() {
-  const { logoutUser, user } = useUserAuth();
-  const { driver } = useDriver();
+  const { logoutUser, user, loading: authLoading } = useUserAuth();
+  const { driver, loading: driverLoading } = useDriver();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Wait for auth and driver data to load
+  if (authLoading || driverLoading) {
+    return <Loader />;
+  }
 
   const driverType = driver?.driver_type; // "individual" | "fleet_driver"
 

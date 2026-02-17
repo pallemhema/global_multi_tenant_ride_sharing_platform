@@ -103,7 +103,7 @@ def approve_fleet_owner(
 
 
 @router.get("/{tenant_id}/fleet-owners")
-def list_pending(
+def list_fleet_owners(
     tenant_id: int,
     db: Session = Depends(get_db),
     _: dict = Depends(require_tenant_admin),

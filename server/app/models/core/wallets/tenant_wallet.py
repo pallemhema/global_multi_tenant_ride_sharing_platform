@@ -1,8 +1,8 @@
 from sqlalchemy import BigInteger, Numeric, ForeignKey, CHAR, UniqueConstraint, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
+from decimal import Decimal
 from datetime import datetime
 from app.core.database import Base
-from ...mixins import TimestampMixin
 
 class TenantWallet(Base):
     __tablename__ = "tenant_wallet"
@@ -16,12 +16,19 @@ class TenantWallet(Base):
     )
 
     currency_code: Mapped[str] = mapped_column(
-        CHAR(3), nullable=False
+    CHAR(3),
+    ForeignKey("lu_currencies.currency_code"),
+    nullable=False
+)
+
+
+
+    balance: Mapped[Decimal] = mapped_column(
+        Numeric(18, 2),
+        nullable=False,
+        default=Decimal("0.00"),
     )
 
-    balance: Mapped[float] = mapped_column(
-        Numeric(12, 2), nullable=False, default=0.00
-    )
 
     last_updated_utc: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

@@ -118,6 +118,24 @@ class FinancialLedger(Base, TimestampMixin, AuditMixin):
           nullable=True,
     )
 
+    original_amount: Mapped[float] = mapped_column(
+        Numeric(18, 6),
+        nullable=False,
+        comment="Amount in original payment currency",
+    )
+
+    original_currency: Mapped[str] = mapped_column(
+        CHAR(3),
+        nullable=False,
+    )
+
+    exchange_rate_used: Mapped[float | None] = mapped_column(
+        Numeric(18, 8),
+        nullable=True,
+        comment="Rate used to convert original_currency → currency_code",
+    )
+
+
     # Ledger write time (immutable)
 
     __table_args__ = (

@@ -109,7 +109,8 @@ const router = createBrowserRouter([
 
       { path: "payouts", element: <PayoutBatchList /> },
       { path: "payouts/create", element: <CreatePayoutBatch /> },
-      { path: "payouts/:batchId", element: <PayoutBatchDetails /> },
+      { path: "payouts/batches/:batchId", element: <PayoutBatchDetails /> },
+      
     ],
   },
 

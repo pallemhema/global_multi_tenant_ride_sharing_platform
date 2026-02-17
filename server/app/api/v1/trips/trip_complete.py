@@ -149,11 +149,13 @@ def complete_trip(
     # ------------------------------------------------
     # 4️⃣ Calculate final fare (pricing engine)
     # ------------------------------------------------
-    fare_breakdown = PricingEngine.calculate_final_fare(
+    fare_breakdown = PricingEngine.calculate_fare(
         db=db,
         tenant_id=trip.tenant_id,
         city_id=trip.city_id,
         vehicle_category=vehicle.category_code,
+        pickup_lat=trip_request.pickup_lat,
+        pickup_lng=trip_request.pickup_lng,
         distance_km=payload.distance_km,
         duration_minutes=payload.duration_minutes,
     )
@@ -174,14 +176,14 @@ def complete_trip(
     
     trip_fare = TripFare(
         trip_id=trip_id,
-        base_fare=Decimal(str(fare_breakdown["base_fare"])),
-        distance_fare=Decimal(str(fare_breakdown["distance_charge"])),
-        time_fare=Decimal(str(fare_breakdown["time_charge"])),
-        surge_multiplier=Decimal(str(fare_breakdown["surge_multiplier"])),
-        subtotal=Decimal(str(fare_breakdown["subtotal"])),
-        tax_amount=Decimal(str(fare_breakdown["tax_amount"])),
-        discount_amount=Decimal(str(fare_breakdown["coupon_discount"])),
-        final_fare=Decimal(str(fare_breakdown["total_fare"])),
+        base_fare=fare_breakdown["base_fare"],
+        distance_fare=fare_breakdown["distance_charge"],
+        time_fare=fare_breakdown["time_charge"],
+        surge_multiplier=fare_breakdown["surge_multiplier"],
+        subtotal=fare_breakdown["subtotal"],
+        tax_amount=fare_breakdown["tax_amount"],
+        discount_amount=0 ,
+        final_fare=fare_breakdown["estimated_price"],
     )
     
     db.add(trip_fare)
@@ -194,7 +196,7 @@ def complete_trip(
         trip_id=trip.trip_id,
         tenant_id=trip.tenant_id,
         payer_user_id=payerUserId,
-        amount=Decimal(str(fare_breakdown["total_fare"])),
+        amount=fare_breakdown["estimated_price"],
         currency_code=currencyCode,  # to be set at confirmation (gateway provides)
         payment_status="initiated",
         payment_method=None,
@@ -231,7 +233,7 @@ def complete_trip(
     ))
     
     db.commit()
-    trip.fare_total = fare_breakdown['total_fare']
+    trip.fare_total = fare_breakdown['estimated_price']
     db.add(trip)
     db.flush()
     
@@ -244,11 +246,11 @@ def complete_trip(
             time_charge=fare_breakdown["time_charge"],
             subtotal=fare_breakdown["subtotal"],
             tax_amount=fare_breakdown["tax_amount"],
-            coupon_discount=fare_breakdown["coupon_discount"],
-            total_fare=fare_breakdown["total_fare"],
-            currency=fare_breakdown["currency"],
+            coupon_discount=0,
+            total_fare=fare_breakdown["estimated_price"],
+            currency_code=currencyCode,
         ),
-        message=f"Trip {trip_id} completed. Final fare: ₹{fare_breakdown['total_fare']:.2f}"
+        message=f"Trip {trip_id} completed. Final fare: ₹{fare_breakdown['estimated_price']:.2f}"
     )
 
 

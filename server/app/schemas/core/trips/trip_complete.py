@@ -13,7 +13,7 @@ class FareBreakdown(BaseModel):
     tax_amount: float
     coupon_discount: float = 0.0
     total_fare: float
-    currency: str
+    currency_code: str
 
 
 class TripCompleteResponse(BaseModel):

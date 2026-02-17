@@ -58,11 +58,7 @@ class SurgePricingEvent(Base,TimestampMixin,AuditMixin):
         nullable=True,
     )
 
-    reason: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-    )
-
+   
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
@@ -74,6 +70,7 @@ class SurgePricingEvent(Base,TimestampMixin,AuditMixin):
         nullable=True
 
     )
+   
 
     
     __table_args__ = (

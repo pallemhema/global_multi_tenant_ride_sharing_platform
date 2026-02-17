@@ -30,23 +30,28 @@ class SurgeService:
         now = datetime.now(timezone.utc)
          # 1️⃣ Find matching zone
         zone = (
-            db.query(SurgeZone)
-            .filter(
-                SurgeZone.tenant_id == tenant_id,
-                SurgeZone.city_id == city_id,
-                func.ST_Contains(
-                    SurgeZone.zone_geometry,
-                    func.ST_SetSRID(func.ST_Point(pickup_lng, pickup_lat), 4326)
+        db.query(SurgeZone)
+        .filter(
+            SurgeZone.tenant_id == tenant_id,
+            SurgeZone.city_id == city_id,
+            func.ST_Contains(
+                SurgeZone.zone_geometry,
+                func.ST_SetSRID(
+                    func.ST_Point(pickup_lng, pickup_lat),
+                    4326
                 )
             )
-            .first()
         )
+        .first()
+        )
+        print("zone:",zone)
 
             
             
 
         if not zone:
-            return None
+            return 1.0
+
 
         # 2️⃣ Find active surge for zone + vehicle
         surge = (
@@ -65,8 +70,12 @@ class SurgeService:
             )
             .first()
         )
+        
 
         if not surge:
-            return None
+            return 1.0
+        
+        print(surge)
+        print(surge.surge_multiplier,":surge_multiplier")
 
         return float(surge.surge_multiplier)

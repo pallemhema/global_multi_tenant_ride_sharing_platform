@@ -292,6 +292,45 @@ useEffect(() => { // 🔥 HARD RESET on auth change
     }
   }, [runtimeStatus?.runtime_status]);
 
+  /* =====================================================
+     POLLING - TRIP REQUESTS
+  ===================================================== */
+  useEffect(() => {
+    if (runtimeStatus?.runtime_status !== "available") return;
+
+    // Initial load
+    loadTripRequests();
+
+    // Poll every 3 seconds
+    const pollInterval = setInterval(() => {
+      loadTripRequests();
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [runtimeStatus?.runtime_status]);
+
+  /* =====================================================
+     POLLING - ACTIVE TRIP
+  ===================================================== */
+  useEffect(() => {
+    if (
+      runtimeStatus?.runtime_status !== "trip_accepted" &&
+      runtimeStatus?.runtime_status !== "on_trip"
+    ) {
+      return;
+    }
+
+    // Initial load
+    refreshActiveTrip();
+
+    // Poll every 2 seconds for active trip
+    const pollInterval = setInterval(() => {
+      refreshActiveTrip();
+    }, 2000);
+
+    return () => clearInterval(pollInterval);
+  }, [runtimeStatus?.runtime_status]);
+
 
   /* =====================================================
      FLEET
@@ -352,8 +391,8 @@ useEffect(() => { // 🔥 HARD RESET on auth change
     setPendingPayments(res || []);
   };
 
-  const paymentconfirmation = async (tripId, paymentMethod) => {
-    const res = await driverApi.confirmPayment(tripId, paymentMethod);
+  const paymentconfirmation = async (tripId, paymentCurrency, paymentMethod) => {
+    const res = await driverApi.confirmPayment(tripId,paymentCurrency, paymentMethod);
     await refreshWallet();
     await refreshPastTrips();
     setPendingPayments((prev) =>
@@ -420,6 +459,7 @@ useEffect(() => { // 🔥 HARD RESET on auth change
       endShift,
       updateRuntimeStatus,
       can_start_shift,
+      refreshRuntime,
 
       // trips
       acceptTrip,
@@ -427,6 +467,8 @@ useEffect(() => { // 🔥 HARD RESET on auth change
       startTrip,
       completeTrip,
       cancelTrip,
+      loadTripRequests,
+      refreshActiveTrip,
 
       // fleet
       acceptInvite,
@@ -446,6 +488,7 @@ useEffect(() => { // 🔥 HARD RESET on auth change
       activeTrip,
       vehicleSummary,
       tripRequests,
+      tripRequestsLoading,
       invites,
       assignedVehicle,
       wallet,

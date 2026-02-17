@@ -10,7 +10,7 @@ class PayoutBatchResponse(BaseModel):
     payout_batch_id: int
     tenant_id: int
     country_id: int
-    currency_code: str
+
     status: str
 
 

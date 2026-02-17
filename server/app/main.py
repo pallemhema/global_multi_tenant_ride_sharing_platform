@@ -19,12 +19,12 @@ async def lifespan(app: FastAPI):
     if not check_redis_connection():
         raise RuntimeError("Redis is not reachable")
 
-    print("✅ Redis connected")
+    print("Redis connected")
 
     yield  # <-- app runs while paused here
 
     # 🔹 Shutdown logic (optional)
-    print("🛑 Application shutting down")
+    print("Application shutting down")
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -32,10 +32,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 origins = [
-    "http://localhost:3000",  # Vite dev server
-    "http://127.0.0.1:5173",
-    "http://localhost:5432",   # postgresql
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://192.168.1.96:3000",
 ]
+
 
 app.add_middleware(
     CORSMiddleware,

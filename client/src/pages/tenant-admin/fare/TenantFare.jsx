@@ -29,14 +29,19 @@ export default function TenantFare() {
 
   return (
     <div className="p-6 space-y-6">
-      <h2 className="text-xl font-semibold">Fare Configuration</h2>
+      <h3>Select the country and city you manganing to edit or create the fare and surges</h3>
 
       <CountryCitySelector
         onCountryChange={setCountryId}
         onCityChange={setCityId}
       />
+           
 
       {countryId && cityId && (<>
+ <div>
+          <h2 className="text-2xl font-semibold">Fare Management</h2>
+          <p className="text-sm text-slate-500 mt-1">Manage fare for different vehicle categories.</p>
+        </div>
         <FareConfigList
           configs={configs}
           countryId={countryId}

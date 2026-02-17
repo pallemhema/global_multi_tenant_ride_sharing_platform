@@ -1,5 +1,5 @@
 import { useDriver } from "../../context/DriverContext";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 function TripRequestsList() {
   const {
@@ -7,20 +7,13 @@ function TripRequestsList() {
     tripRequestsLoading,
     acceptTrip,
     rejectTrip,
-    loadTripRequests,
   } = useDriver();
 
   const [message, setMessage] = useState(null);
   const [messageType, setMessageType] = useState(null);
 
-  // Auto-poll trip requests every 3 seconds
-  useEffect(() => {
-    const pollInterval = setInterval(() => {
-      loadTripRequests();
-    }, 3000);
-
-    return () => clearInterval(pollInterval);
-  }, [loadTripRequests]);
+  // Note: Polling is now handled automatically by DriverContext
+  // when runtimeStatus is "available"
 
   if (tripRequestsLoading) {
     return <div>Loading trip requests...</div>;

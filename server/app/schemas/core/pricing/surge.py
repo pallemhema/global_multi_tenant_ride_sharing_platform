@@ -15,6 +15,7 @@ class SurgeZoneOut(BaseModel):
     zone_id: int
     zone_name: str
     city_id: int
+    coordinates: Optional[List[List[float]]] = None
 
 
 # ---------- SURGE EVENT ----------
@@ -27,7 +28,7 @@ class SurgeCreate(BaseModel):
     surge_multiplier: Decimal = Field(..., ge=1)
     started_at_utc: Optional[datetime] = None
     ended_at_utc: Optional[datetime] = None
-    reason: Optional[str] = None
+   
 
 
 class SurgeOut(BaseModel):

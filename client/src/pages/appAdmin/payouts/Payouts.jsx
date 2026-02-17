@@ -5,6 +5,7 @@ export default function PayoutsTable({ payouts = [], batchId, loading = false })
   const { paySinglePayout, operationInProgress, error, clearError } = useAppAdmin();
   const [payingPayoutId, setPayingPayoutId] = useState(null);
   const [paymentResult, setPaymentResult] = useState(null);
+  console.log(payouts);
 
   const handlePayPayout = async (payoutId) => {
     clearError();
@@ -93,6 +94,7 @@ export default function PayoutsTable({ payouts = [], batchId, loading = false })
               <th className="p-3 font-semibold">Entity Type</th>
               <th className="p-3 font-semibold">Owner Type</th>
               <th className="p-3 font-semibold">Entity ID</th>
+              <th className="p-3 font-semibold">Settlement Currency</th>
               <th className="p-3 font-semibold text-right">Gross Amount</th>
               <th className="p-3 font-semibold text-right">Net Amount</th>
               <th className="p-3 font-semibold text-right">Paid Amount</th>
@@ -107,6 +109,7 @@ export default function PayoutsTable({ payouts = [], batchId, loading = false })
                 <td className="p-3 text-xs">{payout.entity_type}</td>
                 <td className="p-3 text-xs">{payout.owner_type || "—"}</td>
                 <td className="p-3 font-mono">{payout.entity_id}</td>
+                 <td className="p-3 font-mono">{payout.currency_code}</td>
                 <td className="p-3 font-mono text-right">
                   {parseFloat(payout.gross_amount || 0).toFixed(2)}
                 </td>
@@ -119,19 +122,24 @@ export default function PayoutsTable({ payouts = [], batchId, loading = false })
                 <td className="p-3">
                   <PayoutStatusBadge status={payout.status} />
                 </td>
-                <td className="p-3 text-right">
-                  {payout.status === "pending" ? (
-                    <button
-                      onClick={() => handlePayPayout(payout.payout_id)}
-                      disabled={operationInProgress || payingPayoutId === payout.payout_id}
-                      className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {payingPayoutId === payout.payout_id ? "Processing..." : "Pay"}
-                    </button>
-                  ) : (
-                    <span className="text-xs text-gray-500">—</span>
-                  )}
-                </td>
+               <td className="p-3 text-right">
+  {["pending", "failed"].includes(payout.status) ? (
+    <button
+      onClick={() => handlePayPayout(payout.payout_id)}
+      disabled={operationInProgress || payingPayoutId === payout.payout_id}
+      className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {payingPayoutId === payout.payout_id
+        ? "Processing..."
+        : payout.status === "failed"
+          ? "Retry"
+          : "Pay"}
+    </button>
+  ) : (
+    <span className="text-xs text-gray-500">—</span>
+  )}
+</td>
+
               </tr>
             ))}
           </tbody>

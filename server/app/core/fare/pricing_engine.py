@@ -19,6 +19,7 @@ class PricingEngine:
         duration_minutes: int,
          pickup_lat: float,
         pickup_lng: float,
+        
     ) -> dict:
 
         now = datetime.now(timezone.utc)
@@ -71,11 +72,13 @@ class PricingEngine:
             pickup_lng=pickup_lng,
         )
 
-        surge_applied = False
+        print("surge_multiplier:",surge_multiplier)
 
-        if surge_multiplier is not None:
-            subtotal = subtotal * Decimal(str(surge_multiplier))
-            surge_applied = True
+        
+        
+        subtotal = subtotal * Decimal(str(surge_multiplier))
+        surge_applied = surge_multiplier > 1.0
+
 
 
         # ----------------------------
@@ -101,7 +104,13 @@ class PricingEngine:
         "vehicle_category": vehicle_category,
         "base_fare": float(base_fare),
         "price_per_km": float(rate_per_km),
+        "price_per_min":float(rate_per_minute),
+        "distance_charge":float(distance_charge),
+        "time_charge":float(time_charge),
+        "subtotal":float(subtotal),
+        "tax_amount":float(tax_amount),
         "estimated_price": float(total_fare),
+
        "surge_multiplier": surge_multiplier,
        "surge_applied": surge_applied,
     }

@@ -32,6 +32,7 @@ from app.models.lookups.vehicle_category import VehicleCategory
 from app.models.lookups.driver_document_type import DriverDocumentType
 from app.models.lookups.vehicle_document_type import VehicleDocumentType
 from app.models.lookups.driver_runtime_status import DriverRuntimeStatus
+from app.models.lookups.currencies import LuCurrencies
 from app.schemas.lookups.country import CountryOut
 from app.schemas.lookups.city import CityOut
 from app.schemas.lookups.common import LookupBase
@@ -129,6 +130,15 @@ def get_active_tenants(db: Session = Depends(get_db)):
 def get_driver_invite_status(db: Session = Depends(get_db)):
     return (
         db.query(DriverInviteStatus)
+        .all()
+    )
+    
+@router.get(
+    "/currencies"
+)
+def get_currencies(db: Session = Depends(get_db)):
+    return (
+        db.query(LuCurrencies)
         .all()
     )
     

@@ -4,8 +4,9 @@ from sqlalchemy import (
     ForeignKey,
     TIMESTAMP,
     Text,
+    Boolean
 )
-from geoalchemy2 import Geography
+from geoalchemy2 import Geometry
 from datetime import datetime
 from app.core.database import Base
 from ...mixins import TimestampMixin, AuditMixin
@@ -39,7 +40,10 @@ class SurgeZone(Base,TimestampMixin,AuditMixin):
 
     # PostGIS polygon field
     zone_geometry = mapped_column(
-        Geography(geometry_type="POLYGON", srid=4326),
+        Geometry(geometry_type="POLYGON", srid=4326),
+        nullable=False
+    )
+    is_active : Mapped[bool]= mapped_column(
+        Boolean,
         nullable=False,
     )
-

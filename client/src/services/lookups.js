@@ -208,5 +208,10 @@ export const lookupsAPI = {
   fetchTenantFleetDocumentTypes: () => {
     return apiClient.get("/lookups/tenant-fleet-document-types");
   },
+  fetchCurrencies:async()=>{
+    const res = await apiClient.get("/lookups/currencies");
+    return res.data;
+
+  },
 };
 

@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, String, TIMESTAMP, ForeignKey
+from sqlalchemy import BigInteger, String, TIMESTAMP, ForeignKey,CHAR
 from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 from app.models.mixins import TimestampMixin, AuditMixin
@@ -15,7 +15,7 @@ class Tenant(Base, TimestampMixin, AuditMixin):
     legal_name: Mapped[str | None] = mapped_column(String, nullable=True)
     business_email: Mapped[str] = mapped_column(String, nullable=False)
     city: Mapped[str | None] = mapped_column(String, nullable=True)
-    country: Mapped[str | None] = mapped_column(String, nullable=True)
+    country_id: Mapped[str | None] = mapped_column(String,    ForeignKey("countries.country_id"),nullable=True,)
     business_registration_number: Mapped[str | None] = mapped_column(String, nullable=True)
 
     approval_status: Mapped[str | None] = mapped_column(
@@ -40,4 +40,9 @@ class Tenant(Base, TimestampMixin, AuditMixin):
     approved_at_utc: Mapped[TIMESTAMP | None] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=True
+    )
+    settlement_currency_code: Mapped[str] = mapped_column(
+        CHAR(3),
+        ForeignKey("lu_currencies.currency_code"),
+        nullable=False
     )

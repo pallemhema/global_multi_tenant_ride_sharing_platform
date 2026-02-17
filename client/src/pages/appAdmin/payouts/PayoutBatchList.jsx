@@ -16,7 +16,7 @@ export default function PayoutBatchList() {
   };
 
   const handleRowClick = (batchId) => {
-    navigate(`/dashboard/payouts/${batchId}`);
+    navigate(`/dashboard/payouts/batches/${batchId}`);
   };
 
   return (

@@ -11,13 +11,7 @@ import { tenantAdminAPI } from "../services/tenantAdminApi";
 
 const TenantContext = createContext();
 
-export const useTenant = () => {
-  const context = useContext(TenantContext);
-  if (!context) {
-    throw new Error("useTenant must be used within TenantProvider");
-  }
-  return context;
-};
+
 
 export const TenantProvider = ({ children }) => {
   const { user } = useAdminAuth();
@@ -82,6 +76,7 @@ export const TenantProvider = ({ children }) => {
       setLoading(false);
     }
   }, [tenantId]);
+  console.log("tenant",tenant)
 
   // ========================================
   // DASHBOARD ACTIONS
@@ -578,4 +573,11 @@ export const TenantProvider = ({ children }) => {
   return (
     <TenantContext.Provider value={value}>{children}</TenantContext.Provider>
   );
+};
+export const useTenant = () => {
+  const context = useContext(TenantContext);
+  if (!context) {
+    throw new Error("useTenant must be used within TenantProvider");
+  }
+  return context;
 };

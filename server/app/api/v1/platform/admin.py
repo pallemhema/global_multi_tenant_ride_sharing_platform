@@ -29,10 +29,47 @@ def create_tenant(
     db: Session = Depends(get_db),
     _: dict = Depends(require_app_admin),
 ):
+
+    # 1️⃣ Validate required fields
+    required_fields = [
+        "tenant_name",
+        "business_email",
+        "country_id",
+        "city",
+        "settlement_currency_code",
+    ]
+
+    for field in required_fields:
+        if field not in payload or not payload[field]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{field} is required",
+            )
+
+    # 2️⃣ Fetch country
+    country = db.get(Country, payload["country_id"])
+    if not country:
+        raise HTTPException(
+            status_code=404,
+            detail="Invalid country_id",
+        )
+
+    # 3️⃣ Validate settlement currency
+    if payload["settlement_currency_code"] != country.default_currency:
+        raise HTTPException(
+            status_code=400,
+            detail="Settlement currency must match country's default currency",
+        )
+
+    # 4️⃣ Create tenant
     tenant = Tenant(
         tenant_name=payload["tenant_name"],
-        legal_name=payload["legal_name"],
+        legal_name=payload.get("legal_name"),
         business_email=payload["business_email"],
+        country_id=payload["country_id"],
+        city=payload["city"],
+        settlement_currency_code=payload["settlement_currency_code"],
+        business_registration_number=payload.get("business_registration_number"),
         approval_status="pending",
         status="inactive",
     )
@@ -45,6 +82,7 @@ def create_tenant(
         "tenant_id": tenant.tenant_id,
         "status": "created",
     }
+
 
 
 @router.post("/tenants/{tenant_id}/admins")
