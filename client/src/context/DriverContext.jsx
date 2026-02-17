@@ -71,17 +71,19 @@ useEffect(() => { // 🔥 HARD RESET on auth change
 
       if (!nextDriver?.driver_id) return;
 
-      const [docs, shift, runtime, vehicle] = await Promise.all([
+      const [docs, shift, runtime, vehicle,trip] = await Promise.all([
         driverApi.getDriverDocuments(),
         driverApi.getShiftStatus(),
         driverApi.getRuntimeStatus(),
         driverApi.getVehicleSummary(),
+        driverApi.getactiveTrip()
       ]);
 
       setDocuments(docs || []);
       setActiveShift(shift || null);
       setRuntimeStatus(runtime || null);
       setVehicleSummary(vehicle || null);
+      setActiveTrip(trip || null)
 
       await refreshPastTrips();
       await refreshWallet();
@@ -281,16 +283,17 @@ useEffect(() => { // 🔥 HARD RESET on auth change
     await refreshPastTrips();
     return res;
   };
+
+
   useEffect(() => {
-    if (
-      runtimeStatus?.runtime_status === "trip_accepted" ||
-      runtimeStatus?.runtime_status === "on_trip"
-    ) {
-      refreshActiveTrip();
-    } else {
-      setActiveTrip(null);
-    }
-  }, [runtimeStatus?.runtime_status]);
+  if (
+    runtimeStatus?.runtime_status === "trip_accepted" ||
+    runtimeStatus?.runtime_status === "on_trip"
+  ) {
+    refreshActiveTrip();
+  }
+}, [runtimeStatus?.runtime_status]);
+
 
   /* =====================================================
      POLLING - TRIP REQUESTS

@@ -18,80 +18,21 @@ from typing import List, Dict
 
 from app.core.redis import redis_client
 
-from app.models.core.users.users import User
 from app.models.core.trips.trip_request import TripRequest
 from app.models.core.trips.trips import Trip
-from app.models.core.trips.trip_batch import TripBatch
 from app.models.core.drivers.drivers import Driver
 from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
-from app.models.core.tenants.tenants import Tenant
 from app.models.core.vehicles.vehicles import Vehicle
-from app.models.core.tenants.tenant_cities import TenantCity
-
+from app.core.redis import redis_client
 
 class TripLifecycle:
     """
     Central orchestrator for trip lifecycle.
     """
 
-    # =========================================================
-    # STEP 0: VALIDATIONS
-    # =========================================================
-
-    @staticmethod
-    def validate_rider_state(db: Session, user_id: int) -> bool:
-        return db.query(User).filter(
-            User.user_id == user_id,
-            User.is_active.is_(True),
-        ).first() is not None
-
-    @staticmethod
-    def validate_driver_state(
-        db: Session,
-        driver_id: int,
-        tenant_id: int,
-        city_id: int,
-    ) -> Driver | None:
-        driver = db.query(Driver).filter(
-            Driver.driver_id == driver_id,
-            Driver.tenant_id == tenant_id,
-            Driver.city_id == city_id,
-            Driver.is_active.is_(True),
-            Driver.kyc_status == "approved",
-        ).first()
-
-        if not driver:
-            return None
-
-        status = db.query(DriverCurrentStatus).filter(
-            DriverCurrentStatus.driver_id == driver_id,
-            DriverCurrentStatus.is_online.is_(True),
-            DriverCurrentStatus.runtime_status == "available",
-        ).first()
-
-        return driver if status else None
-
-    @staticmethod
-    def validate_tenant_state(db: Session, tenant_id: int, city_id: int) -> bool:
-        tenant = db.query(Tenant).filter(
-            Tenant.tenant_id == tenant_id,
-            Tenant.status == "active",
-            Tenant.approval_status == "approved",
-        ).first()
-
-        if not tenant:
-            return False
-
-        return db.query(TenantCity).filter(
-            TenantCity.tenant_id == tenant_id,
-            TenantCity.city_id == city_id,
-            TenantCity.is_active.is_(True),
-        ).first() is not None
-
-    # =========================================================
-    # VEHICLE RESOLUTION (INDIVIDUAL + FLEET)
-    # =========================================================
+ 
+   
 
     @staticmethod
     def resolve_active_vehicle(
@@ -159,95 +100,7 @@ class TripLifecycle:
 
         return None
 
-    # =========================================================
-    # STEP 5: FETCH ELIGIBLE DRIVERS
-    # =========================================================
-
-    @staticmethod
-    def fetch_eligible_drivers(
-        db: Session,
-        tenant_id: int,
-        city_id: int,
-        vehicle_category: str,
-    ) -> List[Dict]:
-        drivers = db.query(Driver).join(
-            DriverCurrentStatus,
-            Driver.driver_id == DriverCurrentStatus.driver_id,
-        ).filter(
-            Driver.tenant_id == tenant_id,
-            Driver.city_id == city_id,
-            Driver.is_active.is_(True),
-            Driver.kyc_status == "approved",
-            DriverCurrentStatus.is_online.is_(True),
-            DriverCurrentStatus.runtime_status == "available",
-        ).all()
-
-        eligible = []
-
-        for driver in drivers:
-            vehicle = TripLifecycle.resolve_active_vehicle(
-                db=db,
-                driver_id=driver.driver_id,
-                tenant_id=tenant_id,
-                vehicle_category=vehicle_category,
-            )
-
-            if not vehicle:
-                continue
-
-            eligible.append({
-                "driver_id": driver.driver_id,
-                "vehicle_id": vehicle["vehicle_id"],
-                "license_plate": vehicle["license_plate"],
-                "ownership": vehicle["ownership"],
-            })
-
-        return eligible
-
-    # =========================================================
-    # STEP 6: GEO SORTING
-    # =========================================================
-
-    @staticmethod
-    def sort_drivers_by_proximity(
-        tenant_id: int,
-        city_id: int,
-        pickup_lat: float,
-        pickup_lng: float,
-        driver_ids: List[int],
-        radius_km: float = 10.0,
-    ) -> List[Dict]:
-
-        geo_key = f"drivers:geo:{tenant_id}:{city_id}"
-
-        nearby = redis_client.georadius(
-            geo_key,
-            pickup_lng,
-            pickup_lat,
-            radius=radius_km,
-            unit="km",
-            sort="ASC",
-            withdist=True,
-        )
-
-        results = []
-
-        for raw in nearby:
-            driver_id_raw, dist = raw
-            driver_id = int(driver_id_raw.decode() if isinstance(driver_id_raw, bytes) else driver_id_raw)
-
-            if driver_id in driver_ids:
-                results.append({
-                    "driver_id": driver_id,
-                    "distance_km": float(dist),
-                })
-
-        return results
-
-    # =========================================================
-    # STEP 9: CREATE TRIP
-    # =========================================================
-
+    
     @staticmethod
     def create_trip_from_request(
         db: Session,
@@ -292,10 +145,7 @@ class TripLifecycle:
 
         return trip
 
-    # =========================================================
-    # DRIVER LOCK / RELEASE
-    # =========================================================
-
+   
     @staticmethod
     def lock_driver(db: Session, driver_id: int, trip_id: int):
         status = db.query(DriverCurrentStatus).filter(
@@ -308,14 +158,23 @@ class TripLifecycle:
             status.last_updated_utc = datetime.now(timezone.utc)
             db.add(status)
 
+
     @staticmethod
     def release_driver(db: Session, driver_id: int):
         status = db.query(DriverCurrentStatus).filter(
             DriverCurrentStatus.driver_id == driver_id,
-        ).first()
+        ).with_for_update().first()
 
         if status:
             status.runtime_status = "available"
             status.current_trip_id = None
             status.last_updated_utc = datetime.now(timezone.utc)
             db.add(status)
+
+            # ✅ UPDATE REDIS RUNTIME IMMEDIATELY
+            redis_client.setex(
+                f"driver:runtime:{driver_id}",
+                60,
+                "available",
+            )
+
