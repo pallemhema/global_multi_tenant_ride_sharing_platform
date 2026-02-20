@@ -60,7 +60,7 @@ def upload_vehicle_document(
     if not file.filename:
         raise HTTPException(400, "Invalid file")
 
-    # 🔐 Ensure vehicle belongs to owner
+    #  Ensure vehicle belongs to owner
     vehicle = (
         db.query(Vehicle)
         .filter(
@@ -72,7 +72,7 @@ def upload_vehicle_document(
     if not vehicle:
         raise HTTPException(404, "Vehicle not found")
 
-    # 📁 Build storage path
+    #  Build storage path
     ext = file.filename.split(".")[-1]
     filename = f"{document_type}.{ext}"
 
@@ -83,11 +83,11 @@ def upload_vehicle_document(
         filename=filename,
     )
 
-    # 💾 Save file
+    #  Save file
     with open(paths["absolute_path"], "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # 🗃️ Save DB record
+    #  Save DB record
     doc = VehicleDocument(
         tenant_id=owner["tenant_id"],
         vehicle_id=vehicle_id,

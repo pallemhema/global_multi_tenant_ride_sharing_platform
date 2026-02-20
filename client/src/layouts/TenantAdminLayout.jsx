@@ -23,6 +23,7 @@ export default function TenantAdminLayout() {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+
   // Wait for auth and tenant data to load
   if (authLoading || tenantLoading) {
     return <Loader />;
@@ -103,10 +104,20 @@ export default function TenantAdminLayout() {
             const Icon = item.icon;
             const active = isActive(item.path);
 
+            const blocked =
+              tenant?.approval_status !== "approved" &&
+              item.path !== "/tenant-admin/documents";
+
+            // Always navigate; pass state so the target page can display a note
+            const to = {
+              pathname: item.path,
+              state: { showNotApprovedNote: blocked },
+            };
+
             return (
               <Link
                 key={item.path}
-                to={item.path}
+                to={to}
                 title={!sidebarOpen ? item.label : ""}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
                   active
@@ -165,6 +176,13 @@ export default function TenantAdminLayout() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-8">
+          {tenant?.approval_status !== "approved" &&
+            location.state?.showNotApprovedNote && (
+              <div className="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 rounded">
+                Tenant not approved — some pages may have limited functionality until approval. Please upload required documents.
+              </div>
+            )}
+
           <Outlet />
         </main>
       </div>

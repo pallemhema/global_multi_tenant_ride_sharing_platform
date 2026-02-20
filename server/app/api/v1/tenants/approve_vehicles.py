@@ -24,7 +24,7 @@ def approve_vehicle(
     db: Session = Depends(get_db),
     user: dict = Depends(require_tenant_admin),
 ):
-    # 1️⃣ Fetch vehicle (tenant-safe)
+    #  Fetch vehicle (tenant-safe)
     vehicle = (
         db.query(Vehicle)
         .filter(
@@ -40,7 +40,7 @@ def approve_vehicle(
     if vehicle.status == "active":
         raise HTTPException(400, "Vehicle already approved")
 
-    # 2️⃣ Mandatory document types
+    # Mandatory document types
     mandatory_docs = (
         db.query(VehicleDocumentType.document_code)
         .filter(VehicleDocumentType.is_mandatory.is_(True))
@@ -48,7 +48,7 @@ def approve_vehicle(
     )
     mandatory_codes = {d.document_code for d in mandatory_docs}
 
-    # 3️⃣ Uploaded vehicle documents
+    #  Uploaded vehicle documents
     docs = (
         db.query(VehicleDocument)
         .filter(
@@ -60,7 +60,7 @@ def approve_vehicle(
 
     uploaded_codes = {d.document_type for d in docs}
 
-    # 4️⃣ Missing mandatory documents
+    #  Missing mandatory documents
     missing_docs = mandatory_codes - uploaded_codes
     if missing_docs:
         raise HTTPException(
@@ -71,7 +71,7 @@ def approve_vehicle(
             },
         )
 
-    # 5️⃣ Mandatory documents approval check
+    # Mandatory documents approval check
     approved_docs = {
         d.document_type
         for d in docs
@@ -88,7 +88,7 @@ def approve_vehicle(
             },
         )
 
-    # 6️⃣ Activate vehicle ONLY
+    #  Activate vehicle ONLY
     vehicle.status = "active"
     vehicle.updated_at_utc = datetime.now(timezone.utc)
     vehicle.updated_by = int(user["sub"])

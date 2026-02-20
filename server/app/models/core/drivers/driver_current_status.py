@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 
 from app.core.database import Base
-from app.models.mixins import TimestampMixin, AuditMixin
+
 
 from sqlalchemy import (
     Column,

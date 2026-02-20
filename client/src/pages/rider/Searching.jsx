@@ -16,7 +16,7 @@ export default function Searching() {
 
 
   useEffect(() => {
-    if (isChangingProvider) return; // ⛔ stop polling when switching provider
+    if (isChangingProvider) return; // stop polling when switching provider
 
     let mounted = true;
 
@@ -85,7 +85,7 @@ export default function Searching() {
   };
 const handleChangeTenant = async () => {
   try {
-     setIsChangingProvider(true);   // ⛔ stop polling
+     setIsChangingProvider(true);   // stop polling
       setError(null);
       setNoDriversFound(false);
 
@@ -173,7 +173,7 @@ const handleChangeTenant = async () => {
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
-              <p className="text-xs text-blue-700 font-medium mb-2">💡 Tip:</p>
+              <p className="text-xs text-blue-700 font-medium mb-2">Tip:</p>
               <ul className="text-xs text-blue-700 space-y-1">
                 <li>
                   • Try again with the same provider for available drivers
@@ -258,7 +258,7 @@ const handleChangeTenant = async () => {
 
             {/* Help Text */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
-              <p className="text-xs text-blue-700 font-medium mb-2">💡 Tip:</p>
+              <p className="text-xs text-blue-700 font-medium mb-2"> Tip:</p>
               <ul className="text-xs text-blue-700 space-y-1">
                 <li>• Retry to check for newly available drivers</li>
                 <li>• Try a different provider for more options</li>

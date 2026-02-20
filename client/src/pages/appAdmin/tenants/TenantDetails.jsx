@@ -24,6 +24,7 @@ export default function TenantDetails() {
     getTenantAdminData,
     approveDocumentData,
     rejectDocumentData,
+    rejectTenantData,
     approveTenantData,
     clearError,
   } = useAppAdmin();
@@ -64,7 +65,7 @@ export default function TenantDetails() {
     setVerifyError('');
   };
 
-  const handleVerifyConfirm = async () => {
+  const handleDocumentAppove = async () => {
     if (!verifyModal) return;
 
     setVerifying(true);
@@ -81,13 +82,30 @@ export default function TenantDetails() {
     }
     setVerifying(false);
   };
+  const handleDocumentReject =async () => {
+      if (!verifyModal) return;
+
+      setVerifying(true);
+      const res = await rejectDocumentData(
+        tenantId,
+        verifyModal.tenant_document_id
+      );
+
+      if (res.success) {
+        await getTenantDocumentsData(tenantId);
+        setVerifyModal(null);
+      }
+
+      setVerifying(false);
+    }
+
 
   const handleApproveClick = () => {
     setApproveModal(true);
     setApproveError('');
   };
 
-  const handleApproveConfirm = async () => {
+  const handleTenantApprove = async () => {
     setApproving(true);
     clearError();
     setApproveError('');
@@ -102,6 +120,18 @@ export default function TenantDetails() {
     }
     setApproving(false);
   };
+
+  const handleTenantReject =  async () => {
+    setApproving(true);
+    const res = await rejectTenantData(tenantId);
+
+    if (res.success) {
+      setApproveModal(false);
+      await getTenantDetailsData(tenantId);
+    }
+
+    setApproving(false);
+  }
 
 
 
@@ -416,7 +446,12 @@ export default function TenantDetails() {
           {
             label: verifying ? 'Approving...' : 'Approve',
             variant: 'success',
-            onClick: handleVerifyConfirm,
+            onClick: handleDocumentAppove,
+          },
+           {
+            label: approving ? 'rejecting...' : 'Reject',
+            variant: 'danger',
+            onClick: handleDocumentReject,
           },
         ]}
       >
@@ -452,7 +487,12 @@ export default function TenantDetails() {
           {
             label: approving ? 'Approving...' : 'Approve',
             variant: 'success',
-            onClick: handleApproveConfirm,
+            onClick: handleTenantApprove,
+          },
+          {
+            label: approving ? 'rejecting...' : 'Reject',
+            variant: 'danger',
+            onClick: handleTenantReject,
           },
         ]}
       >

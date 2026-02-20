@@ -214,7 +214,8 @@ export default function CreatePayoutBatch() {
                     </td>
                     <td className="p-3 text-right">{p.entries}</td>
                     <td className="p-3 text-right font-semibold">
-                      ₹{parseFloat(p.total_amount).toFixed(2)}
+                      
+                      {parseFloat(p.total_amount).toFixed(2)}
                     </td>
                   </tr>
                 ))}

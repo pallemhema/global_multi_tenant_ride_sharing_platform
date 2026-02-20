@@ -45,9 +45,9 @@ def cancel_trip_rider(
 ):
     now = datetime.now(timezone.utc)
     
-    # ------------------------------------------------
-    # 1️⃣ Validate trip ownership
-    # ------------------------------------------------
+
+    # 1 Validate trip ownership
+
     trip = db.query(Trip).filter(
         Trip.trip_id == trip_id,
         Trip.user_id == rider.user_id,
@@ -59,18 +59,17 @@ def cancel_trip_rider(
             detail="Trip not found"
         )
     
-    # ------------------------------------------------
-    # 2️⃣ Check if cancellation allowed
-    # ------------------------------------------------
+
+    #  Check if cancellation allowed
     if trip.trip_status in ["completed", "cancelled"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot cancel trip in '{trip.trip_status}' state"
         )
     
-    # ------------------------------------------------
-    # 3️⃣ Calculate cancellation fee
-    # ------------------------------------------------
+
+    #  Calculate cancellation fee
+  
     cancellation_fee = Decimal("0")
     
     if trip.trip_status == "assigned":
@@ -83,9 +82,9 @@ def cancel_trip_rider(
         estimated_fare = Decimal(str(trip.fare_total or 0))
         cancellation_fee = min(estimated_fare, Decimal("500"))
     
-    # ------------------------------------------------
-    # 4️⃣ Release driver
-    # ------------------------------------------------
+  
+    #  Release driver
+ 
     if trip.driver_id:
         driver_status = db.query(DriverCurrentStatus).filter(
             DriverCurrentStatus.driver_id == trip.driver_id,
@@ -98,9 +97,9 @@ def cancel_trip_rider(
             db.add(driver_status)
             db.flush()
     
-    # ------------------------------------------------
-    # 5️⃣ Create cancellation ledger entry
-    # ------------------------------------------------
+
+    # Create cancellation ledger entry
+
     if cancellation_fee > 0:
         LedgerService.create_cancellation_entries(
             db=db,
@@ -110,9 +109,8 @@ def cancel_trip_rider(
             now=now,
         )
     
-    # ------------------------------------------------
-    # 6️⃣ Move trip to cancelled
-    # ------------------------------------------------
+
+    # Move trip to cancelled
     trip.trip_status = "cancelled"
     trip.cancelled_at_utc = now
     db.add(trip)
@@ -175,9 +173,9 @@ def cancel_trip_driver(
 
     previous_status = trip.trip_status
 
-    # ------------------------------------------------
-    # 3️⃣ Unlock Driver Runtime
-    # ------------------------------------------------
+    
+    #  Unlock Driver Runtime
+  
     driver_status = (
         db.query(DriverCurrentStatus)
         .filter(DriverCurrentStatus.driver_id == driver.driver_id)
@@ -191,17 +189,16 @@ def cancel_trip_driver(
         driver_status.updated_at_utc = now
         db.add(driver_status)
 
-    # ------------------------------------------------
-    # 4️⃣ Cancel Trip
-    # ------------------------------------------------
+ 
+    #  Cancel Trip
+
     trip.trip_status = "cancelled"
     trip.cancelled_at_utc = now
     trip.updated_at_utc = now
     db.add(trip)
 
-    # ------------------------------------------------
-    # 5️⃣ Reset TripRequest (Important for re-dispatch)
-    # ------------------------------------------------
+    #  Reset TripRequest (Important for re-dispatch)
+
     trip_req = (
         db.query(TripRequest)
         .filter(TripRequest.trip_request_id == trip.trip_request_id)
@@ -229,9 +226,7 @@ def cancel_trip_driver(
         )
     )
 
-    # ------------------------------------------------
-    # 7️⃣ Commit
-    # ------------------------------------------------
+
     db.commit()
 
     return CancellationResponse(

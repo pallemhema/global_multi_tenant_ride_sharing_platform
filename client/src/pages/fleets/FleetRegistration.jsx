@@ -11,53 +11,68 @@ export default function FleetRegistration() {
 
   const {
     fleetOwner,
-    loading,
-    registerFleetOwner,
+    tenantLocations,
     selectTenant,
+    selectLocation,
     fillFleetDetails,
     uploadDocument,
     updateDocument,
     deleteDocument,
     documents,
+    submitDocuments,
   } = useFleetOwner();
 
-  const [currentStep, setCurrentStep] = useState("register");
+  const [currentStep, setCurrentStep] = useState("tenant-selection");
   const [tenants, setTenants] = useState([]);
   const [documentTypes, setDocumentTypes] = useState([]);
-  const [registering, setRegistering] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [selectedCountry, setSelectedCountry] = useState(null);
 
   const [fleetDetails, setFleetDetails] = useState({
     business_name: "",
     contact_email: "",
   });
 
-  /* ===============================
-     INIT REGISTRATION
-  =============================== */
+
+  console.log(tenantLocations)
+
+  /* ============================================
+     RESUME LOGIC
+  ============================================ */
   useEffect(() => {
-    const init = async () => {
-      if (!fleetOwner) {
-        try {
-          setRegistering(true);
-          await registerFleetOwner();
-          setCurrentStep("tenant-selection");
-        } catch (err) {
-          alert(err.message || "Failed to register fleet owner");
-          navigate("/rider/dashboard");
-        } finally {
-          setRegistering(false);
-        }
-      } else {
+    if (!fleetOwner) return;
+
+    switch (fleetOwner.onboarding_status) {
+      case "not_started":
+      case null:
         setCurrentStep("tenant-selection");
-      }
-    };
+        break;
 
-    init();
-  }, []);
+      case "tenant_selected":
+        setCurrentStep("country-selection");
+        break;
 
-  /* ===============================
+      case "location_selected":
+        setCurrentStep("fleet-details");
+        break;
+
+      case "fleet_details_filled":
+        setCurrentStep("documents");
+        break;
+
+      case "completed":
+        navigate("/fleet/dashboard");
+        break;
+
+      default:
+        setCurrentStep("tenant-selection");
+    }
+  }, [fleetOwner]);
+
+  /* ============================================
      LOAD LOOKUPS
-  =============================== */
+  ============================================ */
   useEffect(() => {
     const load = async () => {
       try {
@@ -67,28 +82,72 @@ export default function FleetRegistration() {
         ]);
 
         setTenants(tenantsRes || []);
-        setDocumentTypes((docsRes || []).filter((d) => d.is_mandatory));
+        setDocumentTypes(
+          (docsRes || []).filter((d) => d.is_mandatory)
+        );
       } catch (err) {
-        console.error("Failed to load lookups", err);
+        console.error("Lookup load failed", err);
       }
     };
-
     load();
   }, []);
 
-  /* ===============================
+  /* ============================================
      HANDLERS
-  =============================== */
-  const handleSelectTenant = async (tenantId) => {
+  ============================================ */
+
+  const handleBack = () => {
+    switch (currentStep) {
+      case "country-selection":
+        setCurrentStep("tenant-selection");
+        break;
+
+      case "city-selection":
+        setCurrentStep("country-selection");
+        break;
+
+      case "fleet-details":
+        setCurrentStep("city-selection");
+        break;
+
+      case "documents":
+        setCurrentStep("fleet-details");
+        break;
+
+      default:
+        navigate(-1);
+    }
+  };
+
+  const handleTenant = async (tenantId) => {
     try {
+      setSubmitting(true);
       await selectTenant(tenantId);
-      setFleetDetails({
-        business_name: fleetOwner?.business_name || "",
-        contact_email: fleetOwner?.contact_email || "",
-      });
-      setCurrentStep("details");
+      setCurrentStep("country-selection");
     } catch (err) {
       alert(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCountry = (country) => {
+    setSelectedCountry(country);
+    setCurrentStep("city-selection");
+  };
+
+  const handleCity = async (city) => {
+    try {
+      setSubmitting(true);
+      await selectLocation({
+        country_id: selectedCountry.country_id,
+        city_id: city.city_id,
+      });
+      setCurrentStep("fleet-details");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -99,203 +158,227 @@ export default function FleetRegistration() {
     }
 
     try {
+      setSubmitting(true);
       await fillFleetDetails(fleetDetails);
       setCurrentStep("documents");
     } catch (err) {
       alert(err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleCompleteRegistration = async () => {
-    alert("Fleet registration completed. Awaiting approval.");
-    navigate("/fleet/dashboard");
-  };
+const handleCompleteRegistration = async () => {
+  const mandatoryDocsUploaded = documentTypes.every((doc) =>
+    documents.some((d) => d.document_type === doc.document_code)
+  );
 
-  /* ===============================
-     STEP 0: CREATING FLEET
-  =============================== */
-  if (currentStep === "register" || registering) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-purple-50">
-        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-          <Loader className="animate-spin mx-auto mb-4" size={40} />
-          <h2 className="text-xl font-bold">Creating Fleet Account…</h2>
-          <p className="text-gray-600">Please wait</p>
-        </div>
-      </div>
-    );
+  if (!mandatoryDocsUploaded) {
+    alert("Upload all mandatory documents");
+    return;
   }
 
-  /* ===============================
+  try {
+    setSubmitting(true);
+    await submitDocuments();
+    alert('Registratin completed')
+    navigate("/fleet/dashboard");
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+  /* ============================================
      STEP 1: TENANT SELECTION
-  =============================== */
+  ============================================ */
   if (currentStep === "tenant-selection") {
     return (
-      <div className="min-h-screen bg-purple-50 p-8">
-        <div className="max-w-4xl mx-auto">
-          <button
-            onClick={() => navigate("/rider/dashboard")}
-            className="flex items-center gap-2 text-purple-600 mb-6 font-semibold"
-          >
-            <ArrowLeft size={18} /> Back
-          </button>
-
-          <div className="bg-white p-8 rounded-lg shadow">
-            <h1 className="text-3xl font-bold mb-2">Select Tenant</h1>
-            <p className="text-gray-600 mb-6">
-              Step 1 of 3: Choose your operating tenant
-            </p>
-
-            {loading ? (
-              <Loader className="animate-spin mx-auto" />
-            ) : (
-              <div className="space-y-4">
-                {tenants.map((t) => (
-                  <button
-                    key={t.tenant_id}
-                    onClick={() => handleSelectTenant(t.tenant_id)}
-                    className="w-full border p-4 rounded-lg hover:bg-purple-50 hover:border-purple-400 text-left"
-                  >
-                    <h3 className="font-semibold">{t.tenant_name}</h3>
-                    <p className="text-sm text-gray-600">{t.legal_name}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <StepContainer title="Step 1 of 5: Select Tenant">
+        {tenants.length === 0 ? (
+          <Loader className="animate-spin" size={40} />
+        ) : (
+          tenants.map((t) => (
+            <StepButton
+              key={t.tenant_id}
+              onClick={() => handleTenant(t.tenant_id)}
+              disabled={submitting}
+              title={t.tenant_name}
+              subtitle={t.legal_name}
+            />
+          ))
+        )}
+      </StepContainer>
     );
   }
 
-  /* ===============================
-     STEP 2: FLEET DETAILS
-  =============================== */
-  if (currentStep === "details") {
+  /* ============================================
+     STEP 2: COUNTRY
+  ============================================ */
+  if (currentStep === "country-selection") {
     return (
-      <div className="min-h-screen bg-purple-50 p-8">
-        <div className="max-w-2xl mx-auto">
-          <button
-            onClick={() => setCurrentStep("tenant-selection")}
-            className="flex items-center gap-2 text-purple-600 mb-6 font-semibold"
-          >
-            <ArrowLeft size={18} /> Back
-          </button>
-
-          <div className="bg-white p-8 rounded-lg shadow">
-            <h1 className="text-3xl font-bold mb-2">Fleet Details</h1>
-            <p className="text-gray-600 mb-6">
-              Step 2 of 3: Business information
-            </p>
-
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Business Name *"
-                value={fleetDetails.business_name}
-                onChange={(e) =>
-                  setFleetDetails({
-                    ...fleetDetails,
-                    business_name: e.target.value,
-                  })
-                }
-                className="input"
-              />
-
-              <input
-                type="email"
-                placeholder="Contact Email"
-                value={fleetDetails.contact_email}
-                onChange={(e) =>
-                  setFleetDetails({
-                    ...fleetDetails,
-                    contact_email: e.target.value,
-                  })
-                }
-                className="input"
-              />
-
-              <button
-                onClick={handleSaveDetails}
-                className="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <StepContainer title="Step 2 of 5: Select Country" onBack={handleBack}>
+        {tenantLocations?.map((country) => (
+          <StepButton
+            key={country.country_id}
+            onClick={() => handleCountry(country)}
+            title={country.country_name}
+          />
+        ))}
+      </StepContainer>
     );
   }
 
-  /* ===============================
-     STEP 3: DOCUMENTS (REUSED CARD)
-  =============================== */
+  /* ============================================
+     STEP 3: CITY
+  ============================================ */
+  if (currentStep === "city-selection") {
+    return (
+      <StepContainer title="Step 3 of 5: Select City" onBack={handleBack}>
+        {selectedCountry?.cities?.map((city) => (
+          <StepButton
+            key={city.city_id}
+            onClick={() => handleCity(city)}
+            disabled={submitting}
+            title={city.city_name}
+          />
+        ))}
+      </StepContainer>
+    );
+  }
+
+  /* ============================================
+     STEP 4: FLEET DETAILS
+  ============================================ */
+  if (currentStep === "fleet-details") {
+    return (
+      <StepContainer title="Step 4 of 5: Fleet Details" onBack={handleBack}>
+        <div className="space-y-4">
+          <input
+            type="text"
+            placeholder="Business Name *"
+            value={fleetDetails.business_name}
+            onChange={(e) =>
+              setFleetDetails({
+                ...fleetDetails,
+                business_name: e.target.value,
+              })
+            }
+            className="input"
+          />
+
+          <input
+            type="email"
+            placeholder="Contact Email"
+            value={fleetDetails.contact_email}
+            onChange={(e) =>
+              setFleetDetails({
+                ...fleetDetails,
+                contact_email: e.target.value,
+              })
+            }
+            className="input"
+          />
+
+          <button
+            onClick={handleSaveDetails}
+            className="btn-primary"
+          >
+            Continue
+          </button>
+        </div>
+      </StepContainer>
+    );
+  }
+
+  /* ============================================
+     STEP 5: DOCUMENTS
+  ============================================ */
   if (currentStep === "documents") {
     const mandatoryUploaded = documentTypes.every((doc) =>
-      documents.some((d) => d.document_type === doc.document_code),
+      documents.some((d) => d.document_type === doc.document_code)
     );
 
-    console.log("Document status:", {
-      totalDocumentTypes: documentTypes.length,
-      totalDocuments: documents.length,
-      mandatoryDocs: documentTypes.map((d) => d.document_code),
-      uploadedDocs: documents.map((d) => d.document_type),
-      mandatoryUploaded,
-    });
-
     return (
-      <div className="min-h-screen bg-purple-50 p-8">
-        <div className="max-w-3xl mx-auto">
+      <StepContainer title="Step 5 of 5: Upload Documents" onBack={handleBack}>
+        {documentTypes.map((docType) => {
+          const uploadedDoc = documents.find(
+            (d) => d.document_type === docType.document_code
+          );
+
+          return (
+            <FleetDocumentCard
+              key={docType.document_code}
+              docType={docType}
+              uploadedDoc={uploadedDoc}
+              onUpload={uploadDocument}
+              onUpdate={updateDocument}
+              onDelete={deleteDocument}
+            />
+          );
+        })}
+
+      <button
+        disabled={!mandatoryUploaded || submitting}
+        onClick={handleCompleteRegistration}
+        className={`btn-complete ${
+          mandatoryUploaded
+            ? "bg-green-600 text-white"
+            : "bg-gray-300 text-gray-600"
+        }`}
+      >
+        {submitting ? "Completing..." : "Complete Registration"}
+    </button>
+
+
+        {!mandatoryUploaded && (
+          <p className="text-red-600 text-sm flex items-center gap-2">
+            <AlertCircle size={16} />
+            Upload all mandatory documents
+          </p>
+        )}
+      </StepContainer>
+    );
+  }
+
+  return null;
+}
+
+/* ============================================
+   REUSABLE COMPONENTS
+============================================ */
+
+function StepContainer({ title, children, onBack }) {
+  return (
+    <div className="min-h-screen bg-purple-50 p-8">
+      <div className="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow space-y-6">
+        {onBack && (
           <button
-            onClick={() => setCurrentStep("details")}
-            className="flex items-center gap-2 text-purple-600 mb-6 font-semibold"
+            onClick={onBack}
+            className="flex items-center gap-2 text-purple-600 font-semibold"
           >
             <ArrowLeft size={18} /> Back
           </button>
-
-          <div className="bg-white p-8 rounded-lg shadow space-y-6">
-            <h1 className="text-3xl font-bold">Upload Documents</h1>
-            <p className="text-gray-600">Step 3 of 3: Mandatory documents</p>
-
-            {documentTypes.map((docType) => {
-              const uploadedDoc = documents.find(
-                (d) => d.document_type === docType.document_code,
-              );
-
-              return (
-                <FleetDocumentCard
-                  key={docType.document_code}
-                  docType={docType}
-                  uploadedDoc={uploadedDoc}
-                  onUpload={uploadDocument}
-                  onUpdate={updateDocument}
-                  onDelete={deleteDocument}
-                />
-              );
-            })}
-
-            <button
-              disabled={!mandatoryUploaded}
-              onClick={handleCompleteRegistration}
-              className={`w-full py-3 rounded-lg font-semibold ${
-                mandatoryUploaded
-                  ? "bg-green-600 text-white hover:bg-green-700"
-                  : "bg-gray-300 text-gray-600 cursor-not-allowed"
-              }`}
-            >
-              Complete Registration
-            </button>
-
-            {!mandatoryUploaded && (
-              <p className="text-sm text-red-600 flex items-center gap-2">
-                <AlertCircle size={16} />
-                Upload all mandatory documents to continue
-              </p>
-            )}
-          </div>
-        </div>
+        )}
+        <h1 className="text-2xl font-bold">{title}</h1>
+        {children}
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+function StepButton({ onClick, title, subtitle, disabled }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full text-left p-4 border rounded-lg hover:bg-purple-50 transition disabled:opacity-50"
+    >
+      <div className="font-semibold">{title}</div>
+      {subtitle && (
+        <div className="text-sm text-gray-500">{subtitle}</div>
+      )}
+    </button>
+  );
 }

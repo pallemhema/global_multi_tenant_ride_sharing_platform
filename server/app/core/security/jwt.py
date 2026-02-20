@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from app.core.config import settings
 
-# 🔐 Simple Bearer scheme (Swagger-friendly)
+# Simple Bearer scheme (Swagger-friendly)
 bearer_scheme = HTTPBearer()
 def create_access_token(
     *,

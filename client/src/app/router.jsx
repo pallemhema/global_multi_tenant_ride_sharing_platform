@@ -2,7 +2,6 @@
 import {
   createBrowserRouter,
   RouterProvider,
-  Navigate,
 } from "react-router-dom";
 
 /* ===== Guards ===== */
@@ -19,6 +18,13 @@ import RoleRedirect from "../guards/RoleRedirect";
 import Login from "../pages/auth/AdminLogin";
 import { UserLogin } from "../pages/auth/UserLogin";
 
+/* ===== Providers ===== */
+import { AppAdminProvider } from "../context/AppAdminContext";
+import { TenantProvider } from "../context/TenantContext";
+import { DriverProvider } from "../context/DriverContext";
+import { FleetOwnerProvider } from "../context/FleetOwnerContext";
+import { VehicleProvider } from "../context/VehicleContext";
+
 /* ===== Admin Pages ===== */
 import AppAdminLayout from "../layouts/AppAdminLayout";
 import DashboardHome from "../pages/appAdmin/dashboard/Home";
@@ -31,7 +37,6 @@ import TenantApprove from "../pages/appAdmin/TenantApprove";
 import CreatePayoutBatch from "../pages/appAdmin/payouts/CreatePayoutBatch";
 import PayoutBatchList from "../pages/appAdmin/payouts/PayoutBatchList";
 import PayoutBatchDetails from "../pages/appAdmin/payouts/PayoutBatchDetails";
-import { AppAdminProvider } from "../context/AppAdminContext";
 
 /* ===== Tenant Admin ===== */
 import TenantAdminLayout from "../layouts/TenantAdminLayout";
@@ -52,6 +57,7 @@ import DriverShifts from "../pages/drivers/Shifts";
 import DriverRegistration from "../pages/drivers/DriverRegistration";
 import DriverInvitesFromFleets from "../pages/drivers/DriverInvitesFromFleets";
 import AssignedVehicles from "../pages/drivers/AssignedVehicles";
+import DriverVehicles from "../pages/drivers/DriverVehicles";
 
 /* ===== Vehicles (shared driver + fleet) ===== */
 import Vehicles from "../pages/vehicles/Vehicles";
@@ -65,6 +71,7 @@ import FleetDocuments from "../pages/fleets/FleetDocuments";
 import FleetInvites from "../pages/fleets/FleetInvites";
 import FleetRegistration from "../pages/fleets/FleetRegistration";
 import VehicleAssignments from "../pages/fleets/VehicleAssignments";
+import FleetVehicles from "../pages/fleets/FleetVehicles";
 
 /* ===== Rider ===== */
 import RiderDashboard from "../pages/rider/RiderDashboard";
@@ -119,9 +126,12 @@ const router = createBrowserRouter([
     path: "/tenant-admin",
     element: (
       <AdminGaurd>
-        <TenantAdminLayout />
+        <TenantProvider>
+          <TenantAdminLayout />
+        </TenantProvider>
       </AdminGaurd>
     ),
+  
     children: [
       { path: "dashboard", element: <TenantDashboard /> },
       { path: "documents", element: <TenantDocuments /> },
@@ -134,13 +144,18 @@ const router = createBrowserRouter([
   },
 
   /* ===== Driver ===== */
-  {
+ {
     path: "/driver",
     element: (
       <DriverRoute>
-        <DriverLayout />
+        <DriverProvider>
+          <VehicleProvider>
+            <DriverLayout />
+          </VehicleProvider>
+        </DriverProvider>
       </DriverRoute>
     ),
+
     children: [
       { path: "dashboard", element: <DriverDashboard /> },
       { path: "documents", element: <DriverDocuments /> },
@@ -150,7 +165,7 @@ const router = createBrowserRouter([
       {
         path: "vehicles",
         children: [
-          { index: true, element: <Vehicles /> },
+          { index: true, element: <DriverVehicles /> },
           { path: "add", element: <VehicleForm /> },
           { path: ":vehicleId/edit", element: <VehicleForm /> },
           { path: ":vehicleId/documents", element: <VehicleDocuments /> },
@@ -172,19 +187,26 @@ const router = createBrowserRouter([
     path: "/fleet",
     element: (
       <FleetOwnerRoute>
-        <FleetLayout />
+        <FleetOwnerProvider>
+          <VehicleProvider>
+            <FleetLayout />
+          </VehicleProvider>
+        </FleetOwnerProvider>
       </FleetOwnerRoute>
     ),
+
     children: [
       { path: "dashboard", element: <FleetDashboard /> },
       // { path: "finances", element: <FleetOwnerDashboard /> },
       { path: "documents", element: <FleetDocuments /> },
       { path: "invites", element: <FleetInvites /> },
       { path: "vehicle-assignments", element: <VehicleAssignments /> },
+
+
       {
-        path: "vehicles",
+        path: "vehicles", role:"fleet",
         children: [
-          { index: true, element: <Vehicles /> },
+          { index: true, element: <FleetVehicles /> },
           { path: "add", element: <VehicleForm /> },
           { path: ":vehicleId/edit", element: <VehicleForm /> },
           { path: ":vehicleId/documents", element: <VehicleDocuments /> },
@@ -201,6 +223,7 @@ const router = createBrowserRouter([
         <RiderLayout />
       </RiderRoute>
     ),
+
     children: [
       { path: "dashboard", element: <RiderDashboard /> },
       { path: "pickup", element: <PickupDrop /> },
@@ -215,8 +238,24 @@ const router = createBrowserRouter([
   },
 
   /* ===== Registration ===== */
-  { path: "/register/driver", element: <DriverRegistration /> },
-  { path: "/register/fleet", element: <FleetRegistration /> },
+  {
+    path: "/register/driver",
+    element: (
+      <DriverProvider>
+        <DriverRegistration />
+      </DriverProvider>
+    ),
+  },
+  ,
+  {
+    path: "/register/fleet",
+    element: (
+      <FleetOwnerProvider>
+        <FleetRegistration />
+      </FleetOwnerProvider>
+    ),
+  },
+
 ]);
 
 export function Router() {

@@ -30,10 +30,6 @@ class TripLifecycle:
     """
     Central orchestrator for trip lifecycle.
     """
-
- 
-   
-
     @staticmethod
     def resolve_active_vehicle(
         db: Session,
@@ -171,7 +167,7 @@ class TripLifecycle:
             status.last_updated_utc = datetime.now(timezone.utc)
             db.add(status)
 
-            # ✅ UPDATE REDIS RUNTIME IMMEDIATELY
+            # UPDATE REDIS RUNTIME IMMEDIATELY
             redis_client.setex(
                 f"driver:runtime:{driver_id}",
                 60,

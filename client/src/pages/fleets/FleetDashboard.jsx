@@ -87,7 +87,7 @@ function FleetDashboard() {
 
           <StatCard
             title="Wallet Balance"
-            count={wallet?.balance ?? 0}
+            count={`${wallet?.currency_code} ${wallet?.balance ?? 0}`}
             icon={Wallet}
             color="text-teal-600"
           />

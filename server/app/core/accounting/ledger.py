@@ -36,7 +36,7 @@ def post_trip_ledger(
     platform_fee = (final_fare * platform_fee_pct) / Decimal("100")
     earnings_pool = final_fare - platform_fee - tax_amount
 
-    # 1️⃣ Rider → Platform (trip fare)
+    #  Rider → Platform (trip fare)
     db.add(
         FinancialLedger(
             tenant_id=trip.tenant_id,
@@ -50,7 +50,7 @@ def post_trip_ledger(
         )
     )
 
-    # 2️⃣ Platform → Tax authority (liability)
+    #  Platform → Tax authority (liability)
     if tax_amount > 0:
         db.add(
             FinancialLedger(
@@ -65,7 +65,7 @@ def post_trip_ledger(
             )
         )
 
-    # 3️⃣ Platform keeps commission
+    #  Platform keeps commission
     db.add(
         FinancialLedger(
             tenant_id=trip.tenant_id,
@@ -79,7 +79,7 @@ def post_trip_ledger(
         )
     )
 
-    # 4️⃣ Earnings follow the vehicle
+    #  Earnings follow the vehicle
     if vehicle.owner_type == "driver":
         entity_type = DRIVER_ENTITY
         entity_id = vehicle.driver_owner_id

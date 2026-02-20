@@ -31,10 +31,10 @@ def upload_driver_document(
     db: Session = Depends(get_db),
     driver=Depends(require_driver),
 ):
-    # 🧾 Basic validation
+    # Basic validation
     if not file.filename:
         raise HTTPException(400, "Invalid file")
-    # 🧾 Validate file
+    # Validate file
  
 
     # Optional: prevent past expiry upload
@@ -49,7 +49,7 @@ def upload_driver_document(
     ext = file.filename.split(".")[-1]
     filename = f"{document_type}.{ext}"
 
-    # 📂 Build paths using helper
+    # Build paths using helper
     paths = build_document_paths(
         tenant_id=driver.tenant_id,
         entity="drivers",
@@ -57,11 +57,11 @@ def upload_driver_document(
         filename=filename,
     )
 
-    # 💾 Save file locally
+    # Save file locally
     with open(paths["absolute_path"], "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # 🗃️ Save DB record
+    # Save DB record
     doc = DriverDocument(
         tenant_id=driver.tenant_id,
         driver_id=driver.driver_id,
@@ -103,7 +103,7 @@ def list_driver_documents(
 def update_driver_document(
     document_id: int,
     document_number: str | None = Form(None),
-    expiry_date: date | None = Form(None),
+    # expiry_date: date | None = Form(None),
     file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     driver=Depends(require_driver),
@@ -121,25 +121,24 @@ def update_driver_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # ❌ Block edit if document is already approved
+    #  Block edit if document is already approved
     if doc.verification_status == "approved":
         raise HTTPException(
             status_code=403,
             detail="Cannot edit an approved document. Please contact tenant admin."
         )
 
-    # 🧾 Update metadata
+    #  Update metadata
     if document_number is not None:
         doc.document_number = document_number
 
-    if expiry_date is not None:
-        doc.expiry_date = expiry_date
-
-    # 📂 Replace file if provided
+    # if expiry_date is not None:
+    #     doc.expiry_date = expiry_date
+    #  Replace file if provided
     if file:
         if not file.filename:
             raise HTTPException(400, "Invalid file")
-        # 🧾 Validate file
+        #  Validate file
       
 
 
@@ -198,7 +197,7 @@ def delete_driver_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # ❌ Block delete if document is already approved
+    #  Block delete if document is already approved
     if doc.verification_status == "approved":
         raise HTTPException(
             status_code=403,

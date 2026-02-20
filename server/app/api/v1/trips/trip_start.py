@@ -27,7 +27,7 @@ router = APIRouter(
 
 
 # ================================================================
-# STEP 11: TRIP START - OTP VERIFICATION
+#  TRIP START - OTP VERIFICATION
 # ================================================================
 
 @router.post("/{trip_id}/start", response_model=TripStartResponse, status_code=status.HTTP_200_OK)
@@ -51,7 +51,7 @@ def start_trip(
     now = datetime.now(timezone.utc)
     
     # ------------------------------------------------
-    # 1️⃣ Validate trip ownership & state
+    #Validate trip ownership & state
     # ------------------------------------------------
     trip = db.query(Trip).filter(
         Trip.trip_id == trip_id,
@@ -66,7 +66,7 @@ def start_trip(
         )
     
     # ------------------------------------------------
-    # 2️⃣ Verify OTP
+    #  Verify OTP
     # ------------------------------------------------
     # trip_otp_service.verify_trip_otp(trip_id, otp) -> bool
     is_valid = verify_trip_otp(
@@ -82,7 +82,7 @@ def start_trip(
         )
     
     # ------------------------------------------------
-    # 3️⃣ Mark trip as started (picked_up)
+    #  Mark trip as started (picked_up)
     # ------------------------------------------------
     trip.trip_status = "picked_up"
     trip.picked_up_at_utc = now
@@ -111,7 +111,7 @@ def start_trip(
     driver_current_status.current_trip_id = trip.trip_id
     driver_current_status.last_updated_utc = datetime.now(timezone.utc)
 
-    db.add(driver_current_status)   # ✅ INSTANCE
+    db.add(driver_current_status)
     db.flush()
 
 

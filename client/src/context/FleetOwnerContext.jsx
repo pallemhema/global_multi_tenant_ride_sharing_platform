@@ -17,6 +17,7 @@ export const FleetOwnerProvider = ({ children }) => {
   const [fleetOwner,setFleetOwner] = useState(null);
 
   const [documents, setDocuments] = useState([]);
+    const [tenantLocations, setTenantLocations] = useState([]);
 
   const [invites, setInvites] = useState([]);
   const [eligibleDrivers, setEligibleDrivers] = useState([])
@@ -59,8 +60,19 @@ const loadInitialFleetData = async () => {
  
     try {
         console.log("Loading fleet owner data...");
-      const fleet = await fleetOwnerApi.getFleet();
-      setFleetOwner(fleet);
+        const fleet = await fleetOwnerApi.getFleet();
+        setFleetOwner(fleet);
+
+      if (
+        fleet &&
+        ["tenant_selected", "location_selected"].includes(
+          fleet.onboarding_status
+        )
+      ) {
+        await loadTenantLocations();
+      }
+
+    
     } catch (err) {
       setFleetOwner(null);
     }
@@ -112,7 +124,7 @@ const loadInitialFleetData = async () => {
     } catch {
       setWallet(null);
     }
-
+     
   } finally {
     setLoading(false);
   }
@@ -142,31 +154,69 @@ const loadInitialFleetData = async () => {
 
   /* ================= ACTIONS ================= */
 
-  const registerFleetOwner = async () => {
-    setLoading(true);
-    try {
-      const res = await fleetOwnerApi.registerFleetOwner();
-      hasLoadedRef.current = false;
-      await loadInitialFleetData();
-      return res;
-    } finally {
-      setLoading(false);
-    }
+  const loadTenantLocations = async () => {
+    const res = await fleetOwnerApi.getTenantLocations();
+    console.log(
+      "loadTenantLocations:",res);
+    setTenantLocations(res.countries || []);
+    return res;
   };
 
   const selectTenant = async (tenantId) => {
     const res = await fleetOwnerApi.selectTenantForFleetOwner(tenantId);
+    setFleetOwner((prev) => ({
+      ...prev,
+      tenant_id: tenantId,
+      onboarding_status: res.onboarding_status,
+    }));
+    setTenantLocations(res.countries || []);
     hasLoadedRef.current = false;
     await loadInitialFleetData();
     return res;
   };
 
-  const fillFleetDetails = async (detailsData) => {
-    const res = await fleetOwnerApi.uploadFleetDetails(detailsData);
-    hasLoadedRef.current = false;
-    await loadInitialFleetData();
+ 
+  const selectLocation = async (payload) => {
+    const res = await fleetOwnerApi.selectLocation(payload);
+
+    setFleetOwner((prev) => ({
+      ...prev,
+      country_id: payload.country_id,
+      city_id: payload.city_id,
+      onboarding_status: res.onboarding_status,
+    }));
+
     return res;
   };
+  
+
+  const fillFleetDetails = async (detailsData) => {
+  const res = await fleetOwnerApi.uploadFleetDetails(detailsData);
+
+  setFleetOwner((prev) => ({
+    ...prev,
+    business_name: detailsData.business_name,
+    contact_email: detailsData.contact_email,
+    onboarding_status: res.onboarding_status,
+  }));
+
+  return res;
+};
+
+
+    const submitDocuments = async () => {
+      const res = await fleetOwnerApi.submitDocuments();
+  
+      setFleetOwner((prev) => ({
+        ...prev,
+        onboarding_status: res.onboarding_status,
+      }));
+  
+      return res;
+    };
+  
+
+ 
 
 
   /* -------- Documents -------- */
@@ -192,30 +242,31 @@ const loadInitialFleetData = async () => {
     );
   };
 
-
-
-
-
   /* -------- Drivers -------- */
 
-  const inviteDriver = async (driverId) => {
-    const invite = await fleetOwnerApi.inviteDriver(driverId);
-    setInvites((prev) => [...prev, invite]);
-    return invite;
-  };
-   const cancelInvite = async (inviteId) => {
-  const updatedInvite = await fleetOwnerApi.cancelInvite(inviteId);
+  const refreshInvitesAndEligible = async () => {
+  const [invs, drivers] = await Promise.all([
+    fleetOwnerApi.getDriverInvites(),
+    fleetOwnerApi.getAvaialibleDrivers(),
+  ]);
 
-  setInvites((prev) =>
-    prev.map((invite) =>
-      invite.invite_id === updatedInvite.invite_id
-        ? updatedInvite
-        : invite
-    )
-  );
-
-  return updatedInvite;
+  setInvites(invs || []);
+  setEligibleDrivers(drivers || []);
 };
+
+
+const inviteDriver = async (driverId) => {
+  await fleetOwnerApi.inviteDriver(driverId);
+  await refreshInvitesAndEligible();
+};
+
+const cancelInvite = async (inviteId) => {
+  await fleetOwnerApi.cancelInvite(inviteId);
+  await refreshInvitesAndEligible();
+};
+
+
+
 
 
   const assignVehicleToDriver = async (inviteId, vehicleId) => {
@@ -250,9 +301,9 @@ const loadInitialFleetData = async () => {
       loading,
       error,
       wallet,
+      tenantLocations,
 
-      registerFleetOwner,
-      selectTenant,
+      
       fillFleetDetails,
       uploadDocument,
       updateDocument,
@@ -261,6 +312,10 @@ const loadInitialFleetData = async () => {
       cancelInvite,
       assignVehicleToDriver,
       unassignVehicle,
+      selectTenant,
+      selectLocation,
+      loadTenantLocations,
+      submitDocuments,
     }),
     [
       fleetOwner,

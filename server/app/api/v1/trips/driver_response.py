@@ -39,7 +39,7 @@ def driver_respond_to_batch(
 ):
     now = datetime.now(timezone.utc)
 
-    # 🔒 Lock TripRequest
+    #  Lock TripRequest
     trip_req = (
         db.query(TripRequest)
         .filter(TripRequest.trip_request_id == trip_request_id)
@@ -50,10 +50,10 @@ def driver_respond_to_batch(
     if not trip_req:
         raise HTTPException(status_code=404, detail="Trip request not found")
 
-    # ===================== ACCEPT =====================
+    #  ACCEPT 
     if payload.response == "accepted":
 
-        # 🔒 ATOMIC CHECK: Trip must still be in "driver_searching" status
+        # ATOMIC CHECK: Trip must still be in "driver_searching" status
         # Another driver may have already accepted between the lock check and now
         if trip_req.status != "driver_searching":
             raise HTTPException(
@@ -61,7 +61,7 @@ def driver_respond_to_batch(
                 detail="This trip was accepted by another driver",
             )
 
-        # 🔒 ATOMIC UPDATE: Change status to "driver_assigned" and create trip in same transaction
+        # ATOMIC UPDATE: Change status to "driver_assigned" and create trip in same transaction
         trip_req.status = "driver_assigned"
 
         trip = TripLifecycle.create_trip_from_request(
@@ -88,7 +88,7 @@ def driver_respond_to_batch(
             )
         )
 
-        # 🚫 Expire ALL other candidates for this trip request BEFORE committing
+        #Expire ALL other candidates for this trip request BEFORE committing
         db.query(TripDispatchCandidate).filter(
             TripDispatchCandidate.trip_request_id == trip_request_id,
             TripDispatchCandidate.driver_id != driver.driver_id,
@@ -107,7 +107,7 @@ def driver_respond_to_batch(
             candidate.response_code = "accepted"
             candidate.response_at_utc = now
 
-        # 🔓 Commit all changes atomically
+        #Commit all changes atomically
         db.commit()
         
         # Lock driver after commit
@@ -119,7 +119,7 @@ def driver_respond_to_batch(
             "message": "Trip accepted successfully",
         }
     
-    # ===================== REJECT =====================
+    #  REJECT
     if payload.response == "rejected":
 
         candidate = db.query(TripDispatchCandidate).filter(
@@ -152,7 +152,7 @@ def driver_respond_to_batch(
                 "message": "Trip rejected.",
             }
 
-        # 🚨 If NO pending drivers left in this batch:
+        # If NO pending drivers left in this batch:
         from app.models.core.trips.trip_batch import TripBatch
 
         batch = db.query(TripBatch).filter(
@@ -175,7 +175,7 @@ def driver_respond_to_batch(
             "message": "Trip rejected.",
         }
 
-    # ===================== CANCEL =====================
+    # CANCEL 
     if payload.response == "cancelled":
 
         trip = db.query(Trip).filter(
@@ -195,12 +195,12 @@ def driver_respond_to_batch(
                 detail=f"Trip cannot be cancelled (status={trip.status})"
             )
 
-        # 🔓 Reset TripRequest
+        #  Reset TripRequest
         trip_req.status = "driver_searching"
         trip_req.assigned_driver_id = None
         trip_req.assigned_at_utc = None
 
-        # ❌ Cancel trip
+        # Cancel trip
         trip.trip_status = "cancelled"
         trip.cancelled_at_utc = now
 

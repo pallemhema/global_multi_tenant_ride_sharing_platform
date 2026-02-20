@@ -62,6 +62,8 @@ export default function PayoutBatchDetail() {
     await loadBatchPayouts(batchId);
   };
 
+  
+
   if (!selectedBatch) {
     return (
       <div className="p-6">

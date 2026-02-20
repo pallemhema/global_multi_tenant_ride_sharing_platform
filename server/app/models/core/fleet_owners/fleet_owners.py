@@ -42,7 +42,7 @@ class FleetOwner(Base, TimestampMixin, AuditMixin):
     )
     onboarding_status: Mapped[str] = mapped_column(
         String,
-        default="draft"
+        default="not_started"
     )
 
     approval_status: Mapped[str] = mapped_column(

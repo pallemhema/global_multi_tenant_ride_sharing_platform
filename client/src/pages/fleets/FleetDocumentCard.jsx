@@ -223,22 +223,34 @@ export default function FleetDocumentCard({
       {/* FORM */}
       {showForm && !isApproved && (
         <div className="p-5 bg-gray-50 border-t space-y-4">
+          <div>
+             <label className="block text-sm font-medium text-gray-700 mb-2">
+                Document Number
+              </label>
           <input
             type="text"
             placeholder="Document Number"
             value={documentNumber}
             onChange={(e) => setDocumentNumber(e.target.value)}
-            className="input"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
+            </div>
+         
 
+         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+                Expiry Date
+              </label>
           <input
             type="date"
             value={expiryDate}
             onChange={(e) => setExpiryDate(e.target.value)}
-            className="input"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
-
-          <input
+         </div>
+          
+          <div>
+             <input
                 type="file"
                 accept={ACCEPT_TYPES}
                 onChange={(e) => {
@@ -261,13 +273,21 @@ export default function FleetDocumentCard({
                   setFile(file);
                 }}
               />
+          </div>
+        
 
           <button
             onClick={handleSubmit}
             disabled={saving || (!uploadedDoc && !file)}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all"
           >
-            {saving ? "Saving..." : "Submit"}
+            {saving ?  <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Uploading...
+              </> : (
+              <>
+                <Upload size={16} /> Submit Document
+              </>)}
           </button>
         </div>
       )}

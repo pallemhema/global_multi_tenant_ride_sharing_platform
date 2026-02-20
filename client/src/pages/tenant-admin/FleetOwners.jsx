@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useTenant } from "../../context/TenantContext";
 import DataTable from "../../components/common/DataTable";
 import EmptyState from "../../components/common/EmptyState";
@@ -10,6 +10,7 @@ import { Truck, AlertCircle, Eye } from "lucide-react";
 
 export default function FleetOwners() {
   const {
+    tenant,
     fleetOwners,
     loading,
     error: contextError,
@@ -29,6 +30,8 @@ export default function FleetOwners() {
   const [approvingFleetOwner, setApprovingFleetOwner] = useState(null);
   const [approving, setApproving] = useState(false);
   console.log("fleetOwners:", fleetOwners);
+    const isApproved = tenant?.approval_status=='approved';
+
 
   // Load fleet owners on mount
   useEffect(() => {
@@ -42,6 +45,7 @@ export default function FleetOwners() {
       setError("");
       const fleetOwnerId = fleetOwner.fleet_owner?.fleet_owner_id;
       const response = await getFleetOwnerDocuments(fleetOwnerId);
+     
 
       const normalizedDocs = response.map((doc) => ({
         id: doc.document_id,
@@ -54,6 +58,7 @@ export default function FleetOwners() {
 
       setSelectedFleetOwner(fleetOwner);
       setFleetOwnerDocuments(normalizedDocs);
+       console.log(fleetOwnerDocuments);
       setShowDocumentsModal(true);
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to load documents");
@@ -126,9 +131,13 @@ export default function FleetOwners() {
   };
 
   // Check if all documents are approved
-  const allDocsApproved =
+const allDocsApproved = useMemo(() => {
+  return (
     fleetOwnerDocuments.length > 0 &&
-    fleetOwnerDocuments.every((doc) => doc.status === "approved");
+    fleetOwnerDocuments.every((doc) => doc.status === "approved")
+  );
+}, [fleetOwnerDocuments]);
+
 
   if (loading) {
     return <Loader />;
@@ -181,6 +190,19 @@ export default function FleetOwners() {
       ),
     },
   ];
+     if(!isApproved) return (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+          <AlertCircle className="text-amber-600 flex-shrink-0" size={20} />
+          <div>
+            <p className="font-semibold text-amber-900">
+             Approval Required
+            </p>
+            <p className="text-sm text-amber-800 mt-1">
+              You must be approved by the App Admin to Review and approve pending fleet owners
+            </p>
+          </div>
+        </div>
+      )
 
   return (
     <div className="space-y-8">
@@ -254,7 +276,7 @@ export default function FleetOwners() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {doc.status !== "approved" && (
+{doc.status === "pending" && (
                           <>
                             <Button
                               variant="success"
@@ -292,18 +314,22 @@ export default function FleetOwners() {
               >
                 Close
               </Button>
-              {allDocsApproved && (
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    setShowApproveModal(true);
-                    setApprovingFleetOwner(selectedFleetOwner);
-                  }}
-                  disabled={!allDocsApproved}
-                >
-                  Approve Fleet Owner
-                </Button>
-              )}
+{allDocsApproved &&
+  selectedFleetOwner?.fleet_owner?.approval_status !== "approved" && (
+    <Button
+      variant="primary"
+      onClick={() => {
+        setShowApproveModal(true);
+        setApprovingFleetOwner(selectedFleetOwner);
+      }}
+    disabled={!allDocsApproved}
+
+    >
+      Approve Fleet Owner
+    </Button>
+)}
+
+             
             </div>
           </div>
         </div>

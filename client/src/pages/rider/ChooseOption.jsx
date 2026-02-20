@@ -86,7 +86,8 @@ export default function ChooseOption() {
                     }`}
                   >
                     <div className="text-sm font-medium">
-                      {v.vehicle_category}
+                      {v.vehicle_category.charAt(0).toUpperCase() + v.vehicle_category.slice(1)}
+                      {/* {v.vehicle_category} */}
                     </div>
                     <div className="text-sm text-slate-600">
                       ₹{v.base_fare} base + ₹{v.price_per_km}/km

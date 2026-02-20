@@ -92,7 +92,7 @@ def start_shift(
 ):
     now = datetime.now(timezone.utc)
 
-    # 1️⃣ Create shift history with start location
+    #  Create shift history with start location
     shift = DriverShift(
         tenant_id=driver.tenant_id,
         driver_id=driver.driver_id,
@@ -104,7 +104,7 @@ def start_shift(
     )
     db.add(shift)
 
-    # 2️⃣ Update realtime status
+    #  Update realtime status
     current = (
         db.query(DriverCurrentStatus)
         .filter(
@@ -143,7 +143,7 @@ def end_shift(
     now = datetime.now(timezone.utc)
     print(f"end shift payload: latitude={payload.latitude}, longitude={payload.longitude}")
 
-    # 1️⃣ Close active shift
+    # Close active shift
     shift = (
         db.query(DriverShift)
         .filter(
@@ -163,7 +163,7 @@ def end_shift(
             shift.shift_end_lng = payload.longitude
             print(f"✅ End location saved: lat={shift.shift_end_lat}, lng={shift.shift_end_lng}")
 
-    # 2️⃣ Update realtime status
+    #  Update realtime status
     current = (
         db.query(DriverCurrentStatus)
         .filter(
@@ -226,14 +226,14 @@ def update_runtime_status(
     db: Session = Depends(get_db),
     driver=Depends(require_driver),
 ):
-    # 🚫 ENFORCE: on_trip is system-controlled, never user-controlled
+    #  ENFORCE: on_trip is system-controlled, never user-controlled
     if payload.runtime_status == "on_trip":
         raise HTTPException(
             status_code=403,
             detail="Cannot manually set on_trip status. It is automatically managed by the system when trips start."
         )
     
-    # ✅ Only allow: available, unavailable
+    #  Only allow: available, unavailable
     if payload.runtime_status not in ("available", "unavailable"):
         raise HTTPException(
             status_code=400,
@@ -248,7 +248,7 @@ def update_runtime_status(
     if not status:
         raise HTTPException(400, "Driver is offline")
 
-    # 🚫 Cannot change status while on trip
+    # Cannot change status while on trip
     if status.runtime_status == "on_trip":
         raise HTTPException(
             status_code=409,
@@ -325,8 +325,8 @@ def get_trip_requests(
     """
     Get pending trip requests for this driver.
     
-    🔒 STRICT OWNERSHIP: Only return candidates where response_code is None (pending)
-    🚫 Filter out: Already accepted, rejected, or expired trips
+    STRICT OWNERSHIP: Only return candidates where response_code is None (pending)
+     Filter out: Already accepted, rejected, or expired trips
     
     Server-side filtering ensures frontend shows only actionable trips.
     """

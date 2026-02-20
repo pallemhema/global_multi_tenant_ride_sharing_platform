@@ -38,11 +38,10 @@ export default function VehicleAssignments() {
     }
   };
 
-  useEffect(() => {
-    if (vehicles.length && fleetDrivers.length) {
-      loadLocks();
-    }
-  }, [vehicles.length, fleetDrivers.length]);
+useEffect(() => {
+  loadLocks();
+}, [vehicles, fleetDrivers]);
+
 
   /* ================= DERIVED ================= */
 

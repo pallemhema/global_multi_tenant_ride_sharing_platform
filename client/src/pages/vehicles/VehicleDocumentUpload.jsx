@@ -19,8 +19,12 @@ export default function VehicleDocumentUpload({
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const isApproved =
-    existingDoc?.verification_status === 'approved';
+  
+const status = existingDoc?.verification_status;
+const isApproved = status === "approved";
+const isPending = status === "pending";
+const isRejected = status === "rejected";
+
 
   /* ---------------- UPLOAD / UPDATE ---------------- */
   const handleSubmit = async (e) => {
@@ -69,7 +73,7 @@ export default function VehicleDocumentUpload({
   }
 
   /* ---------------- UPLOADED (NOT APPROVED) ---------------- */
-  if (existingDoc && !editing) {
+if (existingDoc && isPending && !editing) {
     return (
       <div className="flex gap-2">
         <Button
@@ -120,13 +124,15 @@ export default function VehicleDocumentUpload({
       className="flex items-center gap-2"
     >
       <input
-        type="file"
-        required
-        onChange={(e) =>
-          setFile(e.target.files?.[0] || null)
-        }
-        className="text-sm"
-      />
+  type="file"
+  required
+  accept="image/*,.pdf"
+  onChange={(e) =>
+    setFile(e.target.files?.[0] || null)
+  }
+  className="text-sm"
+/>
+
 
       <Button
         type="submit"
@@ -134,22 +140,10 @@ export default function VehicleDocumentUpload({
         disabled={loading}
       >
         <Upload size={14} />
-        {existingDoc ? 'Replace' : 'Upload'}
+        {existingDoc ? 'ReUpload' : 'Upload'}
       </Button>
 
-      {existingDoc && (
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          onClick={() => {
-            setEditing(false);
-            setFile(null);
-          }}
-        >
-          Cancel
-        </Button>
-      )}
+     
     </form>
   );
 }

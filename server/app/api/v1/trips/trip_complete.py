@@ -8,8 +8,7 @@ System calculates final fare and initiates payment.
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-from decimal import Decimal
-from pydantic import BaseModel
+
 
 from app.core.dependencies import get_db
 from app.core.security.roles import require_driver
@@ -17,14 +16,13 @@ from app.core.fare.pricing_engine import PricingEngine
 from app.models.core.trips.trips import Trip
 from app.models.core.trips.trip_fare import TripFare
 from app.models.core.trips.trip_status_history import TripStatusHistory
-from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 from app.models.core.drivers.drivers import Driver
 from app.models.core.vehicles.vehicles import Vehicle
-from app.core.ledger.ledger_service import LedgerService
 from app.core.trips.trip_lifecycle import TripLifecycle
 from app.models.core.payments.payments import Payment
 from app.models.lookups.city import City
 from app.models.lookups.country import Country
+from app.models.core.trips.trip_request import TripRequest
 
 from app.schemas.core.trips.trip_complete import TripCompleteRequest, TripCompleteResponse,FareBreakdown
 
@@ -60,10 +58,7 @@ def complete_trip(
     """
     now = datetime.now(timezone.utc)
     
-    # ------------------------------------------------
-    # 1️⃣ Fetch trip (strict validation)
-    # ------------------------------------------------
-    from app.models.core.trips.trip_request import TripRequest
+    # Fetch trip (strict validation)
 
     trip = db.query(Trip).filter(
         Trip.trip_id == trip_id,
@@ -79,18 +74,14 @@ def complete_trip(
             detail="Trip not found or not eligible for completion (must be in 'picked_up' state)"
         )
     
-    # ------------------------------------------------
     # DEBUG: Get estimated values from TripRequest for prefill validation
-    # ------------------------------------------------
     trip_request = None
     if trip.trip_request_id:
         trip_request = db.query(TripRequest).filter(
             TripRequest.trip_request_id == trip.trip_request_id
         ).first()
 
-    # ------------------------------------------------
     # Resolve currency via city -> country
-    # ------------------------------------------------
     city = db.query(City).filter(
         City.city_id == trip.city_id
     ).first()
@@ -114,9 +105,8 @@ def complete_trip(
     currencyCode = country.default_currency
 
     
-    # ------------------------------------------------
-    # 2️⃣ Persist actual distance & duration
-    # ------------------------------------------------
+    #  Persist actual distance & duration
+
     # Store driver-entered values
     trip.distance_km = payload.distance_km
     trip.duration_minutes = payload.duration_minutes
@@ -133,9 +123,7 @@ def complete_trip(
     payerUserId = trip_request.user_id
 
     
-    # ------------------------------------------------
-    # 3️⃣ Resolve vehicle category from database
-    # ------------------------------------------------
+    # Resolve vehicle category from database
     vehicle = db.query(Vehicle).filter(
         Vehicle.vehicle_id == trip.vehicle_id
     ).first()
@@ -146,9 +134,7 @@ def complete_trip(
             detail="Assigned vehicle not found in system"
         )
     
-    # ------------------------------------------------
-    # 4️⃣ Calculate final fare (pricing engine)
-    # ------------------------------------------------
+    # Calculate final fare (pricing engine)
     fare_breakdown = PricingEngine.calculate_fare(
         db=db,
         tenant_id=trip.tenant_id,
@@ -160,9 +146,7 @@ def complete_trip(
         duration_minutes=payload.duration_minutes,
     )
     
-    # ------------------------------------------------
-    # 5️⃣ Persist fare breakdown
-    # ------------------------------------------------
+    #  Persist fare breakdown
     existing_fare = db.query(TripFare).filter(
         TripFare.trip_id == trip_id
     ).first()
@@ -189,9 +173,9 @@ def complete_trip(
     db.add(trip_fare)
     db.flush()
 
-    # ------------------------------------------------
+
     # Create Payment Intent (status=initiated)
-    # ------------------------------------------------
+ 
     payment_intent = Payment(
         trip_id=trip.trip_id,
         tenant_id=trip.tenant_id,
@@ -214,10 +198,9 @@ def complete_trip(
         driver_id=trip.driver_id
     )
     
-   
-    # ------------------------------------------------
-    # 8️⃣ Move trip to payment_pending status
-    # ------------------------------------------------
+
+    # Move trip to payment_pending status
+
     trip.trip_status = "completed"
     trip.completed_at_utc = now
     db.add(trip)

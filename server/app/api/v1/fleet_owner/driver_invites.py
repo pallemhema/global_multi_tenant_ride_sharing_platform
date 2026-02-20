@@ -40,7 +40,7 @@ def list_available_drivers(
     if not approved_vehicle_exists:
         return []
 
-    # ❌ Drivers already active under any fleet
+    #  Drivers already active under any fleet
     active_fleet_membership = (
         db.query(FleetOwnerDriver.driver_id)
         .filter(
@@ -50,7 +50,7 @@ def list_available_drivers(
         .exists()
     )
 
-    # ❌ Drivers with active invites (sent / accepted)
+    #  Drivers with active invites (sent / accepted)
     active_invite = (
         db.query(DriverInvite.driver_id)
         .filter(
@@ -81,7 +81,7 @@ def list_available_drivers(
     )
     print("eligible-drivers:",results)
 
-    # 🎯 Normalize response
+    #  Normalize response
     return [
         {
             "driver_id": driver.driver_id,
@@ -159,39 +159,39 @@ def cancel_driver_invite(
         .first()
     )
 
-    # 1️⃣ Invite must exist
+    #  Invite must exist
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
 
-    # 2️⃣ Already cancelled
+    #  Already cancelled
     if invite.invite_status == "cancelled":
         raise HTTPException(
             status_code=400,
             detail="Invite already cancelled",
         )
 
-    # 3️⃣ Already accepted (cannot cancel)
+    #  Already accepted (cannot cancel)
     if invite.invite_status == "accepted":
         raise HTTPException(
             status_code=400,
             detail="Invite already accepted by driver and cannot be cancelled",
         )
 
-    # 4️⃣ Already rejected
+    # Already rejected
     if invite.invite_status == "rejected":
         raise HTTPException(
             status_code=400,
             detail="Invite already rejected by driver",
         )
 
-    # 5️⃣ Only SENT invites can be cancelled
+    # Only SENT invites can be cancelled
     if invite.invite_status != "sent":
         raise HTTPException(
             status_code=400,
             detail=f"Invite cannot be cancelled in '{invite.invite_status}' state",
         )
 
-    # ✅ Cancel invite (AUDIT SAFE)
+    # Cancel invite (AUDIT SAFE)
     invite.invite_status = "cancelled"
     invite.cancelled_at_utc = datetime.now(timezone.utc)
     invite.cancelled_by = fleet_owner.user_id

@@ -17,9 +17,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
   const location = useLocation();
 
   const isActive = (path) => {
-    // if (path === "/dashboard") {
-    //   return location.pathname === "/dashboard";
-    // }
     return (
       location.pathname === path 
     );

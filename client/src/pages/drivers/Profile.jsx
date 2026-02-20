@@ -1,35 +1,17 @@
-import { useEffect, useState } from "react";
+
 import { AlertCircle } from "lucide-react";
 import Loader from "../../components/common/Loader";
-import { driverApi } from "../../services/driverApi";
+
 import UserProfile from "../auth/UserProfile";
 import SwitchRole from "../../components/SwitchRole";
+import { useDriver } from "../../context/DriverContext";
 
 export default function DriverProfile() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [driverProfile, setDriverProfile] = useState(null);
+ 
+  const {loading,
+      error,
+      driverProfile,} = useDriver()
 
-  /* --------------------------------
-     FETCH DRIVER PROFILE (READ ONLY)
-  --------------------------------- */
-  useEffect(() => {
-    const fetchDriverProfile = async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const data = await driverApi.getDriverProfile();
-        setDriverProfile(data);
-      } catch (err) {
-        setError(err.response?.data?.detail || "Failed to load driver profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDriverProfile();
-  }, []);
 
   if (loading) return <Loader />;
 
@@ -44,11 +26,10 @@ export default function DriverProfile() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Driver Profile</h1>
+      <h1 className="text-3xl font-bold">Your Details</h1>
 
       {/* DRIVER INFO (from getDriverProfile) */}
       <div className="bg-white border rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-2">Driver Details</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <p>

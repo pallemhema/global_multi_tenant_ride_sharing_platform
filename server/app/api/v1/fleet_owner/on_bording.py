@@ -3,109 +3,53 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.core.dependencies import get_db
-from app.core.security.roles import get_or_create_fleet_owner, ensure_user_can_be_fleet_owner
-from app.core.security.jwt import verify_access_token
-
-from app.models.core.tenants.tenants import Tenant
+from app.core.security.roles import get_or_create_fleet_owner, require_fleet_owner
 from app.models.core.fleet_owners.fleet_owners import FleetOwner
+from app.models.core.tenants.tenants import Tenant
+from app.models.core.tenants.tenant_countries import TenantCountry
+from app.models.core.tenants.tenant_cities import TenantCity
+from app.models.lookups.city import City
+
+from app.schemas.core.drivers.onboarding import (
+    SelectTenantSchema,
+    SelectLocationSchema,
+)
+
+from app.core.onboarding.engine import (
+    block_if_completed,
+    enforce_transition,
+    build_location_tree,
+)
+
+from app.core.onboarding.fleet_flow import (
+    FleetOnboardingStatus,
+    FLEET_ONBOARDING_FLOW,
+)
 
 
+router = APIRouter(
 
-
-class SelectTenantPayload(BaseModel):
-    tenant_id: int
+    tags=["Fleet Owner – Onboarding"],
+)
 
 
 class FleetDetailsPayload(BaseModel):
     business_name: str
     contact_email: str | None = None
 
-router = APIRouter(
-    tags=["Fleet Owner – Onboarding"],
-)
 
-
-
-@router.post("/register", status_code=status.HTTP_201_CREATED)
-def register_fleet_owner(
-    db: Session = Depends(get_db),
-    user: dict = Depends(verify_access_token),
-):
-    """
-    FIRST STEP: Register as Fleet Owner
-    When user clicks "Fleet Registration" button, check if they're eligible.
-    - If user is already a driver or tenant staff: REJECT
-    - If user is new: Create/return fleet with onboarding_status='draft'
-    
-    This endpoint has stricter checks than get_or_create_fleet_owner
-    because it's the explicit registration action.
-    """
-    user_id = int(user.get("sub"))
-    
-    # Check if user can be a fleet owner (not already driver/tenant staff)
-    ensure_user_can_be_fleet_owner(db, user_id)
-    
-    # Get or create fleet owner
-    fleet_owner = get_or_create_fleet_owner(
-        db=db,
-        user=user
-    )
-    
-    return {
-        "status": "registration_created",
-        "fleet_owner_id": fleet_owner.fleet_owner_id,
-        "onboarding_status": fleet_owner.onboarding_status,
-        "next_step": "select_tenant",
-    }
-
+# =========================================================
+# SELECT TENANT
+# =========================================================
 
 @router.post("/select-tenant", status_code=status.HTTP_200_OK)
-def select_tenant_for_fleet_owner(
-    payload: SelectTenantPayload,
+def select_tenant(
+    payload: SelectTenantSchema,
     db: Session = Depends(get_db),
     fleet_owner: FleetOwner = Depends(get_or_create_fleet_owner),
 ):
-    """
-    SECOND STEP:
-    User selects a tenant to join as fleet owner.
-    Validates and locks the tenant permanently.
-    
-    If tenant is already selected during draft/pending onboarding,
-    just returns the existing selection.
-    """
-    # Refresh to get latest data
-    db.refresh(fleet_owner)
-    
-    # Check if onboarding already completed
-    if fleet_owner.onboarding_status == "completed":
-        raise HTTPException(
-            status_code=403,
-            detail="Fleet owner onboarding already completed. Tenant cannot be changed."
-        )
+    block_if_completed(fleet_owner.onboarding_status, FLEET_ONBOARDING_FLOW)
 
-    # Check if tenant already selected (during draft/pending, just return it)
-    if fleet_owner.tenant_id:
-        # If same tenant being selected again, that's fine - just return success
-        if fleet_owner.tenant_id == payload.tenant_id:
-            return {
-                "status": "tenant_already_selected",
-                "fleet_owner_id": fleet_owner.fleet_owner_id,
-                "tenant_id": fleet_owner.tenant_id,
-                "next_step": "fill_details",
-            }
-        # If trying to change tenant during draft, reject it
-        elif fleet_owner.onboarding_status in ["draft", "pending"]:
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot change tenant once selected. Please complete onboarding or contact support."
-            )
-        else:
-            raise HTTPException(
-                status_code=403,
-                detail="Tenant already selected. Cannot change."
-            )
-
-    # 1️⃣ Validate tenant exists and is active
     tenant = (
         db.query(Tenant)
         .filter(
@@ -117,77 +61,144 @@ def select_tenant_for_fleet_owner(
     )
 
     if not tenant:
-        raise HTTPException(
-            status_code=400,
-            detail="Tenant is not active or not approved",
-        )
+        raise HTTPException(404, "Tenant not found or inactive")
 
-    # 2️⃣ Update FleetOwner with tenant
-    fleet_owner.tenant_id = payload.tenant_id
-    db.add(fleet_owner)
+    enforce_transition(
+        fleet_owner.onboarding_status,
+        FleetOnboardingStatus.TENANT_SELECTED,
+        FLEET_ONBOARDING_FLOW
+    )
+
+    fleet_owner.tenant_id = tenant.tenant_id
+    fleet_owner.onboarding_status = FleetOnboardingStatus.TENANT_SELECTED
+
     db.commit()
     db.refresh(fleet_owner)
 
     return {
-        "status": "tenant_selected",
+        "ok": True,
         "fleet_owner_id": fleet_owner.fleet_owner_id,
         "tenant_id": fleet_owner.tenant_id,
-        "next_step": "fill_details",
+        "onboarding_status": fleet_owner.onboarding_status,
+        "countries": build_location_tree(db, tenant.tenant_id),
+    }
+
+@router.get("/tenant-locations")
+def get_tenant_locations(
+    db: Session = Depends(get_db),
+    fleet_owner: FleetOwner = Depends(get_or_create_fleet_owner),
+):
+    """
+    Returns tenant countries + cities.
+    Used for onboarding resume.
+    Does NOT modify onboarding state.
+    """
+
+    if not fleet_owner.tenant_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Driver has not selected a tenant yet."
+        )
+
+    location_tree = build_location_tree(db, fleet_owner.tenant_id)
+
+    return {
+        "tenant_id": fleet_owner.tenant_id,
+        "countries": location_tree
+    }
+
+# =========================================================
+# SELECT LOCATION
+# =========================================================
+
+@router.post("/select-location")
+def select_location(
+    payload: SelectLocationSchema,
+    db: Session = Depends(get_db),
+    fleet_owner: FleetOwner = Depends(get_or_create_fleet_owner),
+):
+    block_if_completed(fleet_owner.onboarding_status, FLEET_ONBOARDING_FLOW)
+
+    if not fleet_owner.tenant_id:
+        raise HTTPException(400, "Tenant must be selected first.")
+
+    enforce_transition(
+        fleet_owner.onboarding_status,
+        FleetOnboardingStatus.LOCATION_SELECTED,
+        FLEET_ONBOARDING_FLOW
+    )
+
+    fleet_owner.country_id = payload.country_id
+    fleet_owner.city_id = payload.city_id
+    fleet_owner.onboarding_status = FleetOnboardingStatus.LOCATION_SELECTED
+
+    db.commit()
+    db.refresh(fleet_owner)
+
+    return {
+        "ok": True,
+        "fleet_owner_id": fleet_owner.fleet_owner_id,
+        "onboarding_status": fleet_owner.onboarding_status,
     }
 
 
-@router.post("/upload-fleet-details", status_code=status.HTTP_200_OK)
+# =========================================================
+# FILL FLEET DETAILS
+# =========================================================
+
+@router.post("/upload-fleet-details")
 def fill_fleet_details(
     payload: FleetDetailsPayload,
     db: Session = Depends(get_db),
     fleet_owner: FleetOwner = Depends(get_or_create_fleet_owner),
 ):
-    """
-    THIRD STEP:
-    User fills in fleet business details.
-    Updates business_name and contact_email.
-    """
-    # Validate tenant is selected
-    if not fleet_owner.tenant_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Please select a tenant first",
-        )
+    block_if_completed(fleet_owner.onboarding_status, FLEET_ONBOARDING_FLOW)
 
-    # Update fleet details
+    enforce_transition(
+        fleet_owner.onboarding_status,
+        FleetOnboardingStatus.DETAILS_FILLED,
+        FLEET_ONBOARDING_FLOW
+    )
+
     fleet_owner.business_name = payload.business_name
     fleet_owner.contact_email = payload.contact_email
-    db.add(fleet_owner)
+    fleet_owner.onboarding_status = FleetOnboardingStatus.DETAILS_FILLED
+
     db.commit()
     db.refresh(fleet_owner)
 
     return {
-        "status": "details_saved",
+        "ok": True,
         "fleet_owner_id": fleet_owner.fleet_owner_id,
-        "business_name": fleet_owner.business_name,
-        "contact_email": fleet_owner.contact_email,
         "onboarding_status": fleet_owner.onboarding_status,
-        "next_step": "upload_documents",
     }
 
 
-# @router.get("/status", status_code=status.HTTP_200_OK)
-# def get_fleet_onboarding_status(
-#     db: Session = Depends(get_db),
-#     fleet_owner: FleetOwner = Depends(get_or_create_fleet_owner),
-# ):
-#     """
-#     Get current onboarding status and details.
-#     """
-#     print(fleet_owner)
-#     return {
-#         "fleet_owner_id": fleet_owner.fleet_owner_id,
-#         "business_name": fleet_owner.business_name,
-#         "contact_email": fleet_owner.contact_email,
-#         "tenant_id": fleet_owner.tenant_id,
-#         "onboarding_status": fleet_owner.onboarding_status,
-#         "approval_status": fleet_owner.approval_status,
-#         "is_active": fleet_owner.is_active,
-#     }
+# =========================================================
+# SUBMIT DOCUMENTS (COMPLETE)
+# =========================================================
 
+@router.post("/submit-documents")
+def submit_documents(
+    db: Session = Depends(get_db),
+    fleet_owner: FleetOwner = Depends(get_or_create_fleet_owner),
+):
+    block_if_completed(fleet_owner.onboarding_status, FLEET_ONBOARDING_FLOW)
 
+    enforce_transition(
+        fleet_owner.onboarding_status,
+        FleetOnboardingStatus.COMPLETED,
+        FLEET_ONBOARDING_FLOW
+    )
+
+    fleet_owner.onboarding_status = FleetOnboardingStatus.COMPLETED
+
+    db.commit()
+    db.refresh(fleet_owner)
+
+    return {
+        "ok": True,
+        "fleet_owner_id": fleet_owner.fleet_owner_id,
+        "onboarding_status": fleet_owner.onboarding_status,
+        "message": "Fleet onboarding completed successfully.",
+    }

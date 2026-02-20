@@ -3,7 +3,7 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Ride Platform Backend"
+    APP_NAME: str = "Ride Share Platform Backend"
     ENV: str = "dev"
 
     # Database

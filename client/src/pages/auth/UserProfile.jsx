@@ -62,7 +62,7 @@ export default function UserProfile() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">User Profile</h1>
+      <h1 className="text-2xl font-bold">Your Profile</h1>
 
       {error && (
         <div className="bg-red-50 border p-3 rounded flex gap-2">

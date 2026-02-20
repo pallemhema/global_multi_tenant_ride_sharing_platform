@@ -14,7 +14,7 @@ from app.models.mixins import TimestampMixin, AuditMixin
 class TenantStaff(Base, TimestampMixin, AuditMixin):
     __tablename__ = "tenant_staff"
 
-    # 🔑 Composite Primary Key (NO autoincrement)
+    #  Composite Primary Key (NO autoincrement)
     tenant_id: Mapped[int] = mapped_column(
         BigInteger,
         ForeignKey("tenants.tenant_id", ondelete="CASCADE"),
@@ -41,7 +41,7 @@ class TenantStaff(Base, TimestampMixin, AuditMixin):
         server_default="active",
     )
 
-    # ✅ Let Postgres handle the default
+    #  Let Postgres handle the default
     joined_at_utc: Mapped[object] = mapped_column(
         TIMESTAMP(timezone=True),
         nullable=False,

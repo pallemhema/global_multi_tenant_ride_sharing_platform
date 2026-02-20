@@ -28,7 +28,7 @@ def update_driver_location(
 ):
     now = datetime.now(timezone.utc)
 
-    # 1️⃣ Online shift required
+    #  Online shift required
     shift = (
         db.query(DriverShift)
         .filter(
@@ -53,7 +53,7 @@ def update_driver_location(
         if not vehicles:
             raise HTTPException(400, "No vehicles found")
     else:
-        # 2️⃣ Active vehicle required
+        # Active vehicle required
         assignment = (
             db.query(DriverVehicleAssignment)
             .filter(
@@ -68,7 +68,7 @@ def update_driver_location(
     tenant_id = driver.tenant_id
     city_id = shift.city_id
 
-    # 3️⃣ Update GEO location
+    #  Update GEO location
     geo_key = f"drivers:geo:{tenant_id}:{city_id}"
     redis_client.geoadd(
         geo_key,
@@ -77,14 +77,14 @@ def update_driver_location(
         str(driver.driver_id),
     )
 
-    # 4️⃣ Heartbeat
+    #  Heartbeat
     redis_client.setex(
         f"driver:last_seen:{driver.driver_id}",
         60,
         now.isoformat(),
     )
 
-    # 5️⃣ Runtime status (DB → Redis)
+    #  Runtime status (DB → Redis)
     runtime = (
         db.query(DriverCurrentStatus)
         .filter(

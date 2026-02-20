@@ -136,18 +136,20 @@ def pay_single_payout(
     # -------------------------
     # Batch completion check
     # -------------------------
-    remaining = (
-        db.query(Payout)
-        .filter(
-            Payout.payout_batch_id == batch_id,
-            Payout.status != "paid",
+    remaining_exists = (
+            db.query(Payout)
+            .filter(
+                Payout.payout_batch_id == batch_id,
+                Payout.status != "paid",
+            )
+            .first()
         )
-        .count()
-    )
 
-    if remaining == 0:
+    if not remaining_exists:
         batch.status = "completed"
         batch.processed_at_utc = now
+
+
 
     db.commit()
 
@@ -168,7 +170,7 @@ def execute_payout_batch(
     now = datetime.now(timezone.utc)
 
     # --------------------------------------------------
-    # 1️⃣ Lock payout batch
+    #  Lock payout batch
     # --------------------------------------------------
     batch = (
         db.query(PayoutBatch)
@@ -187,7 +189,7 @@ def execute_payout_batch(
         )
 
     # --------------------------------------------------
-    # 2️⃣ Idempotency check (CRITICAL)
+    # idempotency check (CRITICAL)
     # --------------------------------------------------
     if batch.execution_idempotency_key == payload.execution_idempotency_key:
         return {
@@ -208,7 +210,7 @@ def execute_payout_batch(
     db.commit()
 
     # --------------------------------------------------
-    # 3️⃣ Fetch pending payouts
+    # Fetch pending payouts
     # --------------------------------------------------
     payouts = (
         db.query(Payout)
@@ -223,7 +225,7 @@ def execute_payout_batch(
     failed = 0
 
     # --------------------------------------------------
-    # 4️⃣ Process payouts one-by-one (ISOLATED)
+    #  Process payouts one-by-one (ISOLATED)
     # --------------------------------------------------
     for payout in payouts:
         try:
@@ -319,7 +321,7 @@ def execute_payout_batch(
             db.commit()
 
     # --------------------------------------------------
-    # 5️⃣ Finalize batch
+    # Finalize batch
     # --------------------------------------------------
     batch.status = "completed" if failed == 0 else "partial"
     batch.processed_at_utc = now

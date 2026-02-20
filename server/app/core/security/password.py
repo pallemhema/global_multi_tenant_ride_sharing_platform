@@ -13,4 +13,4 @@ def verify_password(plain: str, hashed: str) -> bool:
         hashed.encode("utf-8"),
     )
 
-print(hash_password("Admin@123"))
+

@@ -32,7 +32,7 @@ def require_rider(
     if not rider:
         raise HTTPException(403, "Rider not active")
 
-    return rider   # ✅ ORM User object
+    return rider
 
 
 
@@ -58,7 +58,7 @@ def require_driver(
     if not driver:
         raise HTTPException(403, "Driver record not found. Please select a tenant first.")
 
-    return driver   # ✅ ORM object - works even if pending/inactive
+    return driver   # ORM object - works even if pending/inactive
 
 def ensure_user_can_be_driver(db: Session, user_id: int):
     if db.query(FleetOwner).filter(FleetOwner.user_id == user_id).first():
@@ -155,6 +155,7 @@ def get_or_create_fleet_owner(
     """
     user_id = int(user.get("sub"))
     print("found fleet user :", user_id)
+    ensure_user_can_be_fleet_owner(db, user_id)  
     
     # Try to get existing fleet owner with FOR UPDATE lock to prevent race conditions
     fleet_owner = (
@@ -169,7 +170,7 @@ def get_or_create_fleet_owner(
         fleet_owner = FleetOwner(
             user_id=user_id,
             business_name="",  # Empty string - will be filled during onboarding
-            onboarding_status="draft",
+            onboarding_status="not_started",
         )
         db.add(fleet_owner)
         db.commit()
@@ -178,9 +179,6 @@ def get_or_create_fleet_owner(
     print("fleet user fleet id:",fleet_owner.fleet_owner_id)
     return fleet_owner
     
-
-
-
 
 def require_tenant_admin(
     user: dict = Depends(verify_access_token),

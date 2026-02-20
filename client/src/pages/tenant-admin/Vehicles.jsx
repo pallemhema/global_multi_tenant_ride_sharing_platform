@@ -31,6 +31,7 @@ const OwnerBadge = ({ type }) => (
 
 export default function Vehicles() {
   const {
+    tenant,
     vehicles,
     loading,
     error: contextError,
@@ -54,6 +55,8 @@ export default function Vehicles() {
 
   const [showApprovedDriver, setShowApprovedDriver] = useState(false);
   const [showApprovedFleet, setShowApprovedFleet] = useState(false);
+
+  const isApprovedTenant = tenant?.approval_status=='approved';
 
   /* ---------------- Fetch vehicles on mount ---------------- */
   useEffect(() => {
@@ -191,13 +194,38 @@ export default function Vehicles() {
       setShowApproveModal(false);
       setShowDocsModal(false);
     } catch (err) {
-      setError("Failed to approve vehicle");
-    } finally {
+  const backendError = err?.response?.data?.detail;
+
+  if (backendError?.missing_documents) {
+    setError(
+      `${backendError.message}: ${backendError.missing_documents.join(", ")}`
+    );
+    alert( `${backendError.message}: ${backendError.missing_documents.join(", ")}`)
+  } else if (backendError?.message) {
+    setError(backendError.message);
+    alert(backendError.message)
+  } else {
+    setError("Failed to approve vehicle");
+  }
+} finally {
       setApproving(false);
     }
   };
 
   if (loading) return <Loader />;
+       if(!isApprovedTenant) return (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+          <AlertCircle className="text-amber-600 flex-shrink-0" size={20} />
+          <div>
+            <p className="font-semibold text-amber-900">
+             Approval Required
+            </p>
+            <p className="text-sm text-amber-800 mt-1">
+              You must be approved by the App Admin to Review and approve pending vehicles
+            </p>
+          </div>
+        </div>
+      )
 
   /* ======================= RENDER ======================= */
   return (
@@ -263,7 +291,8 @@ export default function Vehicles() {
                       </Button>
                     </a>
 
-                    {doc.verification_status !== "approved" && (
+                    {doc.verification_status === "pending" && (
+
                       <>
                         <Button
                           variant="success"

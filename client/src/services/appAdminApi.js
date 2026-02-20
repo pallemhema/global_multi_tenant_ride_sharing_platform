@@ -40,13 +40,13 @@ export const appAdminAPI = {
 
   approveDocument: (tenantId, docId) => {
     return apiClient.post(
-      `/app-admin/tenants/${tenantId}/documents/${docId}/verify`
+      `/app-admin/tenants/${tenantId}/documents/${docId}/approve`
     );
   },
 
   rejectDocument: (tenantId, docId) => {
     return apiClient.post(
-      `/app-admin/tenants/${tenantId}/documents/${docId}/verify`
+      `/app-admin/tenants/${tenantId}/documents/${docId}/reject`
     );
   },
 

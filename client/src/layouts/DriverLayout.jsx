@@ -52,7 +52,7 @@ export default function DriverLayout() {
       icon: FileText,
     },
 
-    // ✅ Individual drivers only
+
     ...(driverType === "individual"
       ? [
           {
@@ -63,7 +63,7 @@ export default function DriverLayout() {
         ]
       : []),
 
-    // ✅ Fleet drivers only
+   
     ...(driverType === "fleet_driver"
       ? [
          {

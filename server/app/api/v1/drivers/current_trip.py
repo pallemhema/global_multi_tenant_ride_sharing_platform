@@ -19,7 +19,7 @@ def get_driver_active_trip(
     """
     Get the active trip for this driver.
     
-    🔒 STRICT OWNERSHIP: Only return if:
+     STRICT OWNERSHIP: Only return if:
     - Trip belongs to authenticated driver (driver.driver_id === trip.driver_id)
     - Trip is not completed
     
@@ -27,7 +27,7 @@ def get_driver_active_trip(
     """
     print(f"[Active Trip] Fetching for driver_id={driver.driver_id}")
     
-    # 🔒 Strict filter: Only this driver's active trips
+    #  Strict filter: Only this driver's active trips
     trip = (
         db.query(Trip)
         .filter(

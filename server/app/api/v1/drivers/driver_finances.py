@@ -78,7 +78,7 @@ def get_driver_wallet(
             # Return zero balance if wallet doesn't exist yet
             return {
                 "balance": 0.00,
-                "currency_code": wallet.currency_code if wallet else "USD",
+                "currency_code": wallet.currency_code if wallet else "",
                 "owner_type": "individual",
                 "is_offline_debt": False,
                 "last_updated_utc": None,
@@ -86,7 +86,7 @@ def get_driver_wallet(
         
         return {
             "balance": float(wallet.balance),
-            "currency_code": wallet.currency_code if wallet else "USD",
+            "currency_code": wallet.currency_code if wallet else "",
             "owner_type": wallet.owner_type if wallet else "individual",
             "is_offline_debt": float(wallet.balance) < 0 if wallet else False,
             "last_updated_utc": wallet.last_updated_utc.isoformat() if wallet and wallet.last_updated_utc else None,

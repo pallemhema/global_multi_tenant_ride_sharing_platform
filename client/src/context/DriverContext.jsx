@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { useUserAuth } from "./UserAuthContext";
 import { driverApi } from "../services/driverApi";
 
+
 const DriverContext = createContext(null);
 
 export const DriverProvider = ({ children }) => {
@@ -35,11 +36,13 @@ export const DriverProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+   const [driverProfile, setDriverProfile] = useState(null);
+
   /* =====================================================
      RESET ON AUTH CHANGE
   ===================================================== */
 
-useEffect(() => { // 🔥 HARD RESET on auth change 
+useEffect(() => { 
   setDriver(null); 
   setDocuments([]); 
   setActiveShift(null); 
@@ -89,7 +92,7 @@ useEffect(() => { // 🔥 HARD RESET on auth change
       await refreshWallet();
       await loadPendingPayment();
 
-      // 🔥 Resume onboarding data
+      // Resume onboarding data
       if (
         nextDriver.onboarding_status === "tenant_selected" ||
         nextDriver.onboarding_status === "location_selected"
@@ -367,7 +370,7 @@ useEffect(() => { // 🔥 HARD RESET on auth change
     loadFleetInvites();
     loadAssignedVehicle();
   } else {
-    // 🚫 Not a fleet driver → hard reset
+    // Not a fleet driver → hard reset
     setInvites([]);
     setAssignedVehicle([]);
   }
@@ -422,6 +425,27 @@ useEffect(() => { // 🔥 HARD RESET on auth change
     );
   }, [driver, activeShift, assignedVehicle, vehicleSummary]);
 
+   
+
+ 
+  useEffect(() => {
+    const fetchDriverProfile = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const data = await driverApi.getDriverProfile();
+        setDriverProfile(data);
+      } catch (err) {
+        setError(err.response?.data?.detail || "Failed to load driver profile");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDriverProfile();
+  }, []);
+
   /* =====================================================
      CONTEXT VALUE
   ===================================================== */
@@ -432,6 +456,7 @@ useEffect(() => { // 🔥 HARD RESET on auth change
       driverId,
       loading,
       error,
+      driverProfile,
 
       tenantLocations,
       documents,
@@ -485,6 +510,7 @@ useEffect(() => { // 🔥 HARD RESET on auth change
       loading,
       error,
       tenantLocations,
+      driverProfile,
       documents,
       activeShift,
       runtimeStatus,

@@ -54,7 +54,7 @@ def get_fleet_wallet(
             # Return zero balance if wallet doesn't exist yet
             return {
                 "balance": 0.00,
-                "currency_code": wallet.currency_code if wallet else "USD",
+                "currency_code": wallet.currency_code if wallet else "",
                 "owner_type": "fleet",
                 "is_offline_debt": False,
                 "last_updated_utc": None,

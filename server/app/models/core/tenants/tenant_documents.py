@@ -32,7 +32,7 @@ class TenantDocument(Base, TimestampMixin, AuditMixin):
 
     document_number = mapped_column(String)
     document_url: Mapped[str] = mapped_column(String, nullable=False)
-    expiry_date: Mapped[date | None] = mapped_column(Date)  # ✅ ADD THIS
+    expiry_date: Mapped[date | None] = mapped_column(Date)
 
 
     verification_status: Mapped[str] = mapped_column(

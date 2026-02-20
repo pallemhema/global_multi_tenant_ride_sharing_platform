@@ -113,11 +113,11 @@ def modify_surge_event(
     if not existing:
         raise HTTPException(404, "Active surge not found")
 
-    # 1️⃣ End old surge
+    #  End old surge
     existing.is_active = False
     existing.ended_at_utc = datetime.utcnow()
 
-    # 2️⃣ Create new surge row
+    #  Create new surge row
     new_surge = SurgePricingEvent(
         tenant_id=existing.tenant_id,
         country_id=existing.country_id,

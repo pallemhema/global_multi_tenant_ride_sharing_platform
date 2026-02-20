@@ -7,23 +7,20 @@ from app.core.redis import check_redis_connection
 from contextlib import asynccontextmanager
 
 from fastapi.middleware.cors import CORSMiddleware
-
 from fastapi.staticfiles import StaticFiles
-
-
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 🔹 Startup logic
+    #  Startup logic
     if not check_redis_connection():
         raise RuntimeError("Redis is not reachable")
 
     print("Redis connected")
 
-    yield  # <-- app runs while paused here
+    yield 
 
-    # 🔹 Shutdown logic (optional)
+    #  Shutdown logic (optional)
     print("Application shutting down")
 
 app = FastAPI(

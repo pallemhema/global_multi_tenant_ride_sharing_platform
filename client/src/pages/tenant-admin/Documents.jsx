@@ -63,12 +63,8 @@ export default function Documents() {
       data.append("expiry_date", formData.expiryDate);
       data.append("file", formData.file);
 
-      await uploadDocument(
-        formData.documentType,
-        formData.documentNumber,
-        formData.expiryDate,
-        formData.file,
-      );
+      await uploadDocument(data);
+
       setFormData({
         documentType: "",
         documentNumber: "",
@@ -113,12 +109,17 @@ export default function Documents() {
       setUploading(true);
       setError("");
 
-      await updateDocument(
-        editingDoc.tenant_document_id,
-        formData.documentNumber,
-        formData.expiryDate,
-        formData.file,
-      );
+      const data = new FormData();
+
+      data.append("document_number", formData.documentNumber);
+      data.append("expiry_date", formData.expiryDate);
+
+      if (formData.file) {
+        data.append("file", formData.file);
+      }
+
+      await updateDocument(editingDoc.tenant_document_id, data);
+
 
       setShowEditForm(false);
       setEditingDoc(null);
@@ -300,6 +301,7 @@ export default function Documents() {
                 <input
                   type="text"
                   value={formData.documentNumber}
+                 
                   onChange={(e) =>
                     setFormData({
                       ...formData,

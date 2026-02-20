@@ -40,7 +40,7 @@ class PaymentConfirmationService:
             raise HTTPException(404, "Trip not found")
 
         # =====================================================
-        # 2️⃣ Load & Lock Payment
+        #  Load & Lock Payment
         # =====================================================
         payment = (
             db.query(Payment)
@@ -56,7 +56,7 @@ class PaymentConfirmationService:
             raise HTTPException(400, "Payment already confirmed")
 
         # =====================================================
-        # 3️⃣ Load Geography & Tenant
+        #  Load Geography & Tenant
         # =====================================================
         city = db.get(City, trip.city_id)
         if not city:
@@ -79,7 +79,7 @@ class PaymentConfirmationService:
             raise HTTPException(400, "Invalid payment currency for country")
 
         # =====================================================
-        # 4️⃣ Commission Split (Simplified MVP Example)
+        #  Commission Split (Simplified MVP Example)
         # =====================================================
         total_amount = Decimal(payment.amount)
 
@@ -94,8 +94,8 @@ class PaymentConfirmationService:
         platform_net = platform_net.quantize(Decimal("0.01"))
         platform_tax = platform_tax.quantize(Decimal("0.01"))
 
-        # =====================================================
-        # 5️⃣ Convert Tenant Only (MODEL B)
+        # ====================================================
+        #  Convert Tenant Only (
         # =====================================================
         tenant_converted = tenant_amount
         fx_rate = None
@@ -109,7 +109,7 @@ class PaymentConfirmationService:
             )
 
         # =====================================================
-        # 6️⃣ Update Payment Status
+        #  Update Payment Status
         # =====================================================
         payment.payment_status = "successful"
         payment.payment_method = payment_method
@@ -118,7 +118,7 @@ class PaymentConfirmationService:
         db.flush()
 
         # =====================================================
-        # 7️⃣ Insert Ledger CREDIT Entries
+        #  Insert Ledger CREDIT Entries
         # =====================================================
         ledger_rows = [
 
@@ -190,7 +190,7 @@ class PaymentConfirmationService:
         db.flush()
 
         # =====================================================
-        # 8️⃣ Update Owner Wallet
+        #  Update Owner Wallet
         # =====================================================
         owner_wallet = (
             db.query(OwnerWallet)
@@ -218,7 +218,7 @@ class PaymentConfirmationService:
         owner_wallet.last_updated_utc = now
 
         # =====================================================
-        # 9️⃣ Update Tenant Wallet
+        #  Update Tenant Wallet
         # =====================================================
         tenant_wallet = (
             db.query(TenantWallet)
@@ -242,9 +242,7 @@ class PaymentConfirmationService:
         tenant_wallet.balance += tenant_converted
         tenant_wallet.last_updated_utc = now
 
-        # =====================================================
-        # 🔟 Commit Atomic Transaction
-        # =====================================================
+    
         db.commit()
 
         return {

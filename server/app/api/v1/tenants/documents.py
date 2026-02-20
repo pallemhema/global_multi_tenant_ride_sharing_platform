@@ -9,12 +9,13 @@ from app.models.core.tenants.tenant_documents import TenantDocument
 from app.models.lookups.tenant_Fleet_document_types import TenantFleetDocumentType
 from app.schemas.core.tenants.tenant_documents import TenantDocumentOut
 from app.core.utils.document_paths import build_document_paths
+import os
 
 router = APIRouter(
     tags=["Tenant Admin – Documents"],
 )
 
-# � Get available document types
+#  Get available document types
 @router.get("/{tenant_id}/document-types")
 def get_document_types(
     tenant_id: int,
@@ -27,7 +28,7 @@ def get_document_types(
         .all()
     )
 
-# �📄 Upload tenant document (LOCAL STORAGE)
+# Upload tenant document (LOCAL STORAGE)
 @router.post(
     "/{tenant_id}/documents",
     response_model=TenantDocumentOut,
@@ -41,11 +42,11 @@ def upload_tenant_document(
     db: Session = Depends(get_db),
     user: dict = Depends(require_tenant_admin),
 ):
-    # 🔐 Enforce tenant boundary
+    # Enforce tenant boundary
     if user["tenant_id"] != tenant_id:
         raise HTTPException(403, "Access denied for this tenant")
 
-    # 🔁 Prevent duplicate document type
+    #Prevent duplicate document type
     exists = (
         db.query(TenantDocument)
         .filter(
@@ -90,7 +91,7 @@ def upload_tenant_document(
     return doc
 
 
-# 📋 List tenant documents
+#List tenant documents
 @router.get(
     "/{tenant_id}/documents",
     response_model=list[TenantDocumentOut],
@@ -107,7 +108,7 @@ def list_tenant_documents(
     )
 
 
-# 🔁 Re-upload tenant document (only if not approved)
+#Re-upload tenant document (only if not approved)
 @router.put(
     "/{tenant_id}/documents/{doc_id}",
     response_model=TenantDocumentOut,
@@ -121,7 +122,7 @@ def update_tenant_document(
     db: Session = Depends(get_db),
     user: dict = Depends(require_tenant_admin),
 ):
-    # 🔐 Enforce tenant scope
+    #Enforce tenant scope
     if user["tenant_id"] != tenant_id:
         raise HTTPException(403, "Cross-tenant access denied")
 
@@ -133,7 +134,7 @@ def update_tenant_document(
     if doc.verification_status == "approved":
         raise HTTPException(400, "Approved document cannot be modified")
 
-    # 🔁 Replace file if provided
+    #Replace file if provided
     if file:
         if not file.filename:
             raise HTTPException(400, "Invalid file")
@@ -153,7 +154,7 @@ def update_tenant_document(
 
         doc.document_url = paths["relative_path"]
 
-    # 🔄 Update metadata
+    # Update metadata
     doc.document_number = document_number
     doc.expiry_date = expiry_date
     doc.verification_status = "pending"
@@ -164,3 +165,47 @@ def update_tenant_document(
     db.refresh(doc)
 
     return doc
+
+
+
+@router.delete(
+    "/{tenant_id}/documents/{doc_id}",
+    status_code=204,
+)
+def delete_tenant_document(
+    tenant_id: int,
+    doc_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(require_tenant_admin),
+):
+    # 🔐 Enforce tenant boundary
+    if user["tenant_id"] != tenant_id:
+        raise HTTPException(status_code=403, detail="Cross-tenant access denied")
+
+    # 📄 Fetch document
+    doc = db.get(TenantDocument, doc_id)
+
+    if not doc or doc.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # 🚫 Prevent deleting approved documents (optional safety rule)
+    if doc.verification_status == "approved":
+        raise HTTPException(
+            status_code=400,
+            detail="Approved document cannot be deleted"
+        )
+
+    # 🗂️ Delete physical file if exists
+    try:
+        absolute_path = os.path.join("uploads", doc.document_url.lstrip("/"))
+        if os.path.exists(absolute_path):
+            os.remove(absolute_path)
+    except Exception:
+        # We don’t block DB delete if file missing
+        pass
+
+    # 🗃️ Delete DB record
+    db.delete(doc)
+    db.commit()
+
+    return

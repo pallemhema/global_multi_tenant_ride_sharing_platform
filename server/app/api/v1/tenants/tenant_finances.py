@@ -49,7 +49,7 @@ def get_tenant_wallet(
         if not wallet:
             return {
                 "balance": 0.00,
-                "currency_code": "USD",
+                "currency_code": "",
                 "is_debt": False,
                 "last_updated_utc": None,
             }
@@ -58,7 +58,6 @@ def get_tenant_wallet(
             "balance": float(wallet.balance),
             "currency_code": wallet.currency_code,
             "is_debt": wallet.balance < 0,
-           
             
         }
 

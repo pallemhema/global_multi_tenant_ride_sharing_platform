@@ -24,7 +24,7 @@ def calculate_payouts(
     now = datetime.now(timezone.utc)
 
     # --------------------------------------------------
-    # 1️⃣ Lock batch
+    # Lock batch
     # --------------------------------------------------
     batch = (
         db.query(PayoutBatch)
@@ -43,7 +43,7 @@ def calculate_payouts(
     db.flush()
 
     # --------------------------------------------------
-    # 2️⃣ Fetch unsettled CREDIT ledger rows
+    # Fetch unsettled CREDIT ledger rows
     # --------------------------------------------------
     credit_rows = (
         db.query(
@@ -74,7 +74,7 @@ def calculate_payouts(
     total_payable = 0.0
 
     # --------------------------------------------------
-    # 3️⃣ Create payouts per grouped entity
+    # Create payouts per grouped entity
     # --------------------------------------------------
     for row in credit_rows:
 
@@ -129,7 +129,7 @@ def calculate_payouts(
         db.flush()
 
         # --------------------------------------------------
-        # 4️⃣ Mark ONLY matching ledger rows as settled
+        #  Mark ONLY matching ledger rows as settled
         # --------------------------------------------------
         db.query(FinancialLedger).filter(
             FinancialLedger.entity_type == entity_type,
@@ -149,7 +149,7 @@ def calculate_payouts(
         total_payable += credit_total
 
     # --------------------------------------------------
-    # 5️⃣ Finalize batch
+    #  Finalize batch
     # --------------------------------------------------
     batch.status = "calculated"
     batch.updated_at_utc = now

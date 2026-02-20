@@ -29,7 +29,8 @@ def request_otp_user(payload: OTPRequest):
     phone = normalize_phone(payload.phone_e164)
     otp = generate_otp()
     store_otp(phone, otp)
-    return {"message": "OTP sent"}
+    return {"message": "OTP sent",
+            "otp":otp}
 
 
 # -------------------------------

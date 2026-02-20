@@ -23,7 +23,7 @@ def approve_driver(
     db: Session = Depends(get_db),
     user: dict = Depends(require_tenant_admin),
 ):
-    # 🔍 Fetch driver
+    # Fetch driver
     driver = (
         db.query(Driver)
         .filter(
@@ -36,7 +36,7 @@ def approve_driver(
     if not driver:
         raise HTTPException(404, "Driver not found")
 
-    # 1️⃣ Mandatory document codes
+    #  Mandatory document codes
     mandatory_docs = (
         db.query(DriverDocumentType.document_code)
         .filter(DriverDocumentType.is_mandatory.is_(True))
@@ -45,7 +45,7 @@ def approve_driver(
 
     mandatory_codes = {d.document_code for d in mandatory_docs}
 
-    # 2️⃣ Fetch uploaded documents
+    #  Fetch uploaded documents
     docs = (
         db.query(DriverDocument)
         .filter(
@@ -57,7 +57,7 @@ def approve_driver(
 
     uploaded_codes = {d.document_type for d in docs}
 
-    # ❌ Missing mandatory documents
+    #  Missing mandatory documents
     missing_docs = mandatory_codes - uploaded_codes
     if missing_docs:
         raise HTTPException(
@@ -68,7 +68,7 @@ def approve_driver(
             },
         )
 
-    # 3️⃣ Check approval status of mandatory docs
+    # Check approval status of mandatory docs
     approved_docs = {
         d.document_type
         for d in docs
@@ -85,7 +85,7 @@ def approve_driver(
             },
         )
 
-    # 4️⃣ Approve driver (DO NOT touch documents)
+    #  Approve driver (DO NOT touch documents)
     driver.kyc_status = "approved"
     driver.is_active = True
     driver.approved_at_utc = datetime.now(timezone.utc)

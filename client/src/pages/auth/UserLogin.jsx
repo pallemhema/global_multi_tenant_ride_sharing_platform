@@ -12,7 +12,7 @@ export const UserLogin = () => {
   const { loginUser, switchUserRole } = useUserAuth();
 
   // Step management
-  const [currentStep, setCurrentStep] = useState("phone"); // phone, otp, role-selection
+  const [currentStep, setCurrentStep] = useState("phone");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -59,13 +59,15 @@ export const UserLogin = () => {
 
     try {
       const fullPhone = countryCode + phoneNumber.replace(/\D/g, "");
-      await userAuthApi.requestOtp(fullPhone);
+      const res = await userAuthApi.requestOtp(fullPhone);
 
       // Move to OTP step
       setCurrentStep("otp");
       setOtp("");
       setResendTimer(30);
       setResendCount(resendCount + 1);
+      console.log(res)
+alert(`Your OTP: ${res.otp}`);
     } catch (err) {
       setError(err.message || "Failed to send OTP");
     } finally {

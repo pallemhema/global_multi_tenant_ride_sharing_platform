@@ -8,7 +8,7 @@ def get_db():
         db.commit()
     except Exception:
         db.rollback()
-        raise   # 👈 THIS IS CRITICAL
+        raise   #  THIS IS CRITICAL
     finally:
         db.close()
 

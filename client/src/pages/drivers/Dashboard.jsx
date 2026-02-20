@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { useDriver } from "../../context/DriverContext";
+import { useUserAuth } from "../../context/UserAuthContext";
 import StatCard from "../../components/common/StatCard";
 import Loader from "../../components/common/Loader";
 import TripRequestsList from "../../components/drivers/TripRequestsList";
@@ -33,6 +34,11 @@ export default function DriverDashboard() {
     wallet,
     error,
   } = useDriver();
+   const {
+      profile,
+      
+    } = useUserAuth();
+  
   // console.log(" vehicleSummary:",vehicleSummary);
   console.log("driver:", driver);
 
@@ -91,7 +97,7 @@ export default function DriverDashboard() {
     <div className="space-y-8">
       {/* HEADER */}
       <div>
-        <h1 className="text-3xl font-bold">Welcome, Driver 👋</h1>
+        <h1 className="text-3xl font-bold">Welcome to your dashboard {profile?.full_name}  </h1>
         <p className="text-slate-600">
           Manage your documents, vehicles and shifts
         </p>
@@ -184,7 +190,8 @@ export default function DriverDashboard() {
         {driver.driver_type == "individual" && (
           <StatCard
             title="Wallet Balance"
-            count={`${wallet?.currency_code} ${wallet?.balance ?? 0}`}
+           count={`${wallet?.currency_code ?? ""} ${wallet?.balance ?? 0}`}
+
             icon={Wallet}
             color="teal"
           />

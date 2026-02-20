@@ -30,7 +30,7 @@ def create_tenant(
     _: dict = Depends(require_app_admin),
 ):
 
-    # 1️⃣ Validate required fields
+    # Validate required fields
     required_fields = [
         "tenant_name",
         "business_email",
@@ -46,7 +46,7 @@ def create_tenant(
                 detail=f"{field} is required",
             )
 
-    # 2️⃣ Fetch country
+    #  Fetch country
     country = db.get(Country, payload["country_id"])
     if not country:
         raise HTTPException(
@@ -54,14 +54,14 @@ def create_tenant(
             detail="Invalid country_id",
         )
 
-    # 3️⃣ Validate settlement currency
+    #  Validate settlement currency
     if payload["settlement_currency_code"] != country.default_currency:
         raise HTTPException(
             status_code=400,
             detail="Settlement currency must match country's default currency",
         )
 
-    # 4️⃣ Create tenant
+    #Create tenant
     tenant = Tenant(
         tenant_name=payload["tenant_name"],
         legal_name=payload.get("legal_name"),
@@ -92,12 +92,12 @@ def create_tenant_admin_by_tenant_id(
     db: Session = Depends(get_db),
     user: dict = Depends(require_app_admin),
 ):
-    # 1️⃣ Validate tenant
+    # Validate tenant
     tenant = db.get(Tenant, tenant_id)
     if not tenant:
         raise HTTPException(404, "Tenant not found")
 
-    # 2️⃣ Ensure email uniqueness
+    #  Ensure email uniqueness
     existing = (
         db.query(User)
         .filter(User.email == payload.get("email"))
@@ -106,7 +106,7 @@ def create_tenant_admin_by_tenant_id(
     if existing:
         raise HTTPException(400, "User with this email already exists")
 
-    # 3️⃣ Create tenant admin user
+    # Create tenant admin user
     new_user = User(
         email=payload.get("email"),
         password_hash=hash_password(payload.get("password")),
@@ -118,7 +118,7 @@ def create_tenant_admin_by_tenant_id(
     db.add(new_user)
     db.flush()  # get user_id
 
-    # 4️⃣ Assign tenant-admin role
+    #  Assign tenant-admin role
     staff = TenantStaff(
         tenant_id=tenant_id,
         user_id=new_user.user_id,
@@ -150,7 +150,7 @@ def approve_tenant(
         raise HTTPException(400, "Tenant already approved")
 
 
-    # 1️⃣ Get mandatory document types
+    #  Get mandatory document types
     mandatory_docs = (
         db.query(TenantFleetDocumentType.document_code)
         .filter(TenantFleetDocumentType.is_mandatory.is_(True))
@@ -158,7 +158,7 @@ def approve_tenant(
     )
     mandatory_codes = {d.document_code for d in mandatory_docs}
 
-    # 2️⃣ Get approved tenant documents
+    #  Get approved tenant documents
     approved_docs = (
         db.query(TenantDocument.document_type)
         .filter(
@@ -169,7 +169,7 @@ def approve_tenant(
     )
     approved_codes = {d.document_type for d in approved_docs}
 
-    # 3️⃣ Find missing documents
+    #  Find missing documents
     missing = mandatory_codes - approved_codes
 
     if missing:
@@ -181,7 +181,7 @@ def approve_tenant(
             },
         )
 
-    # 4️⃣ Approve tenant
+    #  Approve tenant
     tenant.approval_status = "approved"
     tenant.status = "active"
     tenant.approved_at_utc = datetime.now(timezone.utc)
@@ -211,7 +211,7 @@ def reject_tenant(
 
 
     
-    # 4️⃣ Approve tenant
+    # Approve tenant
     tenant.approval_status = "rejected"
     tenant.updated_at_utc = datetime.now(timezone.utc)
     tenant.updated_by = int(user["sub"])

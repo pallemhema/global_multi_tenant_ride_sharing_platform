@@ -1,39 +1,28 @@
 import { apiClient } from "./axios";
 
 export const fleetOwnerApi = {
-  /* ===============================
-     ONBOARDING ENDPOINTS
-  =============================== */
 
-  async registerFleetOwner() {
-    try {
-      const res = await apiClient.post("/fleet-owner/register");
-      return res.data;
-    } catch (err) {
-      throw new Error(
-        err.response?.data?.detail ||
-          err.response?.data?.message ||
-          "Failed to register as fleet owner",
-      );
-    }
-  },
+  
+ /* ===============================
+   ONBOARDING ENDPOINTS
+=============================== */
 
-  async selectTenantForFleetOwner(tenant_id) {
-    try {
-      const res = await apiClient.post("/fleet-owner/select-tenant", {
-        tenant_id,
-      });
-      return res.data;
-    } catch (err) {
-      throw new Error(
-        err.response?.data?.detail ||
-          err.response?.data?.message ||
-          "Failed to select tenant",
-      );
-    }
-  },
+async selectTenantForFleetOwner(tenant_id) {
+  const res = await apiClient.post("/fleet-owner/select-tenant", { tenant_id });
+  return res.data;
+},
 
-  async uploadFleetDetails(detailsData) {
+async getTenantLocations() {
+  const res = await apiClient.get("/fleet-owner/tenant-locations");
+  return res.data;
+},
+
+async selectLocation(data) {
+  const res = await apiClient.post("/fleet-owner/select-location", data);
+  return res.data;
+},
+
+async uploadFleetDetails(detailsData) {
     try {
       const res = await apiClient.post(
         "/fleet-owner/upload-fleet-details",
@@ -48,6 +37,12 @@ export const fleetOwnerApi = {
       );
     }
   },
+
+async submitDocuments() {
+  const res = await apiClient.post("/fleet-owner/submit-documents");
+  return res.data;
+},
+
 
   async getFleet() {
     try {

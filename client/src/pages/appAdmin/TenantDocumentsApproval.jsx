@@ -136,11 +136,18 @@ export default function TenantDocumentsApproval() {
                   <div>
                     <p className="text-sm text-slate-600">Status</p>
                     <p className="font-medium text-slate-900">
-                      {selectedDoc.is_verified ? (
-                        <span className="text-green-600">Verified</span>
-                      ) : (
-                        <span className="text-yellow-600">Pending</span>
-                      )}
+                     {selectedDoc.verification_status === "approved" && (
+                          <span className="text-green-600">Approved</span>
+                        )}
+
+                        {selectedDoc.verification_status === "rejected" && (
+                          <span className="text-red-600">Rejected</span>
+                        )}
+
+                        {selectedDoc.verification_status === "pending" && (
+                          <span className="text-yellow-600">Pending</span>
+                        )}
+
                     </p>
                   </div>
 
@@ -149,7 +156,8 @@ export default function TenantDocumentsApproval() {
                     <p className="text-sm text-slate-900 break-all">{selectedDoc.file_path}</p>
                   </div>
 
-                  {!selectedDoc.is_verified && (
+                 {selectedDoc.verification_status === "pending" && (
+
                     <>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -167,17 +175,17 @@ export default function TenantDocumentsApproval() {
                       <div className="flex gap-2 pt-4 border-t border-slate-200">
                         <button
                           onClick={() => handleReject(selectedDoc.id)}
-                          disabled={submitting}
+                          disabled={operationInProgress}
                           className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                         >
-                          {submitting ? 'Processing...' : 'Reject'}
+                          {operationInProgress ? 'Processing...' : 'Reject'}
                         </button>
                         <button
                           onClick={() => handleApprove(selectedDoc.id)}
-                          disabled={submitting}
+                          disabled={operationInProgress}
                           className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                         >
-                          {submitting ? 'Processing...' : 'Approve'}
+                          {operationInProgress ? 'Processing...' : 'Approve'}
                         </button>
                       </div>
                     </>

@@ -24,12 +24,12 @@ def add_region(
     db: Session = Depends(get_db),
     user: dict = Depends(require_tenant_admin),
 ):
-    # 1️⃣ Validate country
+    #  Validate country
     country = db.get(Country, payload.country_id)
     if not country:
         raise HTTPException(404, "Country not found")
 
-    # 2️⃣ Ensure country not already added
+    #  Ensure country not already added
     exists = (
         db.query(TenantCountry)
         .filter(
@@ -38,19 +38,35 @@ def add_region(
         )
         .first()
     )
-    if exists:
-        raise HTTPException(400, "Country already added")
+    if not exists:
+        tenant_country = TenantCountry(
+            tenant_id=tenant_id,
+            country_id=payload.country_id,
+            is_active=True,
+            created_by=int(user["sub"]),
+        )
+        db.add(tenant_country)
 
-    # 3️⃣ Add country
-    tenant_country = TenantCountry(
-        tenant_id=tenant_id,
-        country_id=payload.country_id,
-        is_active=True,
-        created_by=int(user["sub"]),
-    )
-    db.add(tenant_country)
+    #  Add country
+    tenant_country = (
+            db.query(TenantCountry)
+            .filter(
+                TenantCountry.tenant_id == tenant_id,
+                TenantCountry.country_id == payload.country_id,
+            )
+            .first()
+        )
 
-    # 4️⃣ Add cities
+    if not tenant_country:
+        tenant_country = TenantCountry(
+            tenant_id=tenant_id,
+            country_id=payload.country_id,
+            is_active=True,
+            created_by=int(user["sub"]),
+        )
+        db.add(tenant_country)
+
+    #  Add cities
     for item in payload.cities:
         city = db.get(City, item.city_id)
         if not city or city.country_id != payload.country_id:
@@ -58,6 +74,18 @@ def add_region(
                 400,
                 f"City {item.city_id} does not belong to country",
             )
+
+        existing_city = (
+            db.query(TenantCity)
+            .filter(
+                TenantCity.tenant_id == tenant_id,
+                TenantCity.city_id == item.city_id,
+            )
+            .first()
+        )
+
+        if existing_city:
+            continue
 
         db.add(
             TenantCity(
@@ -177,7 +205,7 @@ def enable_city(
         raise HTTPException(404, "City not found for tenant")
 
     city = db.get(City, record.city_id)
-    # 🔒 Ensure country is enabled
+    # Ensure country is enabled
     tenant_country = (
         db.query(TenantCountry)
         .filter(
@@ -208,45 +236,8 @@ def enable_city(
         "city_id": city_id,
     }
 
-@router.get("/available-cities")
-# def get_available_cities(
-#     tenant_id: int,
-#     country_id: int,
-#     db: Session = Depends(get_db),
-#     user: dict = Depends(require_tenant_admin),
-# ):
-#     # 1️⃣ All cities for this country (lookup)
-#     all_cities = (
-#         db.query(City)
-#         .filter(City.country_id == country_id)
-#         .all()
-#     )
 
-#     print(all_cities)
 
-#     # 2️⃣ Cities already added for this tenant
-#     tenant_city_ids = {
-#         c.city_id
-#         for c in db.query(TenantCity.city_id)
-#         .filter(
-#             TenantCity.tenant_id == tenant_id,
-#             TenantCity.is_active.is_(True),
-#         )
-#         .all()
-#     }
-#     print(tenant_city_ids)
-
-#     # 3️⃣ Exclude existing cities
-#     available = [
-#         {
-#             "city_id": city.city_id,
-#             "name": city.city_name,
-#         }
-#         for city in all_cities
-#         if city.city_id not in tenant_city_ids
-#     ]
-
-#     return available
 @router.get("/available-cities")
 def get_available_cities(
     tenant_id: int,
@@ -254,14 +245,14 @@ def get_available_cities(
     db: Session = Depends(get_db),
     user: dict = Depends(require_tenant_admin),
 ):
-    # 1️⃣ All cities for this country
+    #  All cities for this country
     all_cities = (
         db.query(City)
         .filter(City.country_id == country_id)
         .all()
     )
 
-    # 2️⃣ Cities already added for THIS tenant AND THIS country
+    #  Cities already added for THIS tenant AND THIS country
     tenant_city_ids = {
         tc.city_id
         for tc in (
@@ -276,7 +267,7 @@ def get_available_cities(
         )
     }
 
-    # 3️⃣ Exclude only those cities
+    #  Exclude only those cities
     available = [
         {
             "city_id": city.city_id,

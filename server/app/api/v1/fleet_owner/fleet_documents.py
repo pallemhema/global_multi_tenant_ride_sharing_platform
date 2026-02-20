@@ -16,7 +16,7 @@ router = APIRouter(
 )
 
 
-# 🔹 Upload Fleet Owner Document
+# Upload Fleet Owner Document
 @router.post(
     "/documents",
     response_model=FleetOwnerDocumentOut,
@@ -76,44 +76,10 @@ def upload_fleet_owner_document(
     db.add(doc)
     db.commit()
     db.refresh(doc)
-    uploaded_docs = (
-        db.query(FleetOwnerDocument)
-        .filter(
-            FleetOwnerDocument.fleet_owner_id == fleet.fleet_owner_id
-        )
-        .all()
-    )
-
-    
-    # 🔄 CHECK: If all mandatory documents are now uploaded, auto-complete registration
-    mandatory_docs = (
-        db.query(TenantFleetDocumentType)
-        .filter(
-            
-            TenantFleetDocumentType.is_mandatory.is_(True),
-        )
-        .all()
-    )
-            
-    
-    uploaded_doc_types = {d.document_type for d in uploaded_docs}
-    mandatory_doc_types = {d.document_code for d in mandatory_docs}
-    
-    # If all mandatory docs are uploaded, mark registration as completed
-    if mandatory_doc_types.issubset(uploaded_doc_types):
-        fleet_owner_record = db.query(FleetOwner).filter(
-            FleetOwner.fleet_owner_id == fleet.fleet_owner_id
-        ).first()
-        
-        if fleet_owner_record and fleet_owner_record.onboarding_status != "completed":
-            fleet_owner_record.onboarding_status = "completed"
-            db.add(fleet_owner_record)
-            db.commit()
-    
     return doc
 
 
-# 🔹 Update Fleet Owner Document (only if not approved)
+#  Update Fleet Owner Document (only if not approved)
 @router.put(
     "/documents/{doc_id}",
     response_model=FleetOwnerDocumentOut,
@@ -137,7 +103,7 @@ def update_fleet_owner_document(
     if doc.verification_status == "approved":
         raise HTTPException(400, "Approved document cannot be edited")
 
-    # 🔁 Replace file if uploaded again
+    #  Replace file if uploaded again
     if file:
         ext = file.filename.split(".")[-1]
         filename = f"{doc.document_type}.{ext}"
@@ -163,7 +129,7 @@ def update_fleet_owner_document(
     db.refresh(doc)
     return doc
 
-# 🔹 List Fleet Owner Documents
+#  List Fleet Owner Documents
 @router.get(
     "/documents",
     response_model=list[FleetOwnerDocumentOut],

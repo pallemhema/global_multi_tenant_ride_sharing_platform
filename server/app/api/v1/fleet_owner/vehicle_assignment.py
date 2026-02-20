@@ -41,65 +41,6 @@ class VehicleAssignmentCreate(BaseModel):
     driver_id: int
     vehicle_id: int
 
-# @router.post("/vehicle-assignments")
-# def assign_vehicle(
-#     driver_id: int,
-#     vehicle_id: int,
-#     db: Session = Depends(get_db),
-#     fleet_owner=Depends(require_fleet_owner),
-# ):
-#     # 🚫 Rule 1: Vehicle already assigned?
-#     active_vehicle_assignment = (
-#         db.query(DriverVehicleAssignment)
-#         .filter(
-#             DriverVehicleAssignment.vehicle_id == vehicle_id,
-#             DriverVehicleAssignment.end_time_utc.is_(None),
-#         )
-#         .first()
-#     )
-
-#     if active_vehicle_assignment:
-#         raise HTTPException(
-#             status_code=409,
-#             detail="Vehicle is already assigned to another driver",
-#         )
-
-#     # 🚫 Rule 2: Driver already has a vehicle?
-#     active_driver_assignment = (
-#         db.query(DriverVehicleAssignment)
-#         .filter(
-#             DriverVehicleAssignment.driver_id == driver_id,
-#             DriverVehicleAssignment.end_time_utc.is_(None),
-#         )
-#         .first()
-#     )
-
-#     if active_driver_assignment:
-#         raise HTTPException(
-#             status_code=409,
-#             detail="Driver already has an active vehicle assignment",
-#         )
-
-#     # ✅ Assign vehicle
-#     assignment = DriverVehicleAssignment(
-#         tenant_id=fleet_owner.tenant_id,
-#         driver_id=driver_id,
-#         vehicle_id=vehicle_id,
-#         start_time_utc=datetime.now(timezone.utc),
-#         is_active=True,
-#         created_by=fleet_owner.user_id,
-#     )
-
-#     db.add(assignment)
-#     db.commit()
-
-#     return {
-#         "status": "assigned",
-#         "driver_id": driver_id,
-#         "vehicle_id": vehicle_id,
-#         "assigned_at": assignment.start_time_utc,
-#     }
-
 @router.post("/vehicle-assignments")
 def assign_vehicle(
     payload: VehicleAssignmentCreate,
@@ -109,7 +50,7 @@ def assign_vehicle(
     driver_id = payload.driver_id
     vehicle_id = payload.vehicle_id
 
-    # 🚫 Rule 1: Vehicle already assigned?
+    #  Rule 1: Vehicle already assigned?
     active_vehicle_assignment = (
         db.query(DriverVehicleAssignment)
         .filter(
@@ -125,7 +66,7 @@ def assign_vehicle(
             detail="Vehicle is already assigned to another driver",
         )
 
-    # 🚫 Rule 2: Driver already has a vehicle?
+    # Rule 2: Driver already has a vehicle?
     active_driver_assignment = (
         db.query(DriverVehicleAssignment)
         .filter(

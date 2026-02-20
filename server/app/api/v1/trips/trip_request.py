@@ -10,7 +10,7 @@ Trip Request Endpoints - Multi-tenant ride-sharing trip flow
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
+from datetime import datetime, timezone,timedelta
 import math
 import json
 from sqlalchemy import or_, and_
@@ -25,10 +25,11 @@ from app.models.core.tenants.tenants import Tenant
 from app.models.core.tenants.tenant_cities import TenantCity
 from app.models.lookups.city import City
 from app.models.core.trips.trip_request import TripRequest
-from app.models.core.drivers.driver_shifts import DriverShift
-from app.models.core.drivers.driver_current_status import DriverCurrentStatus
-from app.models.core.vehicles.vehicles import Vehicle
-from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
+from app.models.core.trips.trips import Trip
+from app.models.core.drivers.drivers import Driver
+from app.models.core.users.user_profiles import UserProfile
+from app.core.redis import redis_client
+from app.core.trips.trip_otp_service import _otp_plain_key
 from app.models.core.trips.trips import Trip
 from app.schemas.core.trips.trip_request import (
     TripRequestCreate,
@@ -42,10 +43,8 @@ from app.schemas.core.trips.trip_request import (
 from app.core.fare.tenant_vehicle_categoy_price import get_vehicle_pricing
 from app.models.lookups.vehicle_category import VehicleCategory
 from app.schemas.core.trips.trip_request import TripStatusOut
-from app.core.trips.trip_otp_service import generate_trip_otp, store_trip_otp
 import os
-from app.core.trips.trip_otp_service import _otp_plain_key
-from sqlalchemy import and_, func
+from sqlalchemy import  func
 
 router = APIRouter(
     prefix="/rider/trips",
@@ -72,7 +71,7 @@ def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
 
 
 # ============================================
-# 1️⃣ CREATE TRIP REQUEST
+# CREATE TRIP REQUEST
 # ============================================
 
 @router.post("/request", response_model=TripRequestOut, status_code=status.HTTP_201_CREATED)
@@ -180,7 +179,7 @@ def create_trip_request(
 
 
 # ============================================
-# 2️⃣ LIST AVAILABLE TENANTS & PRICING
+#  LIST AVAILABLE TENANTS & PRICING
 # ============================================
 
 @router.get("/available-tenants/{trip_request_id}", response_model=AvailableTenantsListOut)
@@ -277,7 +276,32 @@ def list_available_tenants(
         # Calculate acceptance rate
         # acceptance_rate = accepted_trips / total_trip_requests (last 7 days)
         # For now, default to 0.95 (95%)
-        acceptance_rate = 0.95
+        now = datetime.now(timezone.utc)
+        seven_days_ago = now - timedelta(days=7)
+
+        result = (
+            db.query(
+                func.count(TripRequest.trip_request_id).label("total"),
+                func.count(Trip.trip_id).label("accepted"),
+            )
+            .outerjoin(
+                Trip,
+                Trip.trip_request_id == TripRequest.trip_request_id
+            )
+            .filter(
+                TripRequest.selected_tenant_id == tid,
+                TripRequest.created_at_utc >= seven_days_ago,
+            )
+            .first()
+        )
+
+        total = result.total or 0
+        accepted = result.accepted or 0
+        print('total:', total)
+        print('accepted:',accepted)
+
+        acceptance_rate = 0.0 if total == 0 else(accepted / total)
+   
         
         tenants_info.append(TenantAvailabilityInfo(
             tenant_id=tenant.tenant_id,
@@ -304,7 +328,7 @@ def list_available_tenants(
 
 
 # ============================================
-# 3️⃣ SELECT TENANT
+# SELECT TENANT
 # ============================================
 
 @router.post("/select-tenant/{trip_request_id}", response_model=TenantSelectionResponse)
@@ -358,7 +382,7 @@ def select_tenant(
         message=f"Searching for {payload.vehicle_category} drivers...",
     )
 # ============================================
-# 4️⃣ START BATCH-WISE DRIVER SEARCH
+#  START BATCH-WISE DRIVER SEARCH
 # ============================================
 
 # DEV CONFIG – large radius so drivers are always found
@@ -405,7 +429,7 @@ def start_driver_search(
     from app.core.redis import redis_client
 
     # ------------------------------------------------
-    # 1️⃣ Fetch trip request
+    #  Fetch trip request
     # ------------------------------------------------
     trip_req = db.query(TripRequest).filter(
         TripRequest.trip_request_id == trip_request_id,
@@ -433,7 +457,7 @@ def start_driver_search(
     db.commit()
 
     # ------------------------------------------------
-    # 2️⃣ Batch config (start with batch 1)
+    #  Batch config (start with batch 1)
     # ------------------------------------------------
     batch_cfg = BATCH_CONFIG[0]
 
@@ -606,9 +630,7 @@ def get_trip_request_status(
     Get trip request status (before driver accepts).
     Once driver accepts and Trip is created, client should switch to /trips/{trip_id}/status
     """
-    from app.core.redis import redis_client
-    from app.models.core.drivers.drivers import Driver
-    from app.models.core.users.user_profiles import UserProfile
+
     
     trip_req = db.query(TripRequest).filter(
         TripRequest.trip_request_id == trip_request_id,
@@ -632,11 +654,11 @@ def get_trip_request_status(
         "estimated_duration_minutes": trip_req.estimated_duration_minutes,
         "created_at_utc": trip_req.created_at_utc,
         "assigned_info": None,
-        "otp": None,
+        "otp":None,
     }
 
     
-   
+
     cancelled_trip = db.query(Trip).filter(
         Trip.trip_request_id == trip_request_id,
         Trip.trip_status == "cancelled",
@@ -736,6 +758,7 @@ def get_trip_request_status(
 # ============================================
 # STATUS CHECK - FOR TRIP (after driver accepts, use trip_id instead)
 # ============================================
+
 @router.get("/{trip_id}/status")
 def get_trip_status_by_trip_id(
     trip_id: int,
@@ -748,16 +771,14 @@ def get_trip_status_by_trip_id(
     🔒 STRICT OWNERSHIP: Only return if trip belongs to authenticated rider
     Include OTP if trip is in "assigned" status
     """
-    from app.models.core.trips.trips import Trip
-    from app.core.redis import redis_client
-    from app.core.trips.trip_otp_service import _otp_plain_key
+
 
     trip = (
             db.query(Trip)
             .join(TripRequest, Trip.trip_request_id == TripRequest.trip_request_id)
             .filter(
                 Trip.trip_id == trip_id,
-                TripRequest.user_id == rider.user_id,  # STRICT OWNERSHIP
+                TripRequest.user_id == rider.user_id, 
             )
             .first()
         )
@@ -768,17 +789,8 @@ def get_trip_status_by_trip_id(
     response = {
         "trip_id": trip.trip_id,
         "status": trip.trip_status,
-        "otp": None,
     }
 
-    # OTP only valid before trip starts
-    if trip.trip_status in ("assigned",):
-        try:
-            otp = redis_client.get(_otp_plain_key(trip_id))
-            if otp:
-                response["otp"] = otp.decode() if isinstance(otp, bytes) else otp
-        except Exception:
-            pass
 
     return response
 
@@ -812,7 +824,6 @@ def get_trip_otp(
         raise HTTPException(status_code=404, detail="Trip not found")
     # try to read plaintext OTP from redis
     try:
-        from app.core.redis import redis_client
         key = _otp_plain_key(trip_id)
         otp = redis_client.get(key)
         otp = otp.decode() if otp else None
@@ -825,87 +836,11 @@ def get_trip_otp(
     return {"trip_id": trip_id, "otp": otp}
 
 
-@router.post("/{trip_id}/resend-otp", status_code=200)
-def resend_trip_otp(
-    trip_id: int,
-    db: Session = Depends(get_db),
-    rider: User = Depends(require_rider),
-):
-    """Regenerate & store OTP (dev) — in production this would trigger an SMS/notification."""
-    
 
-    if os.environ.get("DEV_MODE", "false").lower() != "true":
-        raise HTTPException(status_code=403, detail="OTP resend is disabled in production")
-
-    trip = (
-            db.query(Trip)
-            .join(TripRequest, Trip.trip_request_id == TripRequest.trip_request_id)
-            .filter(
-                Trip.trip_id == trip_id,
-                TripRequest.user_id == rider.user_id,
-            )
-            .first()
-        )
-    if not trip:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    # Get the associated trip to store OTP with trip_id
- 
-
-    otp = generate_trip_otp()
-    store_trip_otp(trip.trip_id, otp)
-
-    # In real system: send SMS to rider.phone_e164
-    return {"trip_id": trip.trip_id, "message": "OTP regenerated and (dev) stored"}
-
-
-# ================================================================
-# CANCEL TRIP REQUEST (Before driver is assigned)
-# ================================================================
-@router.post("/{trip_request_id}/cancel", status_code=200)
-def cancel_trip_request(
-    trip_request_id: int,
-    db: Session = Depends(get_db),
-    rider: User = Depends(require_rider),
-):
-    """
-    Cancel trip request before driver is assigned.
-    Allows rider to go back and select a different tenant.
-    """
-    import os
-    from datetime import datetime, timezone
-    
-    trip_req = db.query(TripRequest).filter(
-        TripRequest.trip_request_id == trip_request_id,
-        TripRequest.user_id == rider.user_id,
-    ).with_for_update().first()
-    
-    if not trip_req:
-        raise HTTPException(status_code=404, detail="Trip request not found")
-    
-    # Can only cancel if not yet assigned to a driver
-    if trip_req.status in ["driver_assigned", "completed", "cancelled"]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot cancel trip request in '{trip_req.status}' state"
-        )
-    
-    # Mark as cancelled
-    trip_req.status = "cancelled"
-    trip_req.cancelled_at_utc = datetime.now(timezone.utc)
-    db.add(trip_req)
-    db.commit()
-    
-    print(f"[TRIP REQUEST CANCEL] trip_request_id={trip_request_id} cancelled by rider {rider.user_id}")
-    
-    return {
-        "status": "cancelled",
-        "trip_request_id": trip_request_id,
-        "message": "Trip request cancelled. You can create a new one."
-    }
 
 
 # ============================================
-# 🔁 CHANGE PROVIDER (RESET SELECTION)
+#  CHANGE PROVIDER (RESET SELECTION)
 # ============================================
 
 @router.post("/{trip_request_id}/change-provider", status_code=200)

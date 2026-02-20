@@ -127,21 +127,7 @@ def get_trip_receipt(
         TripFare.trip_id == trip_id
     ).first()
     
-    # # Try to get OTP from Redis with logging
-    # otp = None
-    # try:
-    #     from app.core.redis import redis_client
-    #     from app.core.trips.trip_otp_service import _otp_plain_key
-    #     otp_key = _otp_plain_key(trip_id)
-    #     otp_bytes = redis_client.get(otp_key)
-    #     if otp_bytes:
-    #         otp = otp_bytes.decode() if isinstance(otp_bytes, bytes) else otp_bytes
-    #         print(f"[RECEIPT] Successfully retrieved OTP from Redis for trip_id={trip_id}: {otp}")
-    #     else:
-    #         print(f"[RECEIPT] No OTP found in Redis for trip_id={trip_id}")
-    # except Exception as e:
-    #     print(f"[RECEIPT] ERROR reading OTP from Redis for trip_id={trip_id}: {e}")
-    #     otp = None
+ 
     
     receipt = {
         "trip_id": trip.trip_id,

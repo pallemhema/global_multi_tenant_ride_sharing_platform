@@ -16,7 +16,7 @@ def admin_login(
     payload: AdminLoginRequest,
     db: Session = Depends(get_db),
 ):
-    # 1️⃣ Fetch user by email
+    # Fetch user by email
     user = (
         db.query(User)
         .filter(
@@ -30,13 +30,13 @@ def admin_login(
     if not user or not user.password_hash:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # 2️⃣ Verify password
+    #  Verify password
     if not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     bool_value = user.is_app_admin
     print(bool_value)
-    # 3️⃣ PLATFORM ADMIN
+    #  PLATFORM ADMIN
     if bool_value:
         return {
             "access_token": create_access_token(
@@ -47,7 +47,7 @@ def admin_login(
             "token_type": "bearer",
         }
 
-    # 4️⃣ TENANT ADMIN
+    # TENANT ADMIN
     staff = (
         db.query(TenantStaff)
         .filter(

@@ -40,7 +40,7 @@ def approve_fleet_owner(
     if fleet.approval_status == "approved":
         raise HTTPException(400, "Fleet owner already approved")
 
-    # 1️⃣ Mandatory document codes
+    #  Mandatory document codes
     mandatory_docs = (
         db.query(FleetDocumentType.document_code)
         .filter(FleetDocumentType.is_mandatory.is_(True))
@@ -48,7 +48,7 @@ def approve_fleet_owner(
     )
     mandatory_codes = {d.document_code for d in mandatory_docs}
 
-    # 2️⃣ Fetch uploaded docs
+    #  Fetch uploaded docs
     docs = (
         db.query(FleetOwnerDocument)
         .filter(
@@ -60,7 +60,7 @@ def approve_fleet_owner(
 
     uploaded_codes = {d.document_type for d in docs}
 
-    # 3️⃣ Missing documents check
+    #  Missing documents check
     missing = mandatory_codes - uploaded_codes
     if missing:
         raise HTTPException(
@@ -71,7 +71,7 @@ def approve_fleet_owner(
             },
         )
 
-    # 4️⃣ Approval status check (IMPORTANT)
+    # Approval status check (IMPORTANT)
     approved_docs = {
         d.document_type
         for d in docs
@@ -88,7 +88,7 @@ def approve_fleet_owner(
             },
         )
 
-    # 5️⃣ Approve fleet owner ONLY
+    # Approve fleet owner ONLY
     fleet.approval_status = "approved"
     fleet.is_active = True
     fleet.approved_at_utc = datetime.now(timezone.utc)

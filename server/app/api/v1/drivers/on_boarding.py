@@ -17,102 +17,17 @@ from app.schemas.core.drivers.onboarding import (
     SubmitDocumentsResponse,
 )
 
-from app.schemas.core.drivers.onboardin import OnboardingStatus
-
-
+from app.core.onboarding.engine import  block_if_completed, enforce_transition, build_location_tree
+from app.core.onboarding.driver_flow import DriverOnboardingStatus, DRIVER_ONBOARDING_FLOW
 router = APIRouter(
     prefix="/driver",
     tags=["Driver – Onboarding"],
 )
 
 
-# =========================================================
-# 🔒 HELPER FUNCTIONS
-# =========================================================
-
-ONBOARDING_FLOW = [
-    OnboardingStatus.NOT_STARTED,
-    OnboardingStatus.TENANT_SELECTED,
-    OnboardingStatus.LOCATION_SELECTED,
-    OnboardingStatus.DRIVER_TYPE_SELECTED,
-    OnboardingStatus.COMPLETED,
-]
-
-def enforce_transition(driver: Driver, target_status: str):
-    current_status = driver.onboarding_status or OnboardingStatus.NOT_STARTED
-
-    if current_status == OnboardingStatus.COMPLETED:
-        raise HTTPException(
-            status_code=403,
-            detail="Onboarding already completed. Changes not allowed."
-        )
-
-    current_index = ONBOARDING_FLOW.index(current_status)
-    target_index = ONBOARDING_FLOW.index(target_status)
-
-    # ❌ Prevent skipping forward
-    if target_index > current_index + 1:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot skip onboarding steps: {current_status} → {target_status}"
-        )
-
-    # ✅ Allow:
-    # - Same stage (edit)
-    # - Going backward
-    # - Moving to next stage
-
-def block_if_completed(driver: Driver):
-    if driver.onboarding_status == OnboardingStatus.COMPLETED:
-        raise HTTPException(
-            status_code=403,
-            detail="Driver onboarding already completed."
-        )
-
-
-def build_location_tree(db: Session, tenant_id: int):
-    tenant_countries = (
-        db.query(TenantCountry)
-        .filter(TenantCountry.tenant_id == tenant_id)
-        .all()
-    )
-
-    location_tree = []
-
-    for tc in tenant_countries:
-        country = db.get(Country, tc.country_id)
-
-        if not country:
-            continue
-
-        cities = (
-            db.query(City)
-            .join(TenantCity, TenantCity.city_id == City.city_id)
-            .filter(
-                TenantCity.tenant_id == tenant_id,
-                City.country_id == country.country_id,
-                City.is_active == True
-            )
-            .all()
-        )
-
-        location_tree.append({
-            "country_id": country.country_id,
-            "country_name": country.country_name,
-            "cities": [
-                {
-                    "city_id": c.city_id,
-                    "city_name": c.city_name
-                }
-                for c in cities
-            ]
-        })
-
-    return location_tree
-
 
 # =========================================================
-# 1️⃣ SELECT TENANT
+# SELECT TENANT
 # =========================================================
 
 @router.post("/select-tenant")
@@ -122,7 +37,8 @@ def select_tenant(
     driver: Driver = Depends(get_or_create_driver),
 ):
 
-    block_if_completed(driver)
+    block_if_completed(driver.onboarding_status,DRIVER_ONBOARDING_FLOW)
+
 
     tenant = (
         db.query(Tenant)
@@ -141,8 +57,12 @@ def select_tenant(
         )
 
     driver.tenant_id = tenant.tenant_id
-    enforce_transition(driver, OnboardingStatus.TENANT_SELECTED)
-    driver.onboarding_status = OnboardingStatus.TENANT_SELECTED
+    enforce_transition(
+        driver.onboarding_status,
+        DriverOnboardingStatus.TENANT_SELECTED,
+        DRIVER_ONBOARDING_FLOW
+    )
+    driver.onboarding_status = DriverOnboardingStatus.TENANT_SELECTED
 
 
     db.commit()
@@ -160,13 +80,13 @@ def select_tenant(
 
 
 # =========================================================
-# 2️⃣ GET TENANT LOCATIONS (FOR RESUME)
+# GET TENANT LOCATIONS (FOR RESUME)
 # =========================================================
 
 @router.get("/tenant-locations")
 def get_tenant_locations(
     db: Session = Depends(get_db),
-    driver: Driver = Depends(require_driver),
+    driver: Driver = Depends(get_or_create_driver),
 ):
     """
     Returns tenant countries + cities.
@@ -189,7 +109,7 @@ def get_tenant_locations(
 
 
 # =========================================================
-# 3️⃣ SELECT LOCATION
+#  SELECT LOCATION
 # =========================================================
 
 @router.post("/select-location")
@@ -199,7 +119,8 @@ def select_location(
     driver: Driver = Depends(get_or_create_driver),
 ):
 
-    block_if_completed(driver)
+    block_if_completed(driver.onboarding_status, DRIVER_ONBOARDING_FLOW)
+
 
     if not driver.tenant_id:
         raise HTTPException(
@@ -255,8 +176,13 @@ def select_location(
 
     driver.country_id = payload.country_id
     driver.city_id = payload.city_id
-    enforce_transition(driver, OnboardingStatus.LOCATION_SELECTED)
-    driver.onboarding_status = OnboardingStatus.LOCATION_SELECTED
+    enforce_transition(
+        driver.onboarding_status,
+        DriverOnboardingStatus.LOCATION_SELECTED,
+        DRIVER_ONBOARDING_FLOW
+    )
+  
+    driver.onboarding_status = DriverOnboardingStatus.LOCATION_SELECTED
 
     db.commit()
     db.refresh(driver)
@@ -272,7 +198,7 @@ def select_location(
 
 
 # =========================================================
-# 4️⃣ UPDATE DRIVER TYPE
+#  UPDATE DRIVER TYPE
 # =========================================================
 
 @router.put("/driver-type")
@@ -282,11 +208,18 @@ def update_driver_type(
     driver: Driver = Depends(get_or_create_driver),
 ):
 
-    block_if_completed(driver)
+    block_if_completed(driver.onboarding_status,DRIVER_ONBOARDING_FLOW)
 
     driver.driver_type = payload.driver_type
-    enforce_transition(driver, OnboardingStatus.DRIVER_TYPE_SELECTED)
-    driver.onboarding_status = OnboardingStatus.DRIVER_TYPE_SELECTED
+    enforce_transition(
+        driver.onboarding_status,
+        DriverOnboardingStatus.LOCATION_SELECTED,
+        DRIVER_ONBOARDING_FLOW
+    )
+
+
+    
+    driver.onboarding_status = DriverOnboardingStatus.DRIVER_TYPE_SELECTED
 
 
     db.commit()
@@ -300,19 +233,24 @@ def update_driver_type(
 
 
 # =========================================================
-# 5️⃣ SUBMIT DOCUMENTS
+#  SUBMIT DOCUMENTS
 # =========================================================
 
 @router.post("/submit-documents")
 def submit_documents(
     db: Session = Depends(get_db),
-    driver: Driver = Depends(require_driver),
+    driver: Driver = Depends(get_or_create_driver),
 ):
 
-    block_if_completed(driver)
+    block_if_completed(driver.onboarding_status,DRIVER_ONBOARDING_FLOW)
 
-    enforce_transition(driver, OnboardingStatus.COMPLETED)
-    driver.onboarding_status = OnboardingStatus.COMPLETED
+    enforce_transition(
+        driver.onboarding_status,
+        DriverOnboardingStatus.LOCATION_SELECTED,
+        DRIVER_ONBOARDING_FLOW
+    )
+
+    driver.onboarding_status = DriverOnboardingStatus.COMPLETED
 
     db.commit()
     db.refresh(driver)

@@ -57,7 +57,7 @@ def accept_fleet_invite(
     if not invite:
         raise HTTPException(404, "Invite not found")
 
-    # 🚫 Check active fleet membership
+    #  Check active fleet membership
     active_membership = (
         db.query(FleetOwnerDriver)
         .filter(
@@ -73,11 +73,11 @@ def accept_fleet_invite(
             "You are already part of a fleet. Leave current fleet first.",
         )
 
-    # ✅ Accept invite
+    #  Accept invite
     invite.invite_status = "accepted"
     invite.accepted_at_utc = datetime.now(timezone.utc)
 
-    # ✅ Add to fleet_owner_drivers
+    #  Add to fleet_owner_drivers
     membership = FleetOwnerDriver(
         tenant_id=invite.tenant_id,
         fleet_owner_id=invite.fleet_owner_id,
@@ -87,7 +87,7 @@ def accept_fleet_invite(
         created_by=driver.user_id,
     )
 
-    # ❌ Auto-reject other pending invites
+    #  Auto-reject other pending invites
     (
         db.query(DriverInvite)
         .filter(
@@ -145,11 +145,11 @@ def get_assigned_vehicle(
     db: Session = Depends(get_db),
     driver = Depends(require_driver),
 ):
-    # 🚫 Only fleet drivers
+    # Only fleet drivers
     if driver.driver_type != "fleet_driver":
         return None
 
-    # 1️⃣ Active vehicle assignment
+    # Active vehicle assignment
     assignment = (
         db.query(DriverVehicleAssignment)
         .filter(
@@ -162,14 +162,14 @@ def get_assigned_vehicle(
     if not assignment:
         return None
 
-    # 2️⃣ Vehicle
+    #  Vehicle
     vehicle = (
         db.query(Vehicle)
         .filter(Vehicle.vehicle_id == assignment.vehicle_id)
         .first()
     )
 
-    # 3️⃣ Fleet membership
+    #  Fleet membership
     fleet_link = (
         db.query(FleetOwnerDriver)
         .filter(
@@ -203,36 +203,3 @@ def get_assigned_vehicle(
             "business_name": fleet.business_name,
         } if fleet else None,
     }
-
-# @router.put("/return/{assignment_id}")
-# def return_vehicle(
-#     assignment_id: int,
-#     db: Session = Depends(get_db),
-#     fleet_owner=Depends(require_fleet_owner),
-# ):
-#     assignment = (
-#         db.query(DriverVehicleAssignment)
-#         .filter(
-#             DriverVehicleAssignment.assignment_id == assignment_id,
-#             DriverVehicleAssignment.end_time_utc.is_(None),
-#         )
-#         .first()
-#     )
-
-#     if not assignment:
-#         raise HTTPException(
-#             status_code=404,
-#             detail="Active assignment not found",
-#         )
-
-#     assignment.end_time_utc = datetime.now(timezone.utc)
-#     assignment.is_active = False
-#     assignment.updated_by = fleet_owner.user_id
-
-#     db.commit()
-
-#     return {
-#         "status": "returned",
-#         "assignment_id": assignment_id,
-#         "returned_at": assignment.end_time_utc,
-#     }

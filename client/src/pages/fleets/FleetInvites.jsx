@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Users, Send, Trash2, AlertCircle } from "lucide-react";
+import { Users, Send, Trash2, AlertCircle,Phone } from "lucide-react";
 
 import { useFleetOwner } from "../../context/FleetOwnerContext";
+
 
 export default function FleetInvites() {
   const {
@@ -74,9 +75,7 @@ export default function FleetInvites() {
     );
   }
 
-  /* =====================
-     UI
-  ===================== */
+
 
   return (
     <div className="space-y-10">
@@ -103,35 +102,54 @@ export default function FleetInvites() {
           </div>
         ) : (
           <div className="grid gap-4">
-            {eligibleDrivers.map((driver) => (
-              <div
-                key={driver.driver_id}
-                className="border rounded-lg p-4 flex justify-between items-center"
-              >
+            {eligibleDrivers.map((driver) => {
+              const existingInvite = invites.find(
+                (i) =>
+                  i.driver_id === driver.driver_id &&
+                  i.invite_status === "sent"
+              );
+
+              return (
+                <div
+                  key={driver.driver_id}
+                  className="border rounded-lg p-4 flex justify-between items-center"
+                >
+
                 <div>
                   <h3 className="font-semibold text-gray-900">
                     {driver.full_name || "Unnamed Driver"}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    📞 {driver.phone_e164}
+                    <Phone className="text-amber-600 inline mr-2"/> {driver.phone_e164}
                   </p>
                   <p className="text-xs text-gray-400">
                     Driver ID: {driver.driver_id}
                   </p>
                 </div>
 
-                <button
-                  onClick={() => handleInvite(driver.driver_id)}
-                  disabled={invitingDriverId === driver.driver_id}
-                  className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
-                >
-                  <Send size={16} />
-                  {invitingDriverId === driver.driver_id
-                    ? "Inviting..."
-                    : "Send Invite"}
-                </button>
-              </div>
-            ))}
+                {existingInvite ? (
+                      <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm rounded-full font-semibold">
+                        Invite Sent
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleInvite(driver.driver_id)}
+                        disabled={invitingDriverId === driver.driver_id}
+                        className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                      >
+                        <Send size={16} />
+                        {invitingDriverId === driver.driver_id
+                          ? "Inviting..."
+                          : "Send Invite"}
+                      </button>
+                    )}
+            
+
+              
+                </div>
+              );
+            })}
+
           </div>
         )}
       </div>

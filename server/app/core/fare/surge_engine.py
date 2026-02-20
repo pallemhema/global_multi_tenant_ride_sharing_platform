@@ -20,15 +20,11 @@ class SurgeService:
         pickup_lng: float,
     ) -> float | None:
 
-        now = datetime.now(timezone.utc)
 
-        # Create point geometry
-        pickup_point = WKTElement(
-            f"POINT({pickup_lng} {pickup_lat})",
-            srid=4326
-        )
+    
+      
         now = datetime.now(timezone.utc)
-         # 1️⃣ Find matching zone
+         #  Find matching zone
         zone = (
         db.query(SurgeZone)
         .filter(
@@ -53,7 +49,7 @@ class SurgeService:
             return 1.0
 
 
-        # 2️⃣ Find active surge for zone + vehicle
+        #  Find active surge for zone + vehicle
         surge = (
             db.query(SurgePricingEvent)
             .filter(

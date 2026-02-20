@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState,useMemo } from "react";
 import { useTenant } from "../../context/TenantContext";
 import DataTable from "../../components/common/DataTable";
 import EmptyState from "../../components/common/EmptyState";
@@ -10,6 +10,7 @@ import { Users, AlertCircle, Eye } from "lucide-react";
 
 export default function Drivers() {
   const {
+    tenant,
     drivers,
     loading,
     error: contextError,
@@ -19,6 +20,7 @@ export default function Drivers() {
     rejectDriverDocument,
     getDriverDocuments,
   } = useTenant();
+  const isApproved = tenant?.approval_status=='approved';
 
   const [error, setError] = useState("");
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -126,11 +128,14 @@ export default function Drivers() {
   };
 
   // Check if all documents are approved
-  const allDocsApproved =
-    driverDocuments.length > 0 &&
-    driverDocuments.every((doc) => doc.status === "approved");
 
-  console.log(allDocsApproved);
+
+  const allDocsApproved = useMemo(() => {
+    return (
+      driverDocuments.length > 0 &&
+      driverDocuments.every((doc) => doc.status === "approved")
+    );
+  }, [driverDocuments]);
 
   if (loading) {
     return <Loader />;
@@ -180,6 +185,19 @@ export default function Drivers() {
       ),
     },
   ];
+   if(!isApproved) return (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
+          <AlertCircle className="text-amber-600 flex-shrink-0" size={20} />
+          <div>
+            <p className="font-semibold text-amber-900">
+             Approval Required
+            </p>
+            <p className="text-sm text-amber-800 mt-1">
+              You must be approved by the App Admin to Review and approve pending driver
+            </p>
+          </div>
+        </div>
+      )
 
   return (
     <div className="space-y-8">
@@ -252,7 +270,8 @@ export default function Drivers() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {doc.status !== "approved" && (
+                        {doc.status === "pending" && (
+
                           <>
                             <Button
                               variant="success"
