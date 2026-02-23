@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect } from "react";
+import  { useState, useEffect } from "react";
 import { useDriver } from "../../context/DriverContext";
 
 export default function DriverTripControls() {
@@ -35,20 +35,21 @@ export default function DriverTripControls() {
     };
 
     loadInitialTrip();
-  }, [refreshActiveTrip]);
+  }, []);
 
   /* -----------------------------------------------------
      POLL ONLY WHEN DRIVER IS ON TRIP
   ----------------------------------------------------- */
-  useEffect(() => {
-    if (runtimeStatus?.runtime_status !== "on_trip") return;
+ 
+useEffect(() => {
+  if (runtimeStatus?.runtime_status !== "on_trip") return;
 
-    const pollInterval = setInterval(() => {
-      refreshActiveTrip();
-    }, 3000);
+  const pollInterval = setInterval(() => {
+    refreshActiveTrip();
+  }, 3000);
 
-    return () => clearInterval(pollInterval);
-  }, [runtimeStatus?.runtime_status, refreshActiveTrip]);
+  return () => clearInterval(pollInterval);
+}, [runtimeStatus?.runtime_status]);
 
   /* -----------------------------------------------------
      LOADING GUARD (prevents wrong UI flash)

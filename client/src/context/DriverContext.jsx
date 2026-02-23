@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, useMemo, useCallback} from "react";
 import { useUserAuth } from "./UserAuthContext";
 import { driverApi } from "../services/driverApi";
 
@@ -69,25 +69,25 @@ useEffect(() => {
       setError(null);
 
       const profile = await driverApi.getDriverProfile();
+      setDriverProfile(profile);
       const nextDriver = profile?.driver ?? null;
       setDriver(nextDriver);
 
       if (!nextDriver?.driver_id) return;
 
-      const [docs, shift, runtime, vehicle,trip] = await Promise.all([
+      const [docs, shift, runtime, vehicle] = await Promise.all([
         driverApi.getDriverDocuments(),
         driverApi.getShiftStatus(),
         driverApi.getRuntimeStatus(),
         driverApi.getVehicleSummary(),
-        driverApi.getactiveTrip()
+   
       ]);
 
       setDocuments(docs || []);
       setActiveShift(shift || null);
       setRuntimeStatus(runtime || null);
       setVehicleSummary(vehicle || null);
-      setActiveTrip(trip || null)
-
+      
       await refreshPastTrips();
       await refreshWallet();
       await loadPendingPayment();
@@ -218,14 +218,15 @@ useEffect(() => {
     return res;
   };
 
-  const refreshActiveTrip = async () => {
-    try {
-      const res = await driverApi.getactiveTrip();
-      setActiveTrip(res || null);
-    } catch {
-      setActiveTrip(null);
-    }
-  };
+
+const refreshActiveTrip = useCallback(async () => {
+  try {
+    const res = await driverApi.getactiveTrip();
+    setActiveTrip(res || null);
+  } catch {
+    setActiveTrip(null);
+  }
+}, []);
 
   const loadTripRequests = async () => {
     if (runtimeStatus?.runtime_status !== "available") return;
@@ -293,6 +294,7 @@ useEffect(() => {
     runtimeStatus?.runtime_status === "trip_accepted" ||
     runtimeStatus?.runtime_status === "on_trip"
   ) {
+    console.log("Runtime status changed to trip_accepted or on_trip, refreshing active trip...");
     refreshActiveTrip();
   }
 }, [runtimeStatus?.runtime_status]);
@@ -427,24 +429,7 @@ useEffect(() => {
 
    
 
- 
-  useEffect(() => {
-    const fetchDriverProfile = async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const data = await driverApi.getDriverProfile();
-        setDriverProfile(data);
-      } catch (err) {
-        setError(err.response?.data?.detail || "Failed to load driver profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDriverProfile();
-  }, []);
+  console.log("Runtime Status:", runtimeStatus?.runtime_status);
 
   /* =====================================================
      CONTEXT VALUE

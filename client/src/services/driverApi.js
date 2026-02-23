@@ -264,6 +264,7 @@ async submitDocuments() {
   },
   getactiveTrip: async () => {
     try {
+      console.trace("getactiveTrip called");
       const res = await apiClient.get(`/driver/trip/active`);
       return res.data;
     } catch (err) {

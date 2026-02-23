@@ -306,11 +306,25 @@ def location_heartbeat(
     # Only update GEO if all required info is present
     if tenant_id and city_id and payload.latitude is not None and payload.longitude is not None:
         geo_key = f"drivers:geo:{tenant_id}:{city_id}"
+        global_geo_key = f"drivers:geo:global:{city_id}"
+
+        
         print(f"[HEARTBEAT DEBUG] GEOADD {geo_key} {payload.longitude} {payload.latitude} {driver.driver_id}")
+        print(f"[HEARTBEAT DEBUG] global_geo_key {global_geo_key} {payload.longitude} {payload.latitude} {driver.driver_id}")
         try:
             redis.execute_command('GEOADD', geo_key, str(payload.longitude), str(payload.latitude), str(driver.driver_id))
+                        
+            redis.execute_command(
+                'GEOADD',
+                global_geo_key,
+                str(payload.longitude),
+                str(payload.latitude),
+                str(driver.driver_id)
+            )
             redis.expire(geo_key, 120)
             print(f"[HEARTBEAT DEBUG] GEOADD success for driver {driver.driver_id}")
+            print(f"[HEARTBEAT DEBUG] global_geo_key for driver {driver.driver_id}")
+
         except Exception as exc:
             print(f"[HEARTBEAT DEBUG] Failed to update GEO for driver {driver.driver_id}: {exc}")
     else:

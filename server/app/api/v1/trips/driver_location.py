@@ -70,6 +70,17 @@ def update_driver_location(
 
     #  Update GEO location
     geo_key = f"drivers:geo:{tenant_id}:{city_id}"
+    # Tenant-specific key (for dispatch)
+
+    # Global key (for map preview)
+    global_key = f"drivers:geo:global:{city_id}"
+
+    redis_client.geoadd(
+        global_key,              
+        payload.longitude,
+        payload.latitude,
+        str(driver.driver_id),)
+    
     redis_client.geoadd(
         geo_key,
         payload.longitude,

@@ -1,6 +1,6 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
 
 * {
   @apply m-0 p-0 box-border;
@@ -19,7 +19,7 @@ input::-webkit-inner-spin-button {
   @apply appearance-none m-0;
 }
 
-input[type='number'] {
+input[type="number"] {
   @apply appearance-none;
 }
 
@@ -32,4 +32,34 @@ input[type='number'] {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Driver Popup Styling */
+.driver-popup .leaflet-popup-content {
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 8px;
+  width: auto !important;
+}
+
+.driver-popup .leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  padding: 0 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.driver-popup .leaflet-popup-tip {
+  background-color: #ffffff;
+}
+
+.vehicle-marker,
+.vehicle-svg-marker {
+  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.2));
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.vehicle-marker:hover,
+.vehicle-svg-marker:hover {
+  transform: scale(1.1);
 }

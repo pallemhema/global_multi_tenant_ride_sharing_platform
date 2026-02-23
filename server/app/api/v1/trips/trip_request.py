@@ -8,12 +8,14 @@ Trip Request Endpoints - Multi-tenant ride-sharing trip flow
 4️⃣ Start Driver Search (batch-wise)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status,Query
+from app.models.core.drivers.driver_current_status import DriverCurrentStatus
+from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone,timedelta
 import math
 import json
-from sqlalchemy import or_, and_
+from sqlalchemy import func
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 
@@ -43,6 +45,9 @@ from app.schemas.core.trips.trip_request import (
 from app.core.fare.tenant_vehicle_categoy_price import get_vehicle_pricing
 from app.models.lookups.vehicle_category import VehicleCategory
 from app.schemas.core.trips.trip_request import TripStatusOut
+from app.models.core.vehicles.vehicles import Vehicle
+from app.models.core.users.user_profiles import UserProfile
+from app.models.core.tenants.tenants import Tenant
 import os
 from sqlalchemy import  func
 
@@ -69,6 +74,194 @@ def haversine_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
     
     return R * c
 
+
+
+
+
+@router.get("/available-drivers-on-map")
+def get_available_drivers_on_map(
+    pickup_lat: float,
+    pickup_lng: float,
+    radius_km: float = Query(5.0),
+    db: Session = Depends(get_db),
+):
+
+    # --------------------------------------------------
+    # 1️⃣ Find City from Pickup Coordinates
+    # --------------------------------------------------
+    pickup_point = func.ST_SetSRID(
+        func.ST_Point(pickup_lng, pickup_lat),
+        4326
+    )
+
+    city = (
+        db.query(City)
+        .filter(City.is_active.is_(True))
+        .filter(func.ST_Contains(City.boundary, pickup_point))
+        .first()
+    )
+
+    if not city:
+        return {
+            "pickup_location": {
+                "lat": pickup_lat,
+                "lng": pickup_lng
+            },
+            "message": "Pickup location is outside service area",
+            "drivers": []
+        }
+
+    city_id = city.city_id
+    print("Detected city:", city.city_name)
+
+    # --------------------------------------------------
+    # 2️⃣ Redis Geo Search
+    # --------------------------------------------------
+    geo_key = f"drivers:geo:global:{city_id}"
+    print("geo key:", geo_key)
+
+    nearby_drivers = redis_client.georadius(
+        geo_key,
+        pickup_lng,
+        pickup_lat,
+        radius_km,
+        unit="km",
+        withcoord=True,
+        withdist=True,
+        sort="ASC"
+    )
+
+    if not nearby_drivers:
+        return {
+            "pickup_location": {
+                "lat": pickup_lat,
+                "lng": pickup_lng
+            },
+            "city": city.city_name,
+            "drivers": []
+        }
+
+    # --------------------------------------------------
+    # 3️⃣ Extract Redis Data
+    # --------------------------------------------------
+    redis_data = []
+    driver_ids = []
+
+    for raw_id, distance, coords in nearby_drivers:
+        driver_id = int(raw_id.decode() if isinstance(raw_id, bytes) else raw_id)
+        lng, lat = coords
+
+        redis_data.append({
+            "driver_id": driver_id,
+            "lat": float(lat),
+            "lng": float(lng),
+            "distance_km": float(distance)
+        })
+
+        driver_ids.append(driver_id)
+
+    # --------------------------------------------------
+    # 4️⃣ Filter Only Available Drivers
+    # --------------------------------------------------
+    available_ids = db.query(
+        DriverCurrentStatus.driver_id
+    ).filter(
+        DriverCurrentStatus.driver_id.in_(driver_ids),
+        DriverCurrentStatus.runtime_status == "available"
+    ).all()
+
+    available_ids = {d[0] for d in available_ids}
+
+    if not available_ids:
+        return {
+            "pickup_location": {
+                "lat": pickup_lat,
+                "lng": pickup_lng
+            },
+            "city": city.city_name,
+            "drivers": []
+        }
+
+    # --------------------------------------------------
+    # 5️⃣ Fetch Driver + Vehicle Details
+    # --------------------------------------------------
+    drivers = db.query(
+        Driver.driver_id,
+        Driver.average_rating,
+        UserProfile.full_name,
+        Tenant.tenant_name,
+        Driver.driver_type
+    ).join(
+        UserProfile, UserProfile.user_id == Driver.user_id
+    ).join(
+        Tenant, Tenant.tenant_id == Driver.tenant_id
+    ).filter(
+        Driver.driver_id.in_(available_ids),
+        Driver.is_active == True,
+        Driver.kyc_status == "approved"
+    ).all()
+
+    final_drivers = []
+
+    for r in redis_data:
+        driver_obj = next(
+            (d for d in drivers if d.driver_id == r["driver_id"]),
+            None
+        )
+
+        if not driver_obj:
+            continue
+
+        vehicle = None
+
+        # Individual Driver
+        if driver_obj.driver_type == "individual":
+            vehicle = db.query(Vehicle).filter(
+                Vehicle.driver_owner_id == driver_obj.driver_id,
+                Vehicle.status == "active"
+            ).first()
+
+        # Fleet Driver
+        elif driver_obj.driver_type == "fleet_driver":
+            assignment = db.query(DriverVehicleAssignment).filter(
+                DriverVehicleAssignment.driver_id == driver_obj.driver_id,
+                DriverVehicleAssignment.is_active == True
+            ).first()
+
+            if assignment:
+                vehicle = db.query(Vehicle).filter(
+                    Vehicle.vehicle_id == assignment.vehicle_id,
+                    Vehicle.status == "active"
+                ).first()
+
+        if not vehicle:
+            continue
+
+        final_drivers.append({
+            "driver_id": driver_obj.driver_id,
+            "driver_name": driver_obj.full_name,
+            "tenant_name": driver_obj.tenant_name,
+            "vehicle_type": vehicle.category_code,
+            "license_plate": vehicle.license_plate,
+            "rating": float(driver_obj.average_rating or 5.0),
+            "lat": r["lat"],
+            "lng": r["lng"],
+            "distance_km": r["distance_km"]
+        })
+
+    # --------------------------------------------------
+    # 6️⃣ Final Response
+    # --------------------------------------------------
+    return {
+        "pickup_location": {
+            "lat": pickup_lat,
+            "lng": pickup_lng
+        },
+        "city": city.city_name,
+        "radius_km": radius_km,
+        "total_drivers_found": len(final_drivers),
+        "drivers": final_drivers
+    }
 
 # ============================================
 # CREATE TRIP REQUEST

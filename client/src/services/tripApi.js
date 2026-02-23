@@ -1,5 +1,31 @@
 import { apiClient } from "./axios";
 
+
+export const getAvailableDriversOnMap = async (
+  pickupLat,
+  pickupLng,
+  radiusKm = 5.0
+) => {
+  try {
+    const response = await apiClient.get(
+      "/rider/trips/available-drivers-on-map",
+      {
+        params: {
+          pickup_lat: pickupLat,
+          pickup_lng: pickupLng,
+          radius_km: radiusKm,
+        },
+      }
+    );
+    console.log("API response for nearby drivers:", response);
+
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching nearby drivers:", error);
+    throw error;
+  }
+};
+
 export const requestTrip = async (payload) => {
   // payload should include pickup/dropoff lat/lng and any optional metadata
   return apiClient.post("/rider/trips/request", payload).then((r) => r.data);
@@ -47,9 +73,9 @@ export const resendTripOtp = async (tripId) => {
     .then((r) => r.data);
 };
 
-export const changeProvider = async (tripRequestId) =>{
+export const changeProvider = async (tripRequestId) => {
   return apiClient.post(`/rider/trips/${tripRequestId}/change-provider`);
-}
+};
 
 export const getTripReceipt = async (tripId) => {
   return apiClient.get(`/rider/trips/${tripId}/receipt`).then((r) => r.data);
@@ -61,9 +87,6 @@ export const cancelTripRequest = async (tripRequestId) => {
     .then((r) => r.data);
 };
 
-
-export const tripRating = async(tripId, payload) => {
-  return apiClient.post(`/rider/trips/${tripId}/rate`,payload)
-}
-
-
+export const tripRating = async (tripId, payload) => {
+  return apiClient.post(`/rider/trips/${tripId}/rate`, payload);
+};
