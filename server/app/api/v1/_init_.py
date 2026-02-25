@@ -48,6 +48,7 @@ from app.api.v1.public.tentants import router as public_router
 from app.api.v1.payments.payment_confirmation import router as payment_confirmation_router
 from app.api.v1.payments.payment_status import router as payment_status_router
 from app.api.v1.payouts.router import router as payouts_router
+from app.api.v1.locationmapping.router import router as location_mapping_router
 from fastapi import APIRouter
 
 api_router = APIRouter()
@@ -67,3 +68,4 @@ api_router.include_router(trip_router)
 api_router.include_router(payment_confirmation_router)
 api_router.include_router(payment_status_router)
 api_router.include_router(payouts_router)
+api_router.include_router(location_mapping_router)

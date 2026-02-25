@@ -1,21 +1,41 @@
-# Python
+# ======================================
+# Python / Backend
+# ======================================
 venv/
-__pycache__/
-*.pyc
 .env
+__pycache__/
+*.py[cod]
+*$py.class
 
-# FastAPI
+# Backend Logs
 *.log
+logs/
+backend/logs/
 
-# Node / Frontend
+# ======================================
+# Frontend / Node
+# ======================================
 node_modules/
 dist/
 build/
+.next/
+out/
 
-echo "backend/app/uploads/" >> .gitignore
-echo "*.zip" >> .gitignore
-git add .gitignore
+# Frontend Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+frontend/logs/
 
-# OS
-.DS_Store
+# ======================================
+# Uploads / Generated Files
+# ======================================
 backend/app/uploads/
+*.zip
+
+# ======================================
+# OS Files
+# ======================================
+.DS_Store
+Thumbs.db

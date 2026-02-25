@@ -12,8 +12,7 @@ export default function Searching() {
   const [isRetrying, setIsRetrying] = useState(false);
   const [error, setError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
-    const [isChangingProvider, setIsChangingProvider] = useState(false);
-
+  const [isChangingProvider, setIsChangingProvider] = useState(false);
 
   useEffect(() => {
     if (isChangingProvider) return; // stop polling when switching provider
@@ -23,30 +22,39 @@ export default function Searching() {
     const poll = async () => {
       try {
         const res = await tripApi.getTripStatus(tripRequestId);
-        console.log("traip cancelled:",res)
+        console.log("[SEARCHING_POLL] Full response:", res);
+        console.log("[SEARCHING_POLL] Status value:", res?.status);
+        console.log("[SEARCHING_POLL] Status type:", typeof res?.status);
+        console.log(
+          "[SEARCHING_POLL] Status === 'no_drivers_available':",
+          res?.status === "no_drivers_available",
+        );
+        console.log("[SEARCHING_POLL] Response keys:", Object.keys(res || {}));
         if (!mounted) return;
 
         setStatus(res);
         setError(null);
 
         if (res?.status === "driver_assigned") {
+          console.log("[SEARCHING_POLL] → Navigating to assigned page");
           navigate(`/rider/assigned/${tripRequestId}`);
-        }
-
-        else if (res?.status === "no_drivers_available") {
+        } else if (res?.status === "no_drivers_available") {
+          console.log("[SEARCHING_POLL] → Setting noDriversFound=true");
           setNoDriversFound(true);
-        }
-        else if (res?.status === "driver_cancelled") {
-   setTripCancelled(true)
-}
-
-        else if (res?.status === "driver_searching") {
+        } else if (res?.status === "driver_cancelled") {
+          console.log("[SEARCHING_POLL] → Setting tripCancelled=true");
+          setTripCancelled(true);
+        } else if (res?.status === "driver_searching") {
+          console.log("[SEARCHING_POLL] → Still searching...");
           // reset cancellation flags
           setTripCancelled(false);
           setNoDriversFound(false);
+        } else {
+          console.warn(
+            "[SEARCHING_POLL] ⚠️ Unexpected status received:",
+            res?.status,
+          );
         }
-
-      
       } catch (e) {
         if (mounted) {
           setError("Failed to check trip status");
@@ -70,7 +78,7 @@ export default function Searching() {
     try {
       // Retry the same tenant/vehicle selection
       await tripApi.startDriverSearch(tripRequestId);
-      setRetryCount(prev => prev + 1);
+      setRetryCount((prev) => prev + 1);
 
       // Clear the message and start polling again
     } catch (e) {
@@ -83,26 +91,24 @@ export default function Searching() {
       setIsRetrying(false);
     }
   };
-const handleChangeTenant = async () => {
-  try {
-     setIsChangingProvider(true);   // stop polling
+  const handleChangeTenant = async () => {
+    try {
+      setIsChangingProvider(true); // stop polling
       setError(null);
       setNoDriversFound(false);
 
       console.log("🔥 CLICKED CHANGE PROVIDER");
-  console.log("🔥 changeProvider:", tripApi.changeProvider);
-  
+      console.log("🔥 changeProvider:", tripApi.changeProvider);
 
-    await tripApi.changeProvider(tripRequestId);
-    navigate(`/rider/options/${tripRequestId}`);
-  } catch (e) {
-    setError(
-      e?.response?.data?.detail || "Unable to change provider. Please try again."
-    );
-  }
-};
-
-
+      await tripApi.changeProvider(tripRequestId);
+      navigate(`/rider/options/${tripRequestId}`);
+    } catch (e) {
+      setError(
+        e?.response?.data?.detail ||
+          "Unable to change provider. Please try again.",
+      );
+    }
+  };
 
   const handleTripCancelledRetry = () => {
     // Reset cancelled state and start searching again
@@ -112,7 +118,7 @@ const handleChangeTenant = async () => {
     tripApi
       .startDriverSearch(tripRequestId)
       .then(() => {
-        setRetryCount(prev => prev + 1);
+        setRetryCount((prev) => prev + 1);
       })
       .catch((e) => {
         setError(e?.response?.data?.detail || "Failed to retry");
@@ -122,17 +128,14 @@ const handleChangeTenant = async () => {
         setIsRetrying(false);
       });
   };
-  console.log("tripCancelled:",tripCancelled)
+  console.log("tripCancelled:", tripCancelled);
   if (isChangingProvider) {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <p className="text-slate-600 text-lg">
-        Redirecting to providers…
-      </p>
-    </div>
-  );
-}
-
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-slate-600 text-lg">Redirecting to providers…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">

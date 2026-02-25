@@ -52,6 +52,8 @@ def driver_respond_to_batch(
 
     #  ACCEPT 
     if payload.response == "accepted":
+        print(f"[DRIVER_ACCEPT] Trip request {trip_request_id} from driver {driver.driver_id}")
+        print(f"[DRIVER_ACCEPT] Current status: {trip_req.status}")
 
         # ATOMIC CHECK: Trip must still be in "driver_searching" status
         # Another driver may have already accepted between the lock check and now
@@ -63,6 +65,7 @@ def driver_respond_to_batch(
 
         # ATOMIC UPDATE: Change status to "driver_assigned" and create trip in same transaction
         trip_req.status = "driver_assigned"
+        print(f"[DRIVER_ACCEPT] Status set to: {trip_req.status}")
 
         trip = TripLifecycle.create_trip_from_request(
             db=db,
@@ -71,6 +74,7 @@ def driver_respond_to_batch(
             vehicle_category=None,
             now=now,
         )
+        print(f"[DRIVER_ACCEPT] Trip created with trip_id={trip.trip_id}")
 
         # Generate OTP for trip
         otp = generate_trip_otp()
@@ -108,10 +112,18 @@ def driver_respond_to_batch(
             candidate.response_at_utc = now
 
         #Commit all changes atomically
+        print(f"[DRIVER_ACCEPT] Committing transaction...")
         db.commit()
+        print(f"[DRIVER_ACCEPT] Commit successful. Status after commit: {trip_req.status}")
+        
+        # Verify status was persisted
+        refreshed_req = db.query(TripRequest).filter(TripRequest.trip_request_id == trip_request_id).first()
+        print(f"[DRIVER_ACCEPT] Status verified from DB: {refreshed_req.status if refreshed_req else 'NOT FOUND'}")
         
         # Lock driver after commit
+        print(f"[DRIVER_ACCEPT] Calling TripLifecycle.lock_driver()...")
         TripLifecycle.lock_driver(db, driver.driver_id, trip.trip_id)
+        print(f"[DRIVER_ACCEPT] Driver lock complete")
 
         return {
             "response": "accepted",
@@ -128,22 +140,22 @@ def driver_respond_to_batch(
         ).with_for_update().first()
 
         if not candidate:
-            raise HTTPException(
-                status_code=404,
-                detail="Dispatch candidate not found"
-            )
+            raise HTTPException(status_code=404, detail="Dispatch candidate not found")
 
-        # Mark this driver rejected
         candidate.response_code = "rejected"
         candidate.response_at_utc = now
 
-        # Check if ANY pending candidates still exist in this batch
+        # Lock batch
+        batch = db.query(TripBatch).filter(
+            TripBatch.trip_batch_id == batch_id
+        ).with_for_update().first()
+
+        # Check pending drivers in this batch
         pending_exists = db.query(TripDispatchCandidate).filter(
             TripDispatchCandidate.trip_batch_id == batch_id,
             TripDispatchCandidate.response_code.is_(None)
         ).first()
 
-        # If at least one pending driver exists → DO NOTHING
         if pending_exists:
             db.commit()
             return {
@@ -152,13 +164,10 @@ def driver_respond_to_batch(
                 "message": "Trip rejected.",
             }
 
-        # If NO pending drivers left in this batch:
-        from app.models.core.trips.trip_batch import TripBatch
+        # 🚀 No pending drivers → batch is finished
+        batch.batch_status = "completed"
 
-        batch = db.query(TripBatch).filter(
-            TripBatch.trip_batch_id == batch_id
-        ).first()
-
+        # Check next batch
         next_batch = db.query(TripBatch).filter(
             TripBatch.trip_request_id == trip_request_id,
             TripBatch.batch_number > batch.batch_number
@@ -166,6 +175,8 @@ def driver_respond_to_batch(
 
         if not next_batch:
             trip_req.status = "no_drivers_available"
+            trip_req.updated_at_utc = now
+            print("[DISPATCH] All batches exhausted → no drivers available")
 
         db.commit()
 
@@ -174,7 +185,6 @@ def driver_respond_to_batch(
             "trip_request_id": trip_request_id,
             "message": "Trip rejected.",
         }
-
     # CANCEL 
     if payload.response == "cancelled":
 

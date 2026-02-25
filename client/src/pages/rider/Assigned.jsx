@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import * as tripApi from "../../services/tripApi";
+import TripRouteMap from "../../components/Trip/TripRouteMap";
+import useTripRoute from "../../hooks/useTripRoute";
 
 export default function Assigned() {
   const { tripRequestId } = useParams();
@@ -14,6 +16,7 @@ export default function Assigned() {
       try {
         // Get trip status (includes OTP now)
         const res = await tripApi.getTripStatus(tripRequestId);
+        console.log("Trip Status Response:", res);
         if (!mounted) return;
         console.log("Trip Status Response:", res);
         setInfo(res || {});
@@ -31,17 +34,14 @@ export default function Assigned() {
           } else {
             console.error("Trip ID not available in response:", res);
           }
-        }
-else if (res?.status === "driver_cancelled") {
-  navigate(`/rider/searching/${tripRequestId}`);
-}
-
-        // If driver cancelled after assignment, send rider back to searching
-  
-        else if (res?.status === "driver_searching") {
+        } else if (res?.status === "driver_cancelled") {
           navigate(`/rider/searching/${tripRequestId}`);
         }
 
+        // If driver cancelled after assignment, send rider back to searching
+        else if (res?.status === "driver_searching") {
+          navigate(`/rider/searching/${tripRequestId}`);
+        }
       } catch (e) {
         console.error("Trip status error:", e);
       }
@@ -54,9 +54,50 @@ else if (res?.status === "driver_cancelled") {
     };
   }, [tripRequestId, navigate]);
 
+  // Initialize route hook with trip data
+  const {
+    driverLocation,
+    pickupLocation,
+    dropLocation,
+    driverToPickupRoute,
+    pickupToDropRoute,
+
+  } = useTripRoute({
+    pickupLat: info?.pickup_lat,
+    pickupLng: info?.pickup_lng,
+    dropLat: info?.drop_lat,
+    dropLng: info?.drop_lng,
+    driverLat: info?.assigned_info?.driver_lat,
+    driverLng: info?.assigned_info?.driver_lng,
+    tripStatus: info?.status,
+    enabled: !!info,
+  });
+
+  // 🔹 THEN return conditionally
+  if (!info) {
+    return <div>Loading trip...</div>;
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Driver assigned</h1>
+
+      {/* Map with route visualization */}
+      {info && (
+        <div className="h-96 rounded-lg overflow-hidden shadow-lg">
+          <TripRouteMap
+            driverLocation={driverLocation}
+            pickupLocation={pickupLocation}
+            dropLocation={dropLocation}
+            pickUpAddress={info.pickup_address}
+            dropAddress={info.drop_address}
+            driverToPickupRoute={driverToPickupRoute}
+            pickupToDropRoute={pickupToDropRoute}
+        
+          />
+        </div>
+      )}
+
       {info?.assigned_info ? (
         <div className="p-4 bg-white rounded shadow">
           <div className="font-semibold text-lg">

@@ -1,41 +1,61 @@
+
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import * as tripApi from "../../services/tripApi";
-import { MapContainer, TileLayer, Marker } from "react-leaflet";
-
+import TripRouteMap from "../../components/Trip/TripRouteMap";
 export default function InProgress() {
   const { tripId } = useParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState(null);
 
-  useEffect(() => {
-    let mounted = true;
+
+
+   useEffect(() => {
+    if (!tripId) return;
+
+    let intervalId;
+
     const poll = async () => {
       try {
-        // Use trip_id endpoint since trip is already created
         const res = await tripApi.getTripStatusByTripId(tripId);
-        if (!mounted) return;
-        console.log("Trip Status:", res);
         setStatus(res);
 
-        // If trip is completed, navigate to completion page
-        if (res?.status === "completed") {
-          navigate(`/rider/trip-completion/${tripId}`);
+        if (res.status === "completed") {
+                    navigate(`/rider/trip-completion/${tripId}`);
+
+          clearInterval(intervalId);
         }
-      } catch (e) {
-        console.error(e);
+      }
+      catch (err) {
+        console.error("Polling error:", err);
       }
     };
-    poll();
-    const id = setInterval(poll, 3000);
-    return () => {
-      mounted = false;
-      clearInterval(id);
-    };
-  }, [tripId, navigate]);
-  console.log("Current Trip Status:", status);
 
-  const driverPos = status?.driver_location;
+    poll();
+    intervalId = setInterval(poll, 3000);
+
+    return () => clearInterval(intervalId);
+
+  }, [tripId]);
+
+  if (!status) return null;
+  console.log("Current Trip Status:", status);
+    const driverLocation =
+    status.driver_lat != null && status.driver_lng != null
+      ? [status.driver_lat, status.driver_lng]
+      : null;
+
+  const pickupLocation =
+    status.pickup_lat != null && status.pickup_lng != null
+      ? [status.pickup_lat, status.pickup_lng]
+      : null;
+
+  const dropLocation =
+    status.drop_lat != null && status.drop_lng != null
+      ? [status.drop_lat, status.drop_lng]
+      : null;
+
 
   return (
     <div className="space-y-6">
@@ -43,14 +63,21 @@ export default function InProgress() {
       <p className="text-sm text-slate-600">Trip status: {status?.status}</p>
 
       <div className="h-72 rounded overflow-hidden bg-white">
-        <MapContainer
-          center={[17.385044, 78.486671]}
-          zoom={13}
-          style={{ height: "100%" }}
-        >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          {driverPos && <Marker position={[driverPos.lat, driverPos.lng]} />}
-        </MapContainer>
+         <TripRouteMap
+      driverLocation={driverLocation}
+      pickupLocation={pickupLocation}
+      dropLocation={dropLocation}
+      driverToPickupRoute={
+        driverLocation && pickupLocation
+          ? [driverLocation, pickupLocation]
+          : []
+      }
+      pickupToDropRoute={
+        pickupLocation && dropLocation
+          ? [pickupLocation, dropLocation]
+          : []
+      }
+    />
       </div>
 
       <div className="p-4 bg-white rounded">

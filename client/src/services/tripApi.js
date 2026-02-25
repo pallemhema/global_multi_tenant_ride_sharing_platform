@@ -1,10 +1,9 @@
 import { apiClient } from "./axios";
 
-
 export const getAvailableDriversOnMap = async (
   pickupLat,
   pickupLng,
-  radiusKm = 5.0
+  radiusKm = 5.0,
 ) => {
   try {
     const response = await apiClient.get(
@@ -15,7 +14,7 @@ export const getAvailableDriversOnMap = async (
           pickup_lng: pickupLng,
           radius_km: radiusKm,
         },
-      }
+      },
     );
     console.log("API response for nearby drivers:", response);
 
@@ -60,10 +59,19 @@ export const getTripStatusByTripId = async (tripId) => {
   // Use trip_id endpoint after driver accepts (for live tracking)
   return apiClient.get(`/rider/trips/${tripId}/status`).then((r) => r.data);
 };
+export const getTripStatusByTripIdforDriver = async (tripId) => {
+  // Use trip_id endpoint after driver accepts (for live tracking)
+  return apiClient.get(`/driver/trip/${tripId}/status`).then((r) => r.data);
+};
 
 export const getTripOtp = async (tripId) => {
   // OTP is stored by trip_id, not trip_request_id
   return apiClient.get(`/rider/trips/${tripId}/otp`).then((r) => r.data);
+};
+
+export const getTripDetails = async (tripId) => {
+  // Get full trip details including pickup/drop coordinates
+  return apiClient.get(`/rider/trips/${tripId}/status`).then((r) => r.data);
 };
 
 export const resendTripOtp = async (tripId) => {

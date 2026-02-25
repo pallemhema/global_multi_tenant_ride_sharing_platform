@@ -30,6 +30,9 @@ class TripRequestOut(BaseModel):
     pickup_lng: float
     drop_lat: float
     drop_lng: float
+    pickup_address: str
+
+    drop_address: str
     estimated_distance_km: Optional[float]
     estimated_duration_minutes: Optional[int]
     created_at_utc: datetime

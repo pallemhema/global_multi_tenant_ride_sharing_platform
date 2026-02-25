@@ -8,6 +8,9 @@ Trip Request Endpoints - Multi-tenant ride-sharing trip flow
 4️⃣ Start Driver Search (batch-wise)
 """
 
+
+
+
 from fastapi import APIRouter, Depends, HTTPException, status,Query
 from app.models.core.drivers.driver_current_status import DriverCurrentStatus
 from app.models.core.fleet_owners.driver_vehicle_assignments import DriverVehicleAssignment
@@ -87,7 +90,7 @@ def get_available_drivers_on_map(
 ):
 
     # --------------------------------------------------
-    # 1️⃣ Find City from Pickup Coordinates
+    # Find City from Pickup Coordinates
     # --------------------------------------------------
     pickup_point = func.ST_SetSRID(
         func.ST_Point(pickup_lng, pickup_lat),
@@ -115,7 +118,7 @@ def get_available_drivers_on_map(
     print("Detected city:", city.city_name)
 
     # --------------------------------------------------
-    # 2️⃣ Redis Geo Search
+    # Redis Geo Search
     # --------------------------------------------------
     geo_key = f"drivers:geo:global:{city_id}"
     print("geo key:", geo_key)
@@ -142,7 +145,7 @@ def get_available_drivers_on_map(
         }
 
     # --------------------------------------------------
-    # 3️⃣ Extract Redis Data
+    # Extract Redis Data
     # --------------------------------------------------
     redis_data = []
     driver_ids = []
@@ -161,7 +164,7 @@ def get_available_drivers_on_map(
         driver_ids.append(driver_id)
 
     # --------------------------------------------------
-    # 4️⃣ Filter Only Available Drivers
+    # Filter Only Available Drivers
     # --------------------------------------------------
     available_ids = db.query(
         DriverCurrentStatus.driver_id
@@ -183,7 +186,7 @@ def get_available_drivers_on_map(
         }
 
     # --------------------------------------------------
-    # 5️⃣ Fetch Driver + Vehicle Details
+    # Fetch Driver + Vehicle Details
     # --------------------------------------------------
     drivers = db.query(
         Driver.driver_id,
@@ -250,7 +253,7 @@ def get_available_drivers_on_map(
         })
 
     # --------------------------------------------------
-    # 6️⃣ Final Response
+    #  Final Response
     # --------------------------------------------------
     return {
         "pickup_location": {
@@ -746,8 +749,11 @@ def start_driver_search(
         ]
     
     if not available_driver_ids:
+        print(f"[START_DRIVER_SEARCH] No available drivers for trip_request_id={trip_request_id}")
+        print(f"[START_DRIVER_SEARCH] nearby_drivers={nearby_driver_ids}, rejected_drivers={rejected_driver_ids}")
         trip_req.status = "no_drivers_available"
         db.commit()
+        print(f"[START_DRIVER_SEARCH] Status set to 'no_drivers_available' and committed")
         return {
             "trip_request_id": trip_req.trip_request_id,
             "batch_id": None,
@@ -775,6 +781,7 @@ def start_driver_search(
     )
     db.add(trip_batch)
     db.flush()
+    print(f"[START_DRIVER_SEARCH] Created batch {batch_cfg['batch_number']} for trip_request_id={trip_request_id}, batch_id={trip_batch.trip_batch_id}")
 
     candidates = [
         TripDispatchCandidate(
@@ -788,6 +795,7 @@ def start_driver_search(
     ]
 
     db.add_all(candidates)
+    print(f"[START_DRIVER_SEARCH] Created {len(candidates)} dispatch candidates for batch {batch_cfg['batch_number']}")
 
   
     trip_req.status = "driver_searching"
@@ -813,6 +821,140 @@ def start_driver_search(
     }
 
 
+# @router.get("/request/{trip_request_id}/status", response_model=TripStatusOut)
+# def get_trip_request_status(
+#     trip_request_id: int,
+#     db: Session = Depends(get_db),
+#     rider: User = Depends(require_rider),
+# ):
+#     """
+#     Get trip request status (before driver accepts).
+#     Once driver accepts and Trip is created, client should switch to /trips/{trip_id}/status
+#     """
+
+    
+#     trip_req = db.query(TripRequest).filter(
+#         TripRequest.trip_request_id == trip_request_id,
+#         TripRequest.user_id == rider.user_id,
+#     ).first()
+
+#     if not trip_req:
+#         raise HTTPException(status_code=404, detail="Trip request not found")
+
+#     # Build response dict from trip_req
+#     out_dict = {
+#         "trip_request_id": trip_req.trip_request_id,
+#         "user_id": trip_req.user_id,
+#         "city_id": trip_req.city_id,
+#         "status": trip_req.status,
+#         "pickup_lat": trip_req.pickup_lat,
+#         "pickup_lng": trip_req.pickup_lng,
+#         "drop_lat": trip_req.drop_lat,
+#         "drop_lng": trip_req.drop_lng,
+#         "estimated_distance_km": trip_req.estimated_distance_km,
+#         "estimated_duration_minutes": trip_req.estimated_duration_minutes,
+#         "created_at_utc": trip_req.created_at_utc,
+#         "assigned_info": None,
+#         "otp":None,
+#     }
+
+#     print(f"[GET_TRIP_STATUS] trip_request_id={trip_request_id}, status={trip_req.status}, trip_status_in_dict={out_dict['status']}")
+
+#     cancelled_trip = db.query(Trip).filter(
+#         Trip.trip_request_id == trip_request_id,
+#         Trip.trip_status == "cancelled",
+#     ).order_by(Trip.trip_id.desc()).first()
+
+#     if cancelled_trip and trip_req.status == "tenant_selected":
+#         out_dict["status"] = "driver_cancelled"
+#         return TripStatusOut(**out_dict)
+
+
+#     # If driver assigned or trip in progress, enrich with trip/driver info
+#     if trip_req.status in ("driver_assigned", "in_progress"):
+#         print(f"[TRIP_STATUS_START] Querying for trip_request_id={trip_request_id}, status={trip_req.status}")
+#         trip = db.query(Trip).filter(Trip.trip_request_id == trip_request_id).first()
+#         print(f"[TRIP_STATUS_RESULT] trip_found={trip is not None}, trip_id={trip.trip_id if trip else 'N/A'}, driver_id={trip.driver_id if trip else 'N/A'}")
+#         if trip:
+#             assigned = {
+#                 "trip_id": trip.trip_id,
+#                 "driver_id": trip.driver_id,
+#                 "driver_phone": None,
+#                 "driver_name": None,
+#                 "driver_rating_avg": None,
+#                 "driver_rating_count": None,
+#                 "vehicle_number": None,
+#                 "vehicle_type": None,
+#                 "driver_lat": None,
+#                 "driver_lng": None,
+#                 "eta_minutes": None,
+#             }
+
+#             # Lookup driver phone via User
+#             if trip.driver_id:
+#                 driver = db.query(Driver).filter(Driver.driver_id == trip.driver_id).first()
+#                 if driver:
+#                     user = db.query(User).filter(User.user_id == driver.user_id).first()
+#                     if user:
+#                         assigned["driver_phone"] = user.phone_e164
+                    
+#                     # Get driver name from UserProfile
+#                     profile = db.query(UserProfile).filter(UserProfile.user_id == driver.user_id).first()
+#                     if profile:
+#                         assigned["driver_name"] = profile.full_name
+                    
+#                     # Get driver rating
+#                     assigned["driver_rating_avg"] = driver.average_rating
+#                     assigned["driver_rating_count"] = driver.total_ratings
+
+#                     # Try to get driver GEO from Redis
+#                     try:
+#                         geo_key = f"drivers:geo:{trip.tenant_id}:{trip.city_id}"
+#                         pos = redis_client.geopos(geo_key, str(driver.driver_id))
+#                         if pos and pos[0]:
+#                             lng, lat = pos[0]
+#                             assigned["driver_lat"] = float(lat)
+#                             assigned["driver_lng"] = float(lng)
+
+#                             # Estimate ETA: distance / avg_speed (30 km/h)
+#                             dist_km = haversine_distance(
+#                                 float(lat),
+#                                 float(lng),
+#                                 float(trip.pickup_latitude),
+#                                 float(trip.pickup_longitude),
+#                             )
+#                             eta = int((dist_km / 30.0) * 60)
+#                             assigned["eta_minutes"] = eta
+#                     except Exception:
+#                         # best-effort -- do not fail status endpoint
+#                         pass
+            
+#             # Lookup vehicle info
+#             if trip.vehicle_id:
+#                 from app.models.core.vehicles.vehicles import Vehicle
+#                 vehicle = db.query(Vehicle).filter(Vehicle.vehicle_id == trip.vehicle_id).first()
+#                 if vehicle:
+#                     assigned["vehicle_number"] = vehicle.license_plate
+#                     assigned["vehicle_type"] = vehicle.category_code
+
+#             # attach assigned_info to the response dict
+#             out_dict["assigned_info"] = assigned
+            
+#             # Try to fetch OTP from Redis using trip_id
+#             try:
+#                 key = _otp_plain_key(trip.trip_id)
+#                 otp = redis_client.get(key)
+#                 # Handle both bytes and string returns from Redis
+#                 if otp:
+#                     otp_val = otp.decode() if isinstance(otp, bytes) else otp
+#                     if otp_val:
+#                         out_dict['otp'] = otp_val
+#             except Exception as e:
+#                 print(f"OTP fetch error: {e}")
+
+#     print(f"[TRIP_STATUS_RESPONSE] trip_request_id={trip_request_id}, status={out_dict.get('status')}, assigned_info={out_dict.get('assigned_info')}, trip_id={out_dict.get('assigned_info', {}).get('trip_id') if isinstance(out_dict.get('assigned_info'), dict) else 'N/A'}")
+#     return TripStatusOut(**out_dict)
+
 @router.get("/request/{trip_request_id}/status", response_model=TripStatusOut)
 def get_trip_request_status(
     trip_request_id: int,
@@ -824,7 +966,9 @@ def get_trip_request_status(
     Once driver accepts and Trip is created, client should switch to /trips/{trip_id}/status
     """
 
-    
+    # ---------------------------------------------------
+    # 1️⃣ Fetch TripRequest with strict ownership
+    # ---------------------------------------------------
     trip_req = db.query(TripRequest).filter(
         TripRequest.trip_request_id == trip_request_id,
         TripRequest.user_id == rider.user_id,
@@ -833,7 +977,9 @@ def get_trip_request_status(
     if not trip_req:
         raise HTTPException(status_code=404, detail="Trip request not found")
 
-    # Build response dict from trip_req
+    # ---------------------------------------------------
+    # 2️⃣ Base response
+    # ---------------------------------------------------
     out_dict = {
         "trip_request_id": trip_req.trip_request_id,
         "user_id": trip_req.user_id,
@@ -841,17 +987,20 @@ def get_trip_request_status(
         "status": trip_req.status,
         "pickup_lat": trip_req.pickup_lat,
         "pickup_lng": trip_req.pickup_lng,
+        "pickup_address": trip_req.pickup_address,
         "drop_lat": trip_req.drop_lat,
         "drop_lng": trip_req.drop_lng,
+        "drop_address": trip_req.drop_address,
         "estimated_distance_km": trip_req.estimated_distance_km,
         "estimated_duration_minutes": trip_req.estimated_duration_minutes,
         "created_at_utc": trip_req.created_at_utc,
         "assigned_info": None,
-        "otp":None,
+        "otp": None,
     }
 
-    
-
+    # ---------------------------------------------------
+    # 3️⃣ Detect driver cancelled case
+    # ---------------------------------------------------
     cancelled_trip = db.query(Trip).filter(
         Trip.trip_request_id == trip_request_id,
         Trip.trip_status == "cancelled",
@@ -861,13 +1010,17 @@ def get_trip_request_status(
         out_dict["status"] = "driver_cancelled"
         return TripStatusOut(**out_dict)
 
-
-    # If driver assigned or trip in progress, enrich with trip/driver info
+    # ---------------------------------------------------
+    # 4️⃣ If driver assigned or trip started
+    # ---------------------------------------------------
     if trip_req.status in ("driver_assigned", "in_progress"):
-        print(f"[TRIP_STATUS_START] Querying for trip_request_id={trip_request_id}, status={trip_req.status}")
-        trip = db.query(Trip).filter(Trip.trip_request_id == trip_request_id).first()
-        print(f"[TRIP_STATUS_RESULT] trip_found={trip is not None}, trip_id={trip.trip_id if trip else 'N/A'}, driver_id={trip.driver_id if trip else 'N/A'}")
+
+        trip = db.query(Trip).filter(
+            Trip.trip_request_id == trip_request_id
+        ).first()
+
         if trip:
+
             assigned = {
                 "trip_id": trip.trip_id,
                 "driver_id": trip.driver_id,
@@ -882,111 +1035,162 @@ def get_trip_request_status(
                 "eta_minutes": None,
             }
 
-            # Lookup driver phone via User
-            if trip.driver_id:
-                driver = db.query(Driver).filter(Driver.driver_id == trip.driver_id).first()
-                if driver:
-                    user = db.query(User).filter(User.user_id == driver.user_id).first()
-                    if user:
-                        assigned["driver_phone"] = user.phone_e164
-                    
-                    # Get driver name from UserProfile
-                    profile = db.query(UserProfile).filter(UserProfile.user_id == driver.user_id).first()
-                    if profile:
-                        assigned["driver_name"] = profile.full_name
-                    
-                    # Get driver rating
-                    assigned["driver_rating_avg"] = driver.average_rating
-                    assigned["driver_rating_count"] = driver.total_ratings
+            # ---------------------------------------------------
+            # 5️⃣ Driver Info
+            # ---------------------------------------------------
+            driver = db.query(Driver).filter(
+                Driver.driver_id == trip.driver_id
+            ).first()
 
-                    # Try to get driver GEO from Redis
-                    try:
-                        geo_key = f"drivers:geo:{trip.tenant_id}:{trip.city_id}"
-                        pos = redis_client.geopos(geo_key, str(driver.driver_id))
-                        if pos and pos[0]:
-                            lng, lat = pos[0]
-                            assigned["driver_lat"] = float(lat)
-                            assigned["driver_lng"] = float(lng)
+            if driver:
 
-                            # Estimate ETA: distance / avg_speed (30 km/h)
-                            dist_km = haversine_distance(
-                                float(lat),
-                                float(lng),
-                                float(trip.pickup_latitude),
-                                float(trip.pickup_longitude),
-                            )
-                            eta = int((dist_km / 30.0) * 60)
-                            assigned["eta_minutes"] = eta
-                    except Exception:
-                        # best-effort -- do not fail status endpoint
-                        pass
-            
-            # Lookup vehicle info
+                # Phone from User
+                user = db.query(User).filter(
+                    User.user_id == driver.user_id
+                ).first()
+
+                if user:
+                    assigned["driver_phone"] = user.phone_e164
+
+                # Name from profile
+                profile = db.query(UserProfile).filter(
+                    UserProfile.user_id == driver.user_id
+                ).first()
+
+                if profile:
+                    assigned["driver_name"] = profile.full_name
+
+                assigned["driver_rating_avg"] = driver.average_rating
+                assigned["driver_rating_count"] = driver.total_ratings
+
+                # ---------------------------------------------------
+                # 6️⃣ Redis GEO: Live Driver Location
+                # ---------------------------------------------------
+                try:
+                    geo_key = f"drivers:geo:{trip.tenant_id}:{trip.city_id}"
+                    pos = redis_client.geopos(geo_key, str(driver.driver_id))
+
+                    if pos and pos[0]:
+                        lng, lat = pos[0]
+
+                        driver_lat = float(lat)
+                        driver_lng = float(lng)
+
+                        assigned["driver_lat"] = driver_lat
+                        assigned["driver_lng"] = driver_lng
+
+                        # ETA calculation (30 km/h assumed speed)
+                        pickup_lat = float(trip_req.pickup_lat)
+                        pickup_lng = float(trip_req.pickup_lng)
+
+                        dist_km = haversine_distance(
+                            driver_lat,
+                            driver_lng,
+                            pickup_lat,
+                            pickup_lng,
+                        )
+
+                        eta = int((dist_km / 30.0) * 60)
+                        assigned["eta_minutes"] = max(1, eta)
+
+                except Exception as e:
+                    print(f"[REDIS_GEO_ERROR] {e}")
+
+            # ---------------------------------------------------
+            # 7️⃣ Vehicle Info
+            # ---------------------------------------------------
             if trip.vehicle_id:
                 from app.models.core.vehicles.vehicles import Vehicle
-                vehicle = db.query(Vehicle).filter(Vehicle.vehicle_id == trip.vehicle_id).first()
+
+                vehicle = db.query(Vehicle).filter(
+                    Vehicle.vehicle_id == trip.vehicle_id
+                ).first()
+
                 if vehicle:
                     assigned["vehicle_number"] = vehicle.license_plate
                     assigned["vehicle_type"] = vehicle.category_code
 
-            # attach assigned_info to the response dict
+            # ---------------------------------------------------
+            # 8️⃣ Attach assigned info
+            # ---------------------------------------------------
             out_dict["assigned_info"] = assigned
-            
-            # Try to fetch OTP from Redis using trip_id
+
+            # ---------------------------------------------------
+            # 9️⃣ Fetch OTP from Redis (best effort)
+            # ---------------------------------------------------
             try:
                 key = _otp_plain_key(trip.trip_id)
-                otp = redis_client.get(key)
-                # Handle both bytes and string returns from Redis
-                if otp:
-                    otp_val = otp.decode() if isinstance(otp, bytes) else otp
-                    if otp_val:
-                        out_dict['otp'] = otp_val
+                otp_val = redis_client.get(key)
+
+                if otp_val:
+                    otp_val = otp_val.decode() if isinstance(otp_val, bytes) else otp_val
+                    out_dict["otp"] = otp_val
+
             except Exception as e:
-                print(f"OTP fetch error: {e}")
+                print(f"[OTP_FETCH_ERROR] {e}")
 
-    print(f"[TRIP_STATUS_RESPONSE] trip_request_id={trip_request_id}, assigned_info={out_dict.get('assigned_info')}, trip_id={out_dict.get('assigned_info', {}).get('trip_id') if isinstance(out_dict.get('assigned_info'), dict) else 'N/A'}")
     return TripStatusOut(**out_dict)
-
-
 # ============================================
 # STATUS CHECK - FOR TRIP (after driver accepts, use trip_id instead)
 # ============================================
 
 @router.get("/{trip_id}/status")
-def get_trip_status_by_trip_id(
+def get_trip_status_by_trip_id_rider(
     trip_id: int,
     db: Session = Depends(get_db),
     rider: User = Depends(require_rider),
 ):
     """
-    Get trip status by trip_id (after driver accepts).
-    
-    🔒 STRICT OWNERSHIP: Only return if trip belongs to authenticated rider
-    Include OTP if trip is in "assigned" status
+    Rider trip status
+    🔒 Strict ownership: trip must belong to authenticated rider
     """
 
-
-    trip = (
-            db.query(Trip)
-            .join(TripRequest, Trip.trip_request_id == TripRequest.trip_request_id)
-            .filter(
-                Trip.trip_id == trip_id,
-                TripRequest.user_id == rider.user_id, 
-            )
-            .first()
+    result = (
+        db.query(Trip, TripRequest)
+        .join(TripRequest, Trip.trip_request_id == TripRequest.trip_request_id)
+        .filter(
+            Trip.trip_id == trip_id,
+            TripRequest.user_id == rider.user_id,
         )
+        .first()
+    )
 
-    if not trip:
+    if not result:
         raise HTTPException(status_code=404, detail="Trip not found")
 
-    response = {
+    trip, trip_request = result
+
+    # 🔥 Fetch driver live location from Redis
+    geo_key = f"drivers:geo:{trip.tenant_id}:{trip.city_id}"
+    pos = redis_client.geopos(geo_key, str(trip.driver_id))
+    driver_lat = None
+    driver_lng = None
+
+    if pos and pos[0]:
+        lng, lat = pos[0]
+
+        driver_lat = float(lat)
+        driver_lng = float(lng)
+    
+
+    
+
+    return {
         "trip_id": trip.trip_id,
         "status": trip.trip_status,
+
+        # pickup & drop from trip_requests
+        "pickup_lat": trip_request.pickup_lat,
+        "pickup_lng": trip_request.pickup_lng,
+        "drop_lat": trip_request.drop_lat,
+        "drop_lng": trip_request.drop_lng,
+        "pickup_address": trip_request.pickup_address,
+        "drop_address": trip_request.drop_address,
+
+        # live driver location
+        "driver_lat": driver_lat,
+        "driver_lng": driver_lng,
     }
-
-
-    return response
-
 # ================================================================
 # DEV: Rider OTP retrieval & resend (only available when DEV_MODE=true)
 # ================================================================
